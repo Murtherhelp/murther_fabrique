@@ -1446,7 +1446,11 @@ function wire() {
     const built = build(doc());
     const html = previewHtml(built, pagePath(doc(), page(S.previewPage), S.previewLang));
     const w = window.open("", "_blank");
-    if (!w) return say(t("noFolderApi"), "ko");
+    // window.open() returns null for two different reasons — a popup blocker
+    // in a normal tab, always inside the Windows shell — and reporting the
+    // folder-permission message for both sent people hunting for a dialog that
+    // had nothing to do with folders.
+    if (!w) return say(t("openTabBlocked"), "ko");
     w.document.open();
     w.document.write(html);
     w.document.close();

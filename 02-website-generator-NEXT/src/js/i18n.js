@@ -221,6 +221,12 @@ export const T = {
   loadProject: ["Open a project (.json)", "Ouvrir un projet (.json)"],
   saveFolder: ["Save into a folder", "Enregistrer dans un dossier"],
   noFolderApi: ["This browser has no folder access — use the .zip", "Ce navigateur n'accède pas aux dossiers — utilisez le .zip"],
+  // Its own message on purpose: window.open() is refused by a popup blocker in
+  // a normal tab and always returns null inside the Windows shell, so the
+  // button has to say which of the two happened. Reusing the folder message
+  // here sent people looking for a permission dialog that had nothing to do
+  // with folders.
+  openTabBlocked: ["No new tab — the browser blocked it. Allow pop-ups for this page, or export the site and open index.html.", "Pas de nouvel onglet — le navigateur l'a bloqué. Autorisez les fenêtres contextuelles, ou exportez le site et ouvrez index.html."],
   exported: ["Site exported (%s, %s files)", "Site exporté (%s, %s fichiers)"],
   // Was the literal French word "dossier" passed in from ui.js, so an English
   // interface announced "Site exported (dossier, 13 files)".
