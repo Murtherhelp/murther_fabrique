@@ -314,7 +314,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **328 checks passing across 6 suites** and
+`npm run verify` currently reports **329 checks passing across 6 suites** and
 exits 0:
 
 ```
@@ -384,8 +384,13 @@ controller serves both, so switching generators is a remap and a navigate.
 ```
 
 It probes NEXT, then navigates the same window to ORIGINAL and probes that too,
-checking each is genuinely rendered rather than merely loaded. The transcript
-lands in `%LOCALAPPDATA%\MurtherFabrique\selftest.txt`.
+checking each is genuinely rendered rather than merely loaded. A page that has
+painted but whose script died still has a title, a script element and its static
+markup, so rendering alone proves nothing: a hook installed before any page
+script runs records uncaught exceptions and unhandled rejections, and a verdict
+fails on any of them. ORIGINAL exposes no `window.wgn`, so it is verified through
+that hook rather than through NEXT's own API. The transcript lands in
+`%LOCALAPPDATA%\MurtherFabrique\selftest.txt`.
 
 Building it needs the MSVC build tools (*Desktop development with C++*) and the
 Windows SDK; it fetches one pinned NuGet package into `desktop/.cache/` the

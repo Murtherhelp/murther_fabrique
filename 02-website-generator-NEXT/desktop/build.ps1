@@ -184,7 +184,23 @@ $rcFile = Join-Path $rcDir 'app.rc'
 $res = Join-Path $rcDir 'app.res'
 # At the repository root, next to both generators: the .exe opens either of them,
 # so it belongs beside both rather than buried in one of them.
-$exe = Join-Path $repo 'MurtherFabrique.exe'
+$exe = Join-Path $repo 'MutherFabrique.exe'
+
+# Remove the old executable before linking, not after.
+#
+# An antivirus scanner holds a freshly written executable open for a moment. Link
+# into that window and the write goes nowhere, while the directory entry from the
+# previous build is still there to be measured: Test-Path succeeds, Get-Item
+# reports the size of the binary from the last run, and the script prints a
+# successful build of a file that was never written. Deleting first turns that
+# into an honest failure.
+if (Test-Path -LiteralPath $exe) {
+    try {
+        Remove-Item -LiteralPath $exe -Force -ErrorAction Stop
+    } catch {
+        throw "the previous executable is held open and cannot be replaced: $($_.Exception.Message)"
+    }
+}
 
 Write-Step 'compiling the launcher'
 # /MT: the C runtime is linked in, so the executable needs nothing installed.
@@ -228,9 +244,19 @@ $batText = "`r`n" +
 if ($LASTEXITCODE -ne 0) { throw "the build failed with exit code $LASTEXITCODE" }
 if (-not (Test-Path -LiteralPath $exe)) { throw 'the link produced nothing' }
 
+# Open the result. A directory entry can survive a failed write, so existing is
+# not evidence: if the file cannot be read back, nothing was linked.
+try {
+    $stream = [System.IO.File]::OpenRead($exe)
+    $linked = $stream.Length
+    $stream.Dispose()
+} catch {
+    throw "the link left an unreadable file: $($_.Exception.Message)"
+}
+
 Remove-Item -LiteralPath $rcDir -Recurse -Force -ErrorAction SilentlyContinue
 
-$size = (Get-Item -LiteralPath $exe).Length
+$size = $linked
 Write-Host ''
 Write-Host ("MURTHER FABRIQUE -> {0}" -f $exe)
 Write-Host ("  executable  {0:N0} bytes" -f $size)

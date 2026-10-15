@@ -344,11 +344,34 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 // The viewport check is load-bearing. A 0x0 controller still loads the page and
 // still runs every script, so the original version of this self-test passed on a
 // window that showed the user nothing but black.
+// Installed before any page script runs, which is the only moment at which a
+// failure during the page's own start-up can still be caught. `rendered` below
+// cannot see those failures on its own: a page whose script threw on its first
+// line still has a title, still has a script element, and still shows whatever
+// static markup the document shipped with. It looks painted and it is dead.
+//
+// ORIGINAL has no window.wgn, so the deep check below is skipped for it. That
+// left the legacy generator verified only down to "a page appeared", which is
+// the one thing a self-test should never accept as proof of life.
+//
+// Only uncaught exceptions and unhandled rejections are recorded. A resource
+// that fails to load fires an error event on the element itself and still
+// reaches a capturing listener on window; a page may legitimately reference
+// something optional, but it may not throw while starting up.
+constexpr wchar_t kErrorHook[] =
+    L"(function(){var e=[];window.__mfErrors=e;"
+    L"window.addEventListener('error',function(v){if(v.target===window)"
+    L"e.push(String(v.message||(v.error&&v.error.message)||'error'));},true);"
+    L"window.addEventListener('unhandledrejection',function(v){"
+    L"var r=v&&v.reason;e.push('unhandled rejection: '+String((r&&r.message)||r));"
+    L"},true);})()";
+
 constexpr wchar_t kProbe[] =
     L"(function(){var o={};try{"
     L"o.ready=!!window.wgn;"
     L"o.files=window.wgn?Object.keys(window.wgn.build().files).length:-1;"
     L"o.selfCheck=window.wgn?window.wgn.errors().length:-1;"
+    L"o.errors=Array.isArray(window.__mfErrors)?window.__mfErrors.slice(0,3):'no hook';"
     L"o.storage=(function(){try{localStorage.setItem('__mf','1');var v=localStorage.getItem('__mf')==='1';localStorage.removeItem('__mf');return v;}catch(e){return false;}})();"
     L"o.origin=location.origin;o.path=location.pathname;o.title=document.title;"
     L"o.viewport=innerWidth+'x'+innerHeight;"
@@ -367,7 +390,11 @@ constexpr wchar_t kVerdict[] =
     L"var rendered=innerWidth>=640&&innerHeight>=400&&document.title.length>0"
     L"&&document.scripts.length>0&&document.body&&document.body.innerText.length>10;"
     L"var deep=!window.wgn||(Object.keys(window.wgn.build().files).length>10&&window.wgn.errors().length===0);"
-    L"return (rendered&&deep&&store)?0:1;"
+    // -1 rather than a default of 0 when the hook is absent: a missing hook has
+    // to fail the verdict. Treating it as "zero errors" would make the one check
+    // that covers ORIGINAL pass precisely when it is not running at all.
+    L"var errs=Array.isArray(window.__mfErrors)?window.__mfErrors.length:-1;"
+    L"return (rendered&&deep&&store&&errs===0)?0:1;"
     L"}catch(e){return 2}})()";
 
 void CloseSoon() { PostMessage(gWindow, WM_CLOSE, 0, 0); }
@@ -465,6 +492,14 @@ int Fail(const wchar_t* what) {
 /* --------------------------------------------------------------- start-up */
 
 void ConfigureWebView(ICoreWebView2_2* webview) {
+  // Unconditionally, and not only for the self-test: the hook is a few hundred
+  // bytes and it is the one thing that tells a painted page from a live one.
+  // Mounted once per controller, it survives the self-test's second navigation.
+  webview->AddScriptToExecuteOnDocumentCreated(
+      kErrorHook,
+      Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler>(
+          [](HRESULT, LPCWSTR) -> HRESULT { return S_OK; }).Get());
+
   webview->add_NewWindowRequested(
       Callback<ICoreWebView2NewWindowRequestedEventHandler>(
           [](ICoreWebView2*, ICoreWebView2NewWindowRequestedEventArgs* args) -> HRESULT {
