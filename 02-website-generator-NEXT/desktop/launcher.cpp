@@ -256,19 +256,24 @@ constexpr wchar_t kProbe[] =
     L"o.selfCheck=window.wgn?window.wgn.errors().length:-1;"
     L"o.storage=(function(){try{localStorage.setItem('__mf','1');var v=localStorage.getItem('__mf')==='1';localStorage.removeItem('__mf');return v;}catch(e){return false;}})();"
     L"o.origin=location.origin;o.path=location.pathname;o.title=document.title;"
+    L"o.viewport=innerWidth+'x'+innerHeight;"
     L"}catch(e){o.error=e.message}"
     L"return JSON.stringify(o)})()";
 // The verdict recomputes everything instead of reading what the probe left
 // behind. Two scripts submitted back to back are not ordered against each
 // other, so a verdict that depended on a value the probe had not written yet
 // would report a failure that is really a race.
+//
+// The viewport check is load-bearing. A 0x0 controller still loads the page and
+// still runs every script, so the original version of this self-test passed on a
+// window that showed the user nothing but black.
 constexpr wchar_t kVerdict[] =
     L"(function(){try{"
     L"var ok=!!window.wgn;"
     L"var files=window.wgn?Object.keys(window.wgn.build().files).length:0;"
     L"var self=window.wgn?window.wgn.errors().length:-1;"
     L"var store=false;try{localStorage.setItem('__mf','1');store=localStorage.getItem('__mf')==='1';localStorage.removeItem('__mf');}catch(e){}"
-    L"return (ok&&files>10&&self===0&&store)?0:1;"
+    L"return (ok&&files>10&&self===0&&store&&innerWidth>=640&&innerHeight>=400)?0:1;"
     L"}catch(e){return 2}})()";
 
 void CloseSoon() { PostMessage(gWindow, WM_CLOSE, 0, 0); }
@@ -411,6 +416,17 @@ ComPtr<ICoreWebView2> webview;
   }
 
   ConfigureWebView(gWebView.Get());
+
+  // Give the controller its size NOW, not on the next WM_SIZE.
+  //
+  // This is the whole bug the black window was: the WebView2 environment comes
+  // up asynchronously, by which time the window has already been shown and
+  // settled at its final size. No further WM_SIZE ever arrives, so the
+  // controller keeps a 0x0 bounds, paints nothing, and the window shows its own
+  // black background. The page loads, the scripts run, the self-test passes --
+  // and the user sees nothing. Resize here, not only in the resize handler.
+  gController->put_IsVisible(TRUE);
+  ResizeWebView();
 
   const std::wstring url = gAppUrl();
   gWebView->Navigate(url.c_str());
