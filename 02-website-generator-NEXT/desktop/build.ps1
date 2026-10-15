@@ -8,7 +8,8 @@
 
   Four steps, in order:
     1. node build.mjs          -> dist\generator.html (the single-file app)
-    2. fetch the WebView2 SDK  -> desktop\.cache (pinned version, ~10 MB)
+    2. fetch the WebView2 SDK  -> desktop\.cache (pinned version, ~10 MB
+       downloaded, ~43 MB unpacked)
     3. rc.exe                  -> app.res (icon, version info, the app as RCDATA)
     4. cl.exe                  -> the executable, WebView2LoaderStatic linked in
 
