@@ -270,6 +270,9 @@ async function main() {
       d.baseUrl = 'https://look.test';
       d.company = 'Look Co';
       d.email = 'hello@look.test';
+      // Both languages, because half of a bilingual site is .fr.html files and
+      // a French visitor is not a visitor with fewer pixels to read.
+      d.meta.bilingual = true;
       let i = 0;
       for (const p of d.pages) for (const b of p.blocks) b.effect = looks[i++ % looks.length];
       window.wgn.state.history.reset(d);
@@ -282,7 +285,11 @@ async function main() {
         bin += String.fromCharCode.apply(null, bytes.subarray(k, k + CH));
       }
       out.push({ template, count: Object.keys(files).length, b64: btoa(bin),
-             pages: d.pages.map(p => (p.slug || 'index') + '.html') });
+             // From the files themselves, not from the document: a bilingual
+             // project emits a .fr.html for every page, and those are the half
+             // of the site a French visitor sees. The 404 and the legal pages
+             // carry no sections, so they have nothing to measure.
+             pages: Object.keys(files).filter(f => f.endsWith('.html') && !/^(404|privacy|legal)/.test(f)) });
     }
     return out;
   `);
@@ -296,7 +303,10 @@ async function main() {
       // Every page, not just the home page. A template puts different blocks on
       // each one, and the blocks added last - the timeline, the skills, the
       // logo strip - landed on the about page of a template nobody was opening.
-      for (const page of run.pages || ["index.html"]) {
+      // The .fr.html twin is checked for equivalence further down rather than
+      // measured again: contrast is a property of the colour pair, not of the
+      // string sitting on it.
+      for (const page of (run.pages || ["index.html"]).filter((p) => !p.endsWith(".fr.html"))) {
         const r = page === "index.html" ? rendered : await renderExported(read, scheme, page);
         perPage.push({
           template: run.template, page,
@@ -310,12 +320,13 @@ async function main() {
         });
       }
     }
+    const expected = (lookRuns || []).reduce((n, r) => n + (r.pages || []).filter((p) => !p.endsWith(".fr.html")).length, 0);
     const broken = perPage.filter((t) => t.sections > 0 && t.worst < 4.5);
     const unmeasured = perPage.filter((t) => t.sections === 0);
     const measured = perPage.filter((t) => t.sections > 0);
     const weakest = measured.slice().sort((a, b) => a.worst - b.worst)[0];
     ok(`every look stays readable on every page of every template (${scheme || "dark"})`,
-       perPage.length === 16 && broken.length === 0 && !!weakest,
+       perPage.length === expected && expected > 0 && broken.length === 0 && !!weakest,
        `${measured.length}/${perPage.length} pages with sections, ${perPage.reduce((n, t) => n + t.sampled, 0)} elements measured, worst ${weakest?.worst.toFixed(2)}:1 on ${weakest?.template}/${weakest?.page}${unmeasured.length ? `, nothing to measure on ${unmeasured.map((t) => t.template + "/" + t.page).join(", ")}` : ""}${broken.length ? ` - failing: ${broken.map((b) => b.template + "/" + b.page + " " + b.worst.toFixed(2) + " [" + b.first + "] " + (b.detail || "")).join("; ")}` : ""}`);
 
     // No look may be missing from the run: a look that never got exercised is
@@ -335,6 +346,47 @@ async function main() {
     ok(`the last five sections reached a browser and were measured (${scheme || "dark"})`,
        notRendered.length === 0,
        `${NEW.map((c) => c + "=" + (rendered[c] || 0)).join(" ")}${notRendered.length ? ` - never rendered: ${notRendered.join(", ")}` : ""}`);
+
+    // The French twin of each page shares the stylesheet and the section set,
+    // so its contrast is the same measurement. That is a claim, so it gets
+    // checked - against the markup rather than a second render, because which
+    // sections a page carries is decided in the HTML, not by the renderer.
+    const frDrift = [];
+    let frChecked = 0;
+    for (const run of lookRuns || []) {
+      const read = spawnSyncZip(run.b64);
+      const byName = new Map(read.all.map((e) => [e.name, e.body.toString("utf8")]));
+      for (const name of (run.pages || []).filter((p) => p.endsWith(".fr.html"))) {
+        const twin = byName.get(name.replace(".fr.html", ".html"));
+        const fr = byName.get(name);
+        if (!twin || !fr) { frDrift.push(`${run.template}/${name}: missing file`); continue; }
+        const sections = (html) => [...html.matchAll(/<section class="([^"]*)"/g)]
+          .map((m) => [...m[1].split(/\s+/)].filter((c) => c === "section" || c.startsWith("fx-")).join("."))
+          .join("|");
+        frChecked++;
+        if (sections(fr) !== sections(twin)) {
+          frDrift.push(`${run.template}/${name}: ${sections(fr)} vs ${sections(twin)}`);
+        }
+      }
+    }
+    ok(`every French page carries the same sections as its English twin (${scheme || "dark"})`,
+       frChecked > 0 && frDrift.length === 0,
+       frDrift.length ? frDrift.join("; ") : `${frChecked} French pages, same sections in the same order`);
+
+    // A comparator that always says "same" proves nothing, so it is shown two
+    // pages that genuinely differ.
+    const sample = (lookRuns || [])[0];
+    if (sample) {
+      const read = spawnSyncZip(sample.b64);
+      const byName = new Map(read.all.map((e) => [e.name, e.body.toString("utf8")]));
+      const signature = (html) => [...html.matchAll(/<section class="([^"]*)"/g)]
+        .map((m) => [...m[1].split(/\s+/)].filter((c) => c === "section" || c.startsWith("fx-")).join("."))
+        .join("|");
+      const names = [...byName.keys()].filter((n) => n.endsWith(".html") && !n.endsWith(".fr.html"));
+      const distinct = names.some((a) => names.some((b) => a !== b && signature(byName.get(a)) !== signature(byName.get(b))));
+      ok("the French-page check can tell two different pages apart", distinct,
+         distinct ? "comparing pages really does compare them" : "every page looks identical - the comparison is vacuous");
+    }
   }
 
   /* French export, read back from the archive. */
