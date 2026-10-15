@@ -15,6 +15,7 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, existsSync, readdirSync } from "node:fs";
+import { serve } from "./serve.mjs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -43,6 +44,7 @@ let stopped = false;
 function stop() {
   if (stopped) return;
   stopped = true;
+  try { stopServer(); } catch {}
   try { ws?.close(); } catch {}
   try { browser?.kill(); } catch {}
   for (let i = 0; i < 20; i++) {
@@ -108,6 +110,9 @@ async function tryEval(expression) {
 }
 
 async function main() {
+  // Each suite starts its own server; if one is already answering, serve adopts
+  // it rather than fighting for the port.
+  const stopServer = await serve(PORT);
   browser = spawn(EDGE, [
     `--remote-debugging-port=0`,
     `--user-data-dir=${profile}`,

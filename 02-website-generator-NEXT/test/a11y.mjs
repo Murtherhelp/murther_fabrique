@@ -8,6 +8,7 @@
  */
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { serve } from "./serve.mjs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -26,12 +27,8 @@ if (!EDGE) {
   process.exit(2);
 }
 
-/* Fail fast with an instruction instead of a 20s timeout per call. */
-if (!(await fetch(`http://localhost:${PORT}/`).then((r) => r.ok).catch(() => false))) {
-  console.error(`No server on http://localhost:${PORT}/.`);
-  console.error(`Start one with:  set PORT=${PORT} && node server.mjs`);
-  process.exit(2);
-}
+/* Start the server this suite needs, so `npm run test:a11y` works on its own. */
+const stopServer = await serve(PORT);
 
 const profile = mkdtempSync(join(tmpdir(), "wgn-a11y-"));
 let browser = null;
@@ -44,6 +41,7 @@ let stopped = false;
 function stop() {
   if (stopped) return;
   stopped = true;
+  try { stopServer(); } catch {}
   try { ws?.close(); } catch {}
   try { browser?.kill(); } catch {}
   for (let i = 0; i < 16; i++) {

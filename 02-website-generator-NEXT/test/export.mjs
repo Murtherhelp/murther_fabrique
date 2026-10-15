@@ -11,6 +11,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, existsSync } from "node:
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { serve } from "./serve.mjs";
 import { inflateRawSync } from "node:zlib";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -29,10 +30,8 @@ if (!EDGE) {
   console.error("No Chromium-based browser found.");
   process.exit(2);
 }
-if (!(await fetch(`http://localhost:${PORT}/`).then((r) => r.ok).catch(() => false))) {
-  console.error(`No server on http://localhost:${PORT}/.  Start:  set PORT=${PORT} && node server.mjs`);
-  process.exit(2);
-}
+/* Start the server this suite needs, so `npm run test:export` works alone. */
+const stopServer = await serve(PORT);
 
 const profile = mkdtempSync(join(tmpdir(), "wgn-zip-"));
 let browser = null;
@@ -45,6 +44,7 @@ let stopped = false;
 function stop() {
   if (stopped) return;
   stopped = true;
+  try { stopServer(); } catch {}
   try { ws?.close(); } catch {}
   try { browser?.kill(); } catch {}
   for (let i = 0; i < 16; i++) {
