@@ -1,4 +1,4 @@
-# Website Generator Next
+# MURTHER FABRIQUE — website generator
 
 A visual website generator that runs entirely in your browser. You fill in a
 form, watch the real page update beside it, and download a folder of plain
@@ -22,6 +22,7 @@ C:\Users\Miyabo\Documents\Website Generator\
    ├─ server.mjs
    ├─ README.md
    ├─ src\
+   ├─ desktop\                    the Windows launcher and its build script
    └─ test\
 ```
 
@@ -56,7 +57,7 @@ npm run build     # writes dist/generator.html
 ```
 
 `dist/generator.html` is the whole generator — CSS, all ten modules, everything
-— in one 225 KB file. It needs no server, no Node, no install, and no network,
+— in one 255 KB file. It needs no server, no Node, no install, and no network,
 exactly like the legacy generator. Double-click it.
 
 The eleven source modules stay exactly as they are. `build.mjs` flattens them
@@ -68,7 +69,7 @@ tests still import `src/js/*.js` directly. **`dist/generator.html` is generated
 ## Test it
 
 ```bash
-npm test          # 79 core checks, no browser needed
+npm test          # 80 core checks, no browser needed
 npm run verify    # everything: core + 5 more suites, starting its own servers
 ```
 
@@ -79,7 +80,7 @@ suite can also be run alone (`npm run test:browser`, `test:a11y`, `test:i18n`,
 
 | suite | checks | what it covers |
 |---|---:|---|
-| **core** (`npm test`) | 79 | The pure engine in Node: XSS boundary, `safeHref`, contrast maths, dark-mode derivation, block registry, all 9 templates and their distinctness, bilingual output, nav integrity, hostile project import, undo/redo, ZIP writer. |
+| **core** (`npm test`) | 80 | The pure engine in Node: XSS boundary, `safeHref`, contrast maths, dark-mode derivation, block registry, all 9 templates and their distinctness, bilingual output, nav integrity, hostile project import, undo/redo, ZIP writer. |
 | **browser** | 76 | The real editor: language switching, every template and all 13 section types, inspector, quality report, undo/redo, drag-to-reorder, preview-frame navigation guard, the live contrast readout, accessible names, the theme's light and dark output. |
 | **accessibility** | 31 | Real Tab keypresses, accessible names on every control, focus visibility, landmarks, focus retention across a language switch, overflow at maximum text size. |
 | **i18n** | 11 | Autosave and reload round-trip, language independence, both site languages surviving a reload. |
@@ -309,11 +310,11 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **240 checks passing across 6 suites** and
+`npm run verify` currently reports **241 checks passing across 6 suites** and
 exits 0:
 
 ```
-79 core · 76 browser · 31 accessibility · 11 i18n · 32 export · 11 single-file
+80 core · 76 browser · 31 accessibility · 11 i18n · 32 export · 11 single-file
 ```
 
 The generated site was also confirmed to render correctly on its own: a
@@ -336,15 +337,16 @@ only when you supply them already sized.
 ## Files created
 
 ```
-Website Generator Next/
+MURTHER FABRIQUE — website generator/
 ├─ package.json           scripts only, zero dependencies
 ├─ build.mjs              emits dist/generator.html (the one-file build)
 ├─ server.mjs             static file server, Node stdlib only
 ├─ README.md              this file
 ├─ src/                   the application (see Architecture)
-├─ dist/                  generated: generator.html. Not source.
+├─ desktop/               the Win32 + WebView2 launcher and its build script
+├─ dist/                  generated: generator.html, MutherFabrique.exe
 └─ test/
-   ├─ test.mjs            79 core checks (node --test)
+   ├─ test.mjs            80 core checks (node --test)
    ├─ browser.mjs         76 end-to-end editor checks
    ├─ a11y.mjs            31 accessibility checks
    ├─ i18n.mjs            11 language and persistence checks
@@ -352,6 +354,36 @@ Website Generator Next/
    ├─ single.mjs          11 single-file checks (real file:// load)
    └─ verify.mjs          runs all six suites, starting a server where needed
 ```
+
+## The Windows application
+
+```powershell
+powershell -ExecutionPolicy Bypass -File desktop\build.ps1
+# -> dist\MurtherFabrique.exe   (495 KB, one file)
+```
+
+A native Win32 window hosting the **WebView2** runtime that Windows 10 21H2 and
+Windows 11 already ship, so the executable is half a megabyte rather than the
+150 MB an Electron wrapper would cost. The single-file application is compiled
+into it as a resource and unpacked to `%LOCALAPPDATA%\MurtherFabrique\` on first
+run, keyed by a hash of its own bytes. Nothing is installed, nothing is
+downloaded after launch, and no file has to stay beside the `.exe`.
+
+The page is served from a `https://murther-fabrique.local/` virtual host rather
+than `file://`, because a real origin is what `localStorage` needs: over
+`file://` the origin is opaque and autosave would not survive a restart.
+
+```powershell
+.\dist\MurtherFabrique.exe --selftest ; $LASTEXITCODE   # 0 = healthy
+```
+
+It boots the real application, checks the editor is alive, builds a site,
+confirms storage works and exits. The transcript lands in
+`%LOCALAPPDATA%\MurtherFabrique\selftest.txt`.
+
+Building it needs the MSVC build tools (*Desktop development with C++*) and the
+Windows SDK; it fetches one pinned NuGet package into `desktop/.cache/` the
+first time. See the [root README](../README.md) for the details.
 
 ---
 

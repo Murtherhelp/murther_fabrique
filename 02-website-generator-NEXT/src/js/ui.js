@@ -1234,7 +1234,7 @@ function wrapText(g, text, x, y, max, lh) {
 function deployNote(doc) {
   const fr = doc.meta.lang === "fr";
   return fr
-    ? `Website Generator Next - notes de deploiement
+    ? `MURTHER FABRIQUE - notes de deploiement
 ============================================
 
 Ces fichiers sont statiques. Aucune compilation, aucune base de donnees, aucun framework.
@@ -1265,7 +1265,7 @@ CE QUE CE SITE NE PEUT PAS FAIRE (il est statique, par conception)
     l'authentification. Ce generateur n'en fournit aucun et ne pretend pas le
     contraire.
 `
-    : `Website Generator Next - deployment notes
+    : `MURTHER FABRIQUE - deployment notes
 =========================================
 
 These are static files. No build step, no database, no framework.
@@ -1563,8 +1563,8 @@ function selfCheck() {
   const failed = checks.filter(([, ok]) => !ok);
   selfCheckErrors.length = 0;
   selfCheckErrors.push(...failed.map(([name]) => name));
-  for (const [name] of failed) console.error("Website Generator Next — SELF-CHECK FAILED: " + name);
-  if (!failed.length) console.info(`Website Generator Next — self-check: ${checks.length}/${checks.length} passed`);
+  for (const [name] of failed) console.error("MURTHER FABRIQUE — SELF-CHECK FAILED: " + name);
+  if (!failed.length) console.info(`MURTHER FABRIQUE — self-check: ${checks.length}/${checks.length} passed`);
 }
 
 boot();

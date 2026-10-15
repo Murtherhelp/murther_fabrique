@@ -63,7 +63,10 @@ button, input, select, textarea { font: inherit; color: inherit }
   padding: .55rem .8rem; background: var(--panel); border-bottom: 1px solid var(--line);
 }
 
-.brandmark { font-weight: 700; letter-spacing: -.01em; margin-inline-end: .5rem }
+.brandmark { font-weight: 700; letter-spacing: -.01em; margin-inline-end: .5rem;
+  display: flex; align-items: center; gap: .55rem; min-width: 0 }
+.brandmark__mark { width: 2rem; height: 2rem; flex: none }
+.brandmark__text { min-width: 0 }
 .brandmark small { display: block; font-weight: 400; color: var(--muted); font-size: .78rem }
 
 .btn {

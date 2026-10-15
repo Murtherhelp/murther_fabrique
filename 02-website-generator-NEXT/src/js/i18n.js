@@ -15,8 +15,8 @@
  */
 
 export const T = {
-  docTitle: ["Website Generator Next — visual site builder", "Website Generator Next — générateur visuel de sites"],
-  appName: ["Website Generator Next", "Website Generator Next"],
+  docTitle: ["MURTHER FABRIQUE — visual site builder", "MURTHER FABRIQUE — générateur visuel de sites"],
+  appName: ["MURTHER FABRIQUE", "MURTHER FABRIQUE"],
   taglineApp: ["Build, preview and export a real static website. No account, no server, no tracking.", "Construisez, prévisualisez et exportez un vrai site statique. Sans compte, sans serveur, sans pistage."],
   skipEditor: ["Skip to the editor", "Aller à l'éditeur"],
   close: ["Close", "Fermer"],
@@ -235,7 +235,7 @@ export const T = {
   errSlugReserved: ["%s is a reserved name — pick another one.", "%s est un nom réservé — choisissez-en un autre."],
   errTextLong: ["A text field is longer than %s characters; it will be cut on export.", "Un champ de texte dépasse %s caractères ; il sera tronqué à l'export."],
   errBadJson: ["This file is not valid JSON.", "Ce fichier n'est pas du JSON valide."],
-  errBadFormat: ["This is not a Website Generator project.", "Ce fichier n'est pas un projet Website Generator."],
+  errBadFormat: ["This is not a MURTHER FABRIQUE project file.", "Ce fichier n'est pas un projet MURTHER FABRIQUE."],
   errTooBig: ["File too large (%s). Limit is %s.", "Fichier trop volumineux (%s). La limite est de %s."],
   errNoBlock: ["Pick a section type first.", "Choisissez d'abord un type de section."],
   errLinkTarget: ["That link is not allowed — use http, https, mailto, tel, or an internal path.", "Ce lien n'est pas autorisé — utilisez http, https, mailto, tel, ou un chemin interne."],

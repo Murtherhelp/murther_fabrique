@@ -50,8 +50,8 @@ export const S = {
   ],
   legalTitle: ["Legal information", "Mentions légales"],
   legalBody: [
-    "## Publisher\nCompany name: COMPANY\nAddress: ADDRESS\nEmail: EMAIL\n\n## Hosting\nHOST, HOSTING_ADDRESS\n\n## Credits\nSite built with Website Generator Next.",
-    "## Éditeur\nRaison sociale : COMPANY\nAdresse : ADDRESS\nEmail : EMAIL\n\n## Hébergement\nHOST, HOSTING_ADDRESS\n\n## Crédits\nSite réalisé avec Website Generator Next."
+    "## Publisher\nCompany name: COMPANY\nAddress: ADDRESS\nEmail: EMAIL\n\n## Hosting\nHOST, HOSTING_ADDRESS\n\n## Credits\nSite built with MURTHER FABRIQUE.",
+    "## Éditeur\nRaison sociale : COMPANY\nAdresse : ADDRESS\nEmail : EMAIL\n\n## Hébergement\nHOST, HOSTING_ADDRESS\n\n## Crédits\nSite réalisé avec MURTHER FABRIQUE."
   ],
   copyright: ["All rights reserved", "Tous droits réservés"]
 };
