@@ -281,40 +281,60 @@ async function main() {
       for (let k = 0; k < bytes.length; k += CH) {
         bin += String.fromCharCode.apply(null, bytes.subarray(k, k + CH));
       }
-      out.push({ template, count: Object.keys(files).length, b64: btoa(bin) });
+      out.push({ template, count: Object.keys(files).length, b64: btoa(bin),
+             pages: d.pages.map(p => (p.slug || 'index') + '.html') });
     }
     return out;
   `);
 
   for (const scheme of [null, "light"]) {
-    const perTemplate = [];
+    const perPage = [];
     for (const run of lookRuns || []) {
       const read = spawnSyncZip(run.b64);
       const rendered = await renderExported(read, scheme);
       if (!read.ok) ok(`template "${run.template}" exports a readable archive (${scheme || "dark"})`, false, read.error);
-      perTemplate.push({
-        template: run.template,
-        worst: rendered.look?.worst ?? 0,
-        sampled: rendered.look?.sampled ?? 0,
-        sections: rendered.look?.sections ?? 0,
-        looks: rendered.look?.perLook ?? {},
-        first: rendered.look?.first,
-        detail: rendered.look?.detail
-      });
+      // Every page, not just the home page. A template puts different blocks on
+      // each one, and the blocks added last - the timeline, the skills, the
+      // logo strip - landed on the about page of a template nobody was opening.
+      for (const page of run.pages || ["index.html"]) {
+        const r = page === "index.html" ? rendered : await renderExported(read, scheme, page);
+        perPage.push({
+          template: run.template, page,
+          worst: r.look?.worst ?? 0,
+          sampled: r.look?.sampled ?? 0,
+          sections: r.look?.sections ?? 0,
+          looks: r.look?.perLook ?? {},
+          components: r.look?.components ?? {},
+          first: r.look?.first,
+          detail: r.look?.detail
+        });
+      }
     }
-    const broken = perTemplate.filter((t) => t.sections > 0 && t.worst < 4.5);
-    const unmeasured = perTemplate.filter((t) => t.sections === 0).map((t) => t.template);
-    const weakest = perTemplate.filter((t) => t.sections > 0).sort((a, b) => a.worst - b.worst)[0];
-    ok(`every look stays readable on every template (${scheme || "dark"})`,
-       perTemplate.length === 9 && broken.length === 0 && !!weakest,
-       `${perTemplate.length}/9 templates, ${perTemplate.reduce((n, t) => n + t.sampled, 0)} elements measured, worst ${weakest?.worst.toFixed(2)}:1 on ${weakest?.template}${unmeasured.length ? `, nothing to measure on ${unmeasured.join(", ")}` : ""}${broken.length ? ` - failing: ${broken.map((b) => b.template + " " + b.worst.toFixed(2) + " [" + b.first + "] " + (b.detail || "")).join("; ")}` : ""}`);
+    const broken = perPage.filter((t) => t.sections > 0 && t.worst < 4.5);
+    const unmeasured = perPage.filter((t) => t.sections === 0);
+    const measured = perPage.filter((t) => t.sections > 0);
+    const weakest = measured.slice().sort((a, b) => a.worst - b.worst)[0];
+    ok(`every look stays readable on every page of every template (${scheme || "dark"})`,
+       perPage.length === 16 && broken.length === 0 && !!weakest,
+       `${measured.length}/${perPage.length} pages with sections, ${perPage.reduce((n, t) => n + t.sampled, 0)} elements measured, worst ${weakest?.worst.toFixed(2)}:1 on ${weakest?.template}/${weakest?.page}${unmeasured.length ? `, nothing to measure on ${unmeasured.map((t) => t.template + "/" + t.page).join(", ")}` : ""}${broken.length ? ` - failing: ${broken.map((b) => b.template + "/" + b.page + " " + b.worst.toFixed(2) + " [" + b.first + "] " + (b.detail || "")).join("; ")}` : ""}`);
 
     // No look may be missing from the run: a look that never got exercised is
     // not a look that passed.
-    const seen = new Set(perTemplate.flatMap((t) => Object.keys(t.looks)));
+    const seen = new Set(perPage.flatMap((t) => Object.keys(t.looks)));
     const missing = (EFFECTS.map(([v]) => v).filter((v) => v !== "none")).filter((v) => !seen.has(v));
     ok(`every look was actually exercised (${scheme || "dark"})`, missing.length === 0,
        `measured: ${[...seen].join(", ")}${missing.length ? ` - never exercised: ${missing.join(", ")}` : ""}`);
+
+    // The components added last live on the about page of one template and the
+    // home page of another. A suite that opened only index.html would never see
+    // half of them, and would still report green.
+    const NEW = ["steps", "skills", "logos", "quote", "time"];
+    const rendered = {};
+    for (const t of perPage) for (const [k, n] of Object.entries(t.components)) rendered[k] = (rendered[k] || 0) + n;
+    const notRendered = NEW.filter((c) => !rendered[c]);
+    ok(`the last five sections reached a browser and were measured (${scheme || "dark"})`,
+       notRendered.length === 0,
+       `${NEW.map((c) => c + "=" + (rendered[c] || 0)).join(" ")}${notRendered.length ? ` - never rendered: ${notRendered.join(", ")}` : ""}`);
   }
 
   /* French export, read back from the archive. */
@@ -423,7 +443,7 @@ function zlibInflateRawSync(buf) {
  * one from the ZIP, and the only thing that gets removed afterwards is the
  * temporary folder.
  */
-async function renderExported(zipRead, scheme = null) {
+async function renderExported(zipRead, scheme = null, page = "index.html") {
   const folder = `_export-probe-${process.pid}-${Date.now()}`;
   const base = join(ROOT, "src", folder);
   mkdirSync(base, { recursive: true });
@@ -437,7 +457,7 @@ async function renderExported(zipRead, scheme = null) {
       writeFileSync(target, e.body);
     }
 
-    const { targetId } = await send("Target.createTarget", { url: `http://localhost:${PORT}/${folder}/index.html` });
+    const { targetId } = await send("Target.createTarget", { url: `http://localhost:${PORT}/${folder}/${page}` });
     const { sessionId: sid } = await send("Target.attachToTarget", { targetId, flatten: true });
     const ask = async (expr) => {
       const r = await send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }, sid);
@@ -518,7 +538,14 @@ async function renderExported(zipRead, scheme = null) {
           }
         }
         const cs = getComputedStyle(secs[0]);
-        return { worst, sampled, sections: secs.length, perLook, first, detail, bg: cs.backgroundColor, fg: cs.color };
+        // Which of the components added last actually rendered, so a suite that
+        // opens only the home page cannot pass without them.
+        const components = {};
+        for (const sel of ['.steps', '.skills', '.logos', '.quote', '.time', '.feature', '.ico']) {
+          const n = document.querySelectorAll(sel).length;
+          if (n) components[sel.slice(1)] = n;
+        }
+        return { worst, sampled, sections: secs.length, perLook, components, first, detail, bg: cs.backgroundColor, fg: cs.color };
       })()
     })`);
     await send("Target.closeTarget", { targetId });
