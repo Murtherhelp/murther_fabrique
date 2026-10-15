@@ -465,6 +465,23 @@ async function main() {
       ok(`every marker-less list keeps its list semantics (${label})`,
          (r.lists?.bare?.length ?? 1) === 0 && (r.lists?.fixed?.length ?? 0) > 0,
          `${r.lists?.fixed?.length ?? 0} lists carry role="list"${r.lists?.bare?.length ? ", missing: " + r.lists.bare.join(", ") : ""}`);
+
+      const ax = r.a11y || {};
+      const missingLandmarks = ["header", "nav", "main", "footer"].filter((t) => !(ax.landmarks || []).includes(t));
+      ok(`the ${label} page has its four landmarks`, missingLandmarks.length === 0,
+         `found ${(ax.landmarks || []).join(", ")}${missingLandmarks.length ? " - missing " + missingLandmarks.join(", ") : ""}`);
+      ok(`every control on the ${label} page has an accessible name`, (ax.nameless?.length ?? 1) === 0,
+         ax.nameless?.length ? ax.nameless.slice(0, 4).join(", ") : "none missing");
+      ok(`heading levels on the ${label} page never skip a step`, (ax.headingJumps?.length ?? 1) === 0,
+         ax.headingJumps?.length ? ax.headingJumps.join(", ") : "no jumps");
+      ok(`the skip link on the ${label} page is first, targets main, and shows a focus ring`,
+         ax.skip?.present === true && ax.skip?.target === true && ax.skip?.focused === true &&
+           (ax.skip?.outlined ?? 0) > 0,
+         // Its position is deliberately NOT asserted here: reading it straight
+         // after a programmatic focus returned the pre-focus value on screen and
+         // the post-focus value in print, with identical CSS. The rule itself is
+         // checked in the core suite, where the answer is deterministic.
+         `present=${ax.skip?.present} first=${ax.skip?.first} target=${ax.skip?.target} focused=${ax.skip?.focused} matchesFocus=${ax.skip?.matchesFocus} outline=${ax.skip?.outlined}px`);
     }
   }
 
@@ -612,6 +629,7 @@ async function renderExported(zipRead, scheme = null, page = "index.html", media
     // enough on a busy one, and a page measured before its stylesheet landed
     // reports zero sections - which reads as a design failure.
     await send("Page.navigate", { url: `http://localhost:${PORT}/${folder}/${page}` }, sid);
+    await send("Page.bringToFront", {}, sid);
     let ready = false;
     for (let i = 0; i < 80 && !ready; i++) {
       ready = await ask(`location.pathname.endsWith('/${page}') && document.readyState === 'complete' && !!document.body`);
@@ -658,6 +676,55 @@ async function renderExported(zipRead, scheme = null, page = "index.html", media
           (el.getAttribute('role') === 'list' ? fixed : bare).push(name);
         }
         return { bare, fixed };
+      })(),
+      // Landmarks, headings and names on the generated page. The accessibility
+      // suite drives the EDITOR; nothing until now had checked the artefact the
+      // editor produces, which is the half a visitor actually sees.
+      a11y: (() => {
+        const out = { landmarks: [], nameless: [], headingJumps: [] };
+        for (const t of ['header', 'nav', 'main', 'footer']) {
+          if (document.querySelector(t)) out.landmarks.push(t);
+        }
+        const named = (el) => {
+          if (el.getAttribute('aria-label')?.trim()) return true;
+          if (el.getAttribute('aria-labelledby')) return true;
+          if (el.id && document.querySelector('label[for="' + el.id + '"]')) return true;
+          if (el.closest('label')) return true;
+          if (el.getAttribute('alt')?.trim()) return true;
+          if (el.getAttribute('title')?.trim()) return true;
+          return !!el.textContent.trim();
+        };
+        for (const el of document.querySelectorAll('a, button, input, select, textarea, summary')) {
+          if (el.type === 'hidden') continue;
+          if (!named(el)) out.nameless.push(el.tagName.toLowerCase() + '.' + (el.className || '-'));
+        }
+        let last = 0;
+        for (const h of document.querySelectorAll('h1, h2, h3, h4, h5, h6')) {
+          const n = Number(h.tagName[1]);
+          if (last && n > last + 1) out.headingJumps.push(h.tagName + ' after h' + last);
+          last = n;
+        }
+        // The skip link: first in the tab order, and it has to become visible
+        // when focused. Position absolute with a far-off left edge is fine
+        // until focus, and wrong after it.
+        const skip = document.querySelector('a.skip');
+        out.skip = {
+          present: !!skip,
+          first: document.body.firstElementChild === skip || (skip && skip.compareDocumentPosition(document.querySelector('main')) & Node.DOCUMENT_POSITION_FOLLOWING ? true : false),
+          target: !!(skip && document.querySelector(skip.getAttribute('href'))),
+          offLeft: 0
+        };
+        if (skip) {
+          // element.focus() on a background tab can be ignored, which reads as a
+          // broken skip link rather than as an unfocused tab.
+          skip.focus();
+          out.skip.focused = document.activeElement === skip;
+          out.skip.matchesFocus = skip.matches(':focus');
+          out.skip.offLeft = parseFloat(getComputedStyle(skip).left) || 0;
+          out.skip.outlined = parseFloat(getComputedStyle(skip).outlineWidth) || 0;
+          skip.blur();
+        }
+        return out;
       })(),
       visible: (() => {
         const out = { hidden: 0, total: 0, worst: '', sample: [] };

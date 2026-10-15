@@ -616,6 +616,20 @@ test("every marker-less list still announces itself as a list", () => {
   assert.equal(missing.length, 0, `lists WebKit would drop from the accessibility tree:\n  ${missing.join("\n  ")}`);
 });
 
+test("the skip link is hidden until it is focused, and comes back on focus", () => {
+  const css = siteCss({ ...blankDoc().theme }, { title: "T", slug: "t", lang: "en" });
+  const hidden = css.match(/\.skip\{[^}]*\}/);
+  assert.ok(hidden, "the stylesheet never hides the skip link, so it is always on screen");
+  assert.match(hidden[0], /left:-9999px/, "hidden by moving it off-screen, not by display:none");
+
+  const shown = css.match(/\.skip:focus\{[^}]*\}/);
+  assert.ok(shown, "nothing brings the skip link back when it is focused");
+  assert.match(shown[0], /left:1rem/, "the focused skip link stays at the off-screen position");
+  assert.match(shown[0], /z-index:\d+/, "it must land above the header it sits on");
+  // Same specificity, so the focused rule has to come second.
+  assert.ok(css.indexOf(".skip:focus{") > css.indexOf(".skip{"), "the focused rule is declared before the hidden one");
+});
+
 test("printing cannot leave content at the start of an entrance animation", () => {
   // Every entrance rule uses animation-fill-mode: both, which leaves an
   // element at its "from" state - opacity 0 - if the browser holds that state
