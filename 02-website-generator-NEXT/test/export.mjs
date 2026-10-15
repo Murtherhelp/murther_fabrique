@@ -387,6 +387,35 @@ async function main() {
       ok("the French-page check can tell two different pages apart", distinct,
          distinct ? "comparing pages really does compare them" : "every page looks identical - the comparison is vacuous");
 
+    // Every block type at once, all under the accent fill. The nine templates
+    // each exercise a handful of blocks; the combination nobody ships - a link
+    // inside a card inside an accent section - is exactly where a two-level
+    // colour scheme falls over, and no template happens to contain it.
+    const allInOne = await ev(`
+      const { toEntries, zip } = await import('./js/zip.js');
+      window.wgn.applyTemplate('blank');
+      const d = window.wgn.doc();
+      d.baseUrl = 'https://all.test';
+      d.company = 'All Co';
+      d.email = 'hello@all.test';
+      d.meta.bilingual = false;
+      d.pages[0].blocks = window.wgn.blockOrder().map((type, i) => ({ ...window.wgn.makeBlock(type), id: 'b' + i, effect: 'accent' }));
+      window.wgn.state.history.reset(d);
+      const files = await window.wgn.files();
+      const blob = await zip(toEntries(files), new Date(2026, 0, 1));
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let bin = '';
+      const CH = 0x8000;
+      for (let k = 0; k < bytes.length; k += CH) bin += String.fromCharCode.apply(null, bytes.subarray(k, k + CH));
+      return { b64: btoa(bin), types: d.pages[0].blocks.map(b => b.type) };
+    `);
+    for (const scheme of [null, "light"]) {
+      const read = spawnSyncZip(allInOne.b64);
+      const r = await renderExported(read, scheme);
+      ok(`all ${allInOne.types?.length} block types under one accent fill (${scheme || "dark"})`,
+         (r.look?.worst ?? 0) >= 4.5 && (r.look?.sampled ?? 0) > 0,
+         `worst ${(r.look?.worst ?? 0).toFixed(2)}:1 over ${r.look?.sampled ?? 0} elements in ${r.look?.sections ?? 0} sections — ${r.look?.first || "none"}: ${r.look?.detail || ""}`);
+    }
     // The pages with no sections: the 404, the legal notice and the privacy
     // policy. They carry no look, so the question is only whether they clear
     // the audited text pairs, and they do use --ink and --muted on --bg.

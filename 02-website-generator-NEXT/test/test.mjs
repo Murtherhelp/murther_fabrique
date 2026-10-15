@@ -561,6 +561,31 @@ test("the accent fill's own background is the accent, not the colour meant to si
   assert.match(css, /\.fx-accent > \.wrap\{[^}]*background:var\(--mf-accent\)/);
 });
 
+test("a component that fills with the accent gets the unflipped one", () => {
+  const css = siteCss({ ...blankDoc().theme }, { title: "T", slug: "t", lang: "en" });
+  // The skill bar, the timeline dot and the step number paint the accent as a
+  // FILL. Inside an accent fill --accent has been swapped to the text colour,
+  // so a fill taken from it lands on its own ground: the bar's track and its
+  // fill came out identical, and the dot disappeared. Found by putting all
+  // eighteen blocks under one accent fill - no template happens to do that.
+  for (const sel of [".skills__bar i", ".time__item::before", ".steps li::before"]) {
+    const name = sel.split(" ")[0].replace(/[.]/g, "\\.");
+    assert.match(css, new RegExp(`\\.fx-accent ${name}[^{]*\\{[^}]*background:var\\(--mf-accent\\)`),
+      `${sel} fills with the flipped accent, so it lands on its own ground`);
+  }
+  // And the step number is text ON that fill, so it needs the other colour.
+  assert.match(css, /\.fx-accent \.steps li::before\{[^}]*color:var\(--mf-accent-on\)/);
+});
+
+test("a descendant rule does not leak into a panel it was not meant for", () => {
+  const css = siteCss({ ...blankDoc().theme }, { title: "T", slug: "t", lang: "en" });
+  // The section rule once named the small element. A descendant selector has no
+  // idea it is inside a card, so every <small> in a panel got the section's
+  // text colour painted on the panel's own ground: 1.00:1, measured.
+  assert.doesNotMatch(css, /\.fx-accent small/);
+  assert.doesNotMatch(css, /\.fx-accent [a-z]+,[^{]*\.fx-accent small/);
+});
+
 test("every motion level still yields a stylesheet a browser accepts", () => {
   for (const m of ["none", "subtle", "expressive", "", "wild", null]) {
     const css = siteCss({ ...blankDoc().theme, motion: m }, { title: "T", slug: "t", lang: "en" });

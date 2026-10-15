@@ -266,11 +266,23 @@ const EFFECT_CSS = `
  background:var(--mf-accent);color:var(--mf-accent-on)}
 .fx-accent .card,.fx-accent .quote,.fx-accent .thread,.fx-accent .cta,
 .fx-accent pre,.fx-accent code,.fx-accent th,
-.fx-accent blockquote,.fx-accent .tag,.fx-accept .price{
+.fx-accent blockquote,.fx-accent .tag,.fx-accent .price{
  --ink:var(--mf-accent);--muted:var(--mf-accent);--accent:var(--mf-accent);
  --accent-on:var(--mf-accent-on);color:var(--mf-accent)}
 .fx-accent > .wrap{background:var(--mf-accent);color:var(--mf-accent-on);border-radius:var(--radius);padding:clamp(1.5rem,3vw,2.5rem)}
-.fx-accent .lede,.fx-accent small{color:var(--mf-accent-on);opacity:.85}
+/* Only the lead paragraph. This used to name the small element here as well,
+   and a descendant selector has no idea it is inside a card: every <small> in a
+   panel got the section's text colour painted on the panel's own ground,
+   measured at 1.00:1. Small needs no rule here at all - the section already
+   repoints --muted, and a panel repoints it back. */
+.fx-accent .lede{color:var(--mf-accent-on);opacity:.85}
+/* Three components paint the accent as a FILL rather than as text. At section
+   level --accent has been swapped to the text colour, so the fill would land on
+   its own ground: the skill bar's track and its fill came out identical and the
+   timeline dot vanished. They take the unflipped accent, which is readable
+   both on the section and inside a panel. */
+.fx-accent .skills__bar i,.fx-accent .time__item::before{background:var(--mf-accent)}
+.fx-accent .steps li::before{background:var(--mf-accent);color:var(--mf-accent-on)}
 .fx-gradient > .wrap{background:linear-gradient(160deg,var(--surface),var(--bg));border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
 .fx-shadow > .wrap{background:var(--surface);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem);box-shadow:0 18px 50px -24px rgb(0 0 0 / .55)}
 .fx-inset > .wrap{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
@@ -279,15 +291,6 @@ const EFFECT_CSS = `
 
 /* ----------------------------------------------------------------- motion */
 
-/**
- * Motion.
- *
- * Three settings, and the default is none. Everything is CSS animation on load
- * rather than an IntersectionObserver: the exported site keeps its "one small
- * script" promise, and a page that animates before its images land still reads
- * as a page. The prefers-reduced-motion rule at the end of
- * the sheet) collapses every duration, so the setting can never fight it.
- */
 /**
  * Motion.
  *
