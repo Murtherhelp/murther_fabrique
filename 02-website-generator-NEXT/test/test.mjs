@@ -586,6 +586,20 @@ test("a descendant rule does not leak into a panel it was not meant for", () => 
   assert.doesNotMatch(css, /\.fx-accent [a-z]+,[^{]*\.fx-accent small/);
 });
 
+test("printing cannot leave content at the start of an entrance animation", () => {
+  // Every entrance rule uses animation-fill-mode: both, which leaves an
+  // element at its "from" state - opacity 0 - if the browser holds that state
+  // when the animation never runs. Chrome happens not to; another browser
+  // might, and the result is a page that prints blank. So the guarantee is in
+  // the stylesheet rather than in the browser's goodwill.
+  const css = siteCss({ ...blankDoc().theme, motion: "expressive" }, { title: "T", slug: "t", lang: "en" });
+  const at = css.indexOf("@media print");
+  assert.ok(at >= 0, "the stylesheet has no print rules at all");
+  const print = css.slice(at, at + 300);
+  assert.match(print, /animation:none!important/);
+  assert.match(print, /transition:none!important/);
+});
+
 test("every motion level still yields a stylesheet a browser accepts", () => {
   for (const m of ["none", "subtle", "expressive", "", "wild", null]) {
     const css = siteCss({ ...blankDoc().theme, motion: m }, { title: "T", slug: "t", lang: "en" });

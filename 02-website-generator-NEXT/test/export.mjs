@@ -423,6 +423,7 @@ async function main() {
     d.company = 'All Co';
     d.email = 'hello@all.test';
     d.meta.bilingual = false;
+    d.theme.motion = 'expressive';
     d.pages[0].blocks = window.wgn.blockOrder().map((type, i) => ({ ...window.wgn.makeBlock(type), id: 'b' + i, effect: '${look}' }));
     window.wgn.state.history.reset(d);
     const files = await window.wgn.files();
@@ -444,6 +445,23 @@ async function main() {
       ok(`all ${run.types.length} block types under the "${look}" look (${scheme || "dark"})`,
          (r.look?.textWorst ?? 0) >= 4.5 && (r.look?.fillWorst ?? 99) >= 3 && (r.look?.sampled ?? 0) > 0,
          `text ${(r.look?.textWorst ?? 0).toFixed(2)}:1 (needs 4.5), fills ${(r.look?.fillWorst ?? 0).toFixed(2)}:1 (needs 3), ${r.look?.sampled ?? 0} elements in ${r.look?.sections ?? 0} sections — ${r.look?.first || "none"}`);
+    }
+  }
+
+  /* Printed on paper. Animations never run in print, and every entrance rule
+     here uses animation-fill-mode: both - which leaves an element sitting at
+     the animation's "from" state, opacity 0, if the browser holds that state.
+     A site that prints blank is worse than a site that prints plainly, and no
+     other check would ever see it. The document above has motion switched on
+     precisely so this has something to catch. */
+  {
+    const run = await buildAllInOne("soft");
+    const read = spawnSyncZip(run.b64);
+    for (const [label, media] of [["screen", null], ["print", "print"]]) {
+      const r = await renderExported(read, null, "index.html", media);
+      ok(`nothing is left invisible when the page is ${label === "print" ? "printed" : "shown"} (${label})`,
+         (r.visible?.total ?? 0) > 20 && (r.visible?.hidden ?? 1) === 0,
+         `${r.visible?.total ?? 0} elements, ${r.visible?.hidden ?? 0} invisible${r.visible?.sample?.length ? " — " + r.visible.sample.join("; ") : ""}`);
     }
   }
 
@@ -553,7 +571,7 @@ function zlibInflateRawSync(buf) {
  * one from the ZIP, and the only thing that gets removed afterwards is the
  * temporary folder.
  */
-async function renderExported(zipRead, scheme = null, page = "index.html") {
+async function renderExported(zipRead, scheme = null, page = "index.html", media = null) {
   const folder = `_export-probe-${process.pid}-${Date.now()}`;
   const base = join(ROOT, "src", folder);
   mkdirSync(base, { recursive: true });
@@ -596,6 +614,25 @@ async function renderExported(zipRead, scheme = null, page = "index.html") {
         .filter(r => !r.name.startsWith(location.origin) && !r.name.startsWith('data:') && !r.name.startsWith('blob:')).length,
       styleSheets: document.styleSheets.length,
       scriptsRan: typeof document.querySelector('[data-theme-toggle]') !== 'undefined',
+      // Everything a reader would actually see: no element left at the start
+      // of an entrance animation, nothing transparent, nothing off-screen. A
+      // printed page is the case where animations never run.
+      visible: (() => {
+        const out = { hidden: 0, total: 0, worst: '', sample: [] };
+        for (const el of document.querySelectorAll('main *')) {
+          const s = getComputedStyle(el);
+          if (s.display === 'none') continue;
+          if (!el.textContent.trim() && el.tagName !== 'IMG' && el.tagName !== 'SVG') continue;
+          out.total++;
+          const opacity = parseFloat(s.opacity);
+          const off = s.visibility === 'hidden' || opacity < 0.9;
+          if (off) {
+            out.hidden++;
+            if (out.sample.length < 3) out.sample.push((el.className || el.tagName) + ' opacity=' + s.opacity + ' visibility=' + s.visibility);
+          }
+        }
+        return out;
+      })(),
       look: (() => {
         const secs = document.querySelectorAll('[class*=" fx-"]');
         if (!secs.length) return null;
