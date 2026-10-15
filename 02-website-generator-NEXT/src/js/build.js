@@ -333,7 +333,7 @@ function favicon(doc) {
 
 /* The generated site's only JavaScript: theme toggle + the static form.
    No framework, no analytics, no network. */
-const SITE_JS = `/* MURTHER FABRIQUE — theme toggle + static form. */
+export const SITE_JS = `/* MURTHER FABRIQUE — theme toggle + static form. */
 (function () {
   "use strict";
   var KEY = "theme";

@@ -15,7 +15,7 @@ static files to upload anywhere.
 
 ```
 C:\Users\Miyabo\Documents\Website Generator\
-├─ 01-legacy-generator-ORIGINAL\    the previous generator (read-only, do not edit)
+├─ 01-legacy-generator-ORIGINAL\    the first generator (logic untouched)
 │  └─ index.html
 └─ 02-website-generator-NEXT\       ← this project. Start here.
    ├─ package.json
@@ -69,7 +69,7 @@ tests still import `src/js/*.js` directly. **`dist/generator.html` is generated
 ## Test it
 
 ```bash
-npm test          # 80 core checks, no browser needed
+npm test          # 81 core checks, no browser needed
 npm run verify    # everything: core + 5 more suites, starting its own servers
 ```
 
@@ -81,7 +81,7 @@ suite can also be run alone (`npm run test:browser`, `test:a11y`, `test:i18n`,
 | suite | checks | what it covers |
 |---|---:|---|
 | **core** (`npm test`) | 80 | The pure engine in Node: XSS boundary, `safeHref`, contrast maths, dark-mode derivation, block registry, all 9 templates and their distinctness, bilingual output, nav integrity, hostile project import, undo/redo, ZIP writer. |
-| **browser** | 76 | The real editor: language switching, every template and all 13 section types, inspector, quality report, undo/redo, drag-to-reorder, preview-frame navigation guard, the live contrast readout, accessible names, the theme's light and dark output. |
+| **browser** | 80 | The real editor: language switching, every template and all 13 section types, inspector, quality report, undo/redo, drag-to-reorder, preview-frame navigation guard, the live contrast readout, accessible names, the theme's light and dark output. |
 | **accessibility** | 31 | Real Tab keypresses, accessible names on every control, focus visibility, landmarks, focus retention across a language switch, overflow at maximum text size. |
 | **i18n** | 11 | Autosave and reload round-trip, language independence, both site languages surviving a reload. |
 | **export** | 32 | Builds a real ZIP, re-reads it with an **independent** reader (Node's `zlib`, not our writer), then serves the extracted tree over HTTP and renders it — twice, once with the system pinned to light and once to dark. |
@@ -310,11 +310,11 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **241 checks passing across 6 suites** and
+`npm run verify` currently reports **245 checks passing across 6 suites** and
 exits 0:
 
 ```
-80 core · 76 browser · 31 accessibility · 11 i18n · 32 export · 11 single-file
+81 core · 80 browser · 31 accessibility · 11 i18n · 32 export · 11 single-file
 ```
 
 The generated site was also confirmed to render correctly on its own: a
@@ -346,8 +346,8 @@ MURTHER FABRIQUE — website generator/
 ├─ desktop/               the Win32 + WebView2 launcher and its build script
 ├─ dist/                  generated: generator.html
 └─ test/
-   ├─ test.mjs            80 core checks (node --test)
-   ├─ browser.mjs         76 end-to-end editor checks
+   ├─ test.mjs            81 core checks (node --test)
+   ├─ browser.mjs         80 end-to-end editor checks
    ├─ a11y.mjs            31 accessibility checks
    ├─ i18n.mjs            11 language and persistence checks
    ├─ export.mjs          32 export checks (real ZIP, real HTTP, real render)
@@ -388,8 +388,15 @@ first time. See the [root README](../README.md) for the details.
 
 ---
 
-**The previous generator, now at
-`C:\Users\Miyabo\Documents\Website Generator\01-legacy-generator-ORIGINAL\index.html`,
-was treated as read-only. It was moved, never edited: SHA-256
-`758D7A0C788F64AFCD0A09F9375A7CB187CDFACA1EBCF547A98215186E2C2F04` before and
-after, byte for byte.**
+**The first generator, at `..\01-legacy-generator-ORIGINAL\index.html`, keeps
+its original logic exactly — the SHA-256 below is of the file *after* the
+interface was put into the MURTHER FABRIQUE palette, which is the one change
+made to it. Nothing in its form handling, its builder, its audit or its export
+was touched; SHA-256 `758D7A0C788F64AFCD0A09F9375A7CB187CDFACA1EBCF547A98215186E2C2F04`
+was the file before that change and
+`F7C4EAB78936F68DEC84936D2E745DF900C4FEEA91A1EA3966C4110D3D63879E` is it now.
+
+Its internal project identifiers (`fabrique.ui` in `localStorage`, the
+`fabrique: 1` format marker) are deliberately **not** renamed: they identify
+project files people have already saved, and changing them would break every
+one of those files for no visible gain.**

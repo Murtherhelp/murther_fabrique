@@ -13,6 +13,7 @@
  * opens, so there is still no dependency to install.
  */
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -779,6 +780,35 @@ async function main() {
   /* ------------------------------------------------- console stayed clean */
   const realErrors = consoleErrors.filter((e) => !/favicon|ERR_FILE_NOT_FOUND/i.test(e));
   ok("no console errors during the whole run", realErrors.length === 0, realErrors.slice(0, 3).join(" | "));
+
+  /* The preview is a srcdoc document and inherits the editor's strict policy, so
+     its two inline scripts are allowed by SHA-256 hash and nothing else. If the
+     hash and the bytes ever drift apart the preview silently stops working --
+     theme toggle inert, links navigating the frame away -- while every other
+     check still passes. This is the check that says so out loud.
+
+     It reads the real response header and hashes the real inline bodies, so it
+     cannot pass by agreeing with itself. */
+  const inlineBodies = await tryEval(`
+    const h = document.getElementById('frame').getAttribute('srcdoc') || '';
+    return (h.match(/<script>([\\s\\S]*?)<\\/script>/g) || [])
+      .map(s => s.replace(/^<script>/, '').replace(/<\\/script>$/, ''));
+  `);
+  const header = await (await fetch(`http://127.0.0.1:${PORT}/`)).headers;
+  const csp = header.get("content-security-policy") || "";
+  const digest = (s) => createHash("sha256").update(s, "utf8").digest("base64");
+  const unallowed = (inlineBodies || []).filter((b) => !csp.includes(`sha256-${digest(b)}`));
+
+  ok("the preview inlines exactly two scripts",
+     Array.isArray(inlineBodies) && inlineBodies.length === 2, `${inlineBodies && inlineBodies.length}`);
+  ok("the served policy hashes both preview scripts, so they actually run",
+     unallowed.length === 0, `not allowed: ${unallowed.length}`);
+  ok("the policy still forbids inline script in general",
+     /script-src 'self'/.test(csp) && !/'unsafe-inline'/.test(csp.split(";")[1] || ""),
+     csp.slice(0, 80));
+  ok("the preview runs the generated site's own script, not a 404 link",
+     (inlineBodies || []).some((b) => b.includes("theme toggle")),
+     (inlineBodies || []).map((b) => b.slice(0, 60)).join(" || "));
 
   /* ------------------------------------------------------------ report */
   const failed = results.filter((r) => !r.pass);

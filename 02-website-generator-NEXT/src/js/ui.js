@@ -23,6 +23,7 @@ import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "./templates.js";
 import { blankDoc, newPage, normalizeDoc, createHistory, storeSaved, loadStored, readAsset, LIMITS } from "./store.js";
 import { PALETTES, TONES, paletteOf, contrastChecks, sanitizeCss, resolve } from "./themes.js";
 import { zip, toEntries, download, decodeDataUri } from "./zip.js";
+import { PREVIEW_GUARD } from "./preview-inline.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -315,7 +316,7 @@ function labelFor(f) {
  * a language switch without rebuilding them — rebuilding would move the caret
  * and discard in-progress edits.
  */
-function field(labelText, control, hintKey, at) {
+function field(labelText, control, hintKey, at, lblKey) {
   let id = control.id;
   if (!id) {
     id = `f${fieldSeq++}`;
@@ -323,6 +324,7 @@ function field(labelText, control, hintKey, at) {
   }
   const label = el("label", { className: "field__label", htmlFor: id }, labelText);
   if (at) label.dataset.at = at;
+  if (lblKey) label.dataset.lbl = lblKey;
   const f = el("div", { className: "field" }, [label, control]);
   if (hintKey) {
     const hintId = `${id}-hint`;
@@ -585,13 +587,13 @@ function renderPageFields(p) {
     // A menu label that was never edited from the title should follow it,
     // rather than leaving the old word in the navigation.
     if (bT(pg.menu, lang) === before) pg.menu[lang] = v;
-  }))));
-  out.append(field(t("menuLabel"), textInput(bT(p.menu, lang), put((pg, v) => (pg.menu[lang] = v)))));
-  out.append(field(t("descLabel"), textInput(bT(p.desc, lang), put((pg, v) => (pg.desc[lang] = v)), { multiline: true, rows: 2 })));
-  out.append(field(t("slugLabel"), slugControl(p)));
+  })), null, null, "titleLabel"));
+  out.append(field(t("menuLabel"), textInput(bT(p.menu, lang), put((pg, v) => (pg.menu[lang] = v))), null, null, "menuLabel"));
+  out.append(field(t("descLabel"), textInput(bT(p.desc, lang), put((pg, v) => (pg.desc[lang] = v)), { multiline: true, rows: 2 }), null, null, "descLabel"));
+  out.append(field(t("slugLabel"), slugControl(p), null, null, "slugLabel"));
 
   const isHome = p.id === doc().pages[0]?.id;
-  out.append(checkField(t("inMenuLabel"), p.inMenu !== false, put((pg, v) => (pg.inMenu = v))));
+  out.append(checkField(t("inMenuLabel"), p.inMenu !== false, put((pg, v) => (pg.inMenu = v)), "inMenuLabel"));
   if (isHome) out.append(el("p", { className: "hint", "data-lbl": "homePageHint" }, t("homePageHint")));
   $("blockForm").append(out);
 }
@@ -873,13 +875,15 @@ function renderSeo() {
   host.append(el("p", { className: "hint", "data-i18n": "noteNoindex" }, t("noteNoindex")));
 }
 
-function checkField(label, checked, fn) {
+function checkField(label, checked, fn, lblKey) {
   const box = el("input", { type: "checkbox" });
   box.checked = !!checked;
   on(box, "change", () => fn(box.checked));
   const id = `c${fieldSeq++}`;
   box.id = id;
-  return el("label", { className: "field field--check", htmlFor: id }, [box, el("span", {}, label)]);
+  const text = el("span", {}, label);
+  if (lblKey) text.dataset.lbl = lblKey;
+  return el("label", { className: "field field--check", htmlFor: id }, [box, text]);
 }
 
 /* ---------- preview ---------- */
@@ -900,34 +904,10 @@ function previewHtml(built, path) {
     .replace(/<link rel="icon" href="favicon\.svg"[^>]*>/,
       `<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(built.files["favicon.svg"])}">`)
     .replace(/<script src="js\/site\.js" defer><\/script>/,
-      `<script>${built.files["js/site.js"]}</script>\n<script>
-(function(){
-  // The preview is a DOCUMENT, not a browser. It used to let any link carrying a
-  // scheme through untouched, so clicking a CTA or a contact entry navigated the
-  // frame away from the generated page — and on a dev machine a link to
-  // localhost:5173 loaded the generator itself, which then rendered inside its
-  // own preview. Nothing ever put the preview back.
-  //
-  // So: internal links are reported to the editor, which swaps the rendered
-  // page; mailto:/tel: still hand off to the OS; everything else is dropped.
-  // The href is matched against the known file list on the parent side, so this
-  // channel cannot be used to load anything.
-  document.addEventListener("click", function (e) {
-    var a = e.target.closest && e.target.closest("a");
-    if (!a) return;
-    var h = a.getAttribute("href") || "";
-    if (h.charAt(0) === "#") return;                       // in-page jump, stays put
-    if (/^(mailto:|tel:)/i.test(h)) return;                 // handed to the OS
-    e.preventDefault();
-    if (/^[a-z][a-z0-9+.-]*:/i.test(h) || h.slice(0, 2) === "//") return;
-    try { parent.postMessage({ type: "wgn:nav", href: h.split("#")[0] }, "*"); } catch (err) {}
-  }, true);
-
-  // Same reason: a real form needs a server, and submitting here would replace
-  // the preview exactly as badly as a link would.
-  document.addEventListener("submit", function (e) { e.preventDefault(); }, true);
-})();
-</script>`);
+      // No whitespace between the tag and the code: the Content-Security-Policy
+      // hashes the inline body byte for byte, and a newline here is a newline
+      // the digest does not cover.
+      `<script>${built.files["js/site.js"]}</script><script>${PREVIEW_GUARD}</script>`);
 
   // Images: replace the exported path with the same bytes as a data URI.
   html = html.replace(/(src=")assets\/([^"]+)(")/g, (whole, a, name, c) =>

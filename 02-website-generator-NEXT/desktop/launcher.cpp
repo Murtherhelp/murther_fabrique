@@ -433,10 +433,30 @@ void ReportSelftest() {
 int Fail(const wchar_t* what) {
   Say(L"MURTHER FABRIQUE FAILED:");
   Say(what);
+  // A Windows machine with no WebView2 Runtime is real: Windows 10 LTSC and
+  // Server images ship without Edge. Erroring out would leave that user with
+  // nothing at all, when the application is a single HTML file that any browser
+  // on the machine can already open. So the fallback is not a courtesy, it is
+  // the whole difference between "does not run" and "runs with a browser
+  // window instead of a native one".
+  const std::wstring app = ChosenFolder() == L"\\original" ? gOriginalFile : gNextFile;
+  if (!app.empty()) {
+    Say(L"Falling back to the default browser for this session.");
+    const std::wstring fileUrl = L"file:///" + [&] {
+      std::wstring s = app;
+      for (wchar_t& c : s) if (c == L'\\') c = L'/';
+      return s;
+    }();
+    if (reinterpret_cast<intptr_t>(ShellExecuteW(nullptr, L"open", fileUrl.c_str(),
+                                                nullptr, nullptr, SW_SHOWNORMAL)) > 32) {
+      Say(L"Opened. The application is unchanged; only the window is a browser tab.");
+      return 0;
+    }
+  }
+
   Say(L"It needs the Microsoft Edge WebView2 Runtime (Evergreen), which ships");
-  Say(L"with Windows 11 and Windows 10 21H2 and later.");
-  // A self-test that stops on a modal dialog is a test that hangs CI. Report on
-  // the console and exit; a person launching it gets the dialog.
+  Say(L"with Windows 11 and Windows 10 21H2 and later. Get it from");
+  Say(L"https://developer.microsoft.com/microsoft-edge/webview2/");
   if (gLogToFile) return 2;
   MessageBoxW(nullptr, what, kTitle, MB_OK | MB_ICONERROR);
   return 2;
@@ -478,6 +498,7 @@ if (gSelftest) {
 }
 
 void OnControllerReady(HRESULT hr, ICoreWebView2Controller* controller) {
+  // A missing runtime is not fatal: Fail() falls back to the default browser.
   if (FAILED(hr) || !controller) { Fail(L"The WebView2 controller could not be created."); CloseSoon(); return; }
   gController = controller;
 
