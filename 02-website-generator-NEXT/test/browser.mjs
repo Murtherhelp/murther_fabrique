@@ -610,6 +610,34 @@ async function main() {
   `);
   ok("the folder-save message is not hardcoded French", folderMsg.en === "folder", JSON.stringify(folderMsg));
 
+  /* ----------------------------------- exporting says when the theme fails */
+  /* The files are the user's, so the export is never blocked. But a palette
+     that fails the audit used to ship in silence: the red rows sat in another
+     panel and the confirmation said nothing. */
+  const exportSays = await tryEval(`
+    const live = () => document.getElementById('live');
+    const out = {};
+    // A clean theme first: nothing should be said about contrast at all.
+    window.wgn.applyTemplate('business');
+    live().textContent = '';
+    window.wgn.sayContrast();
+    out.clean = live().textContent.trim();
+    // Now a theme whose pairs fail the audit.
+    const d = window.wgn.doc();
+    d.theme.palette = 'custom';
+    d.theme.colors = { bg: '#ffffff', surface: '#f0f0f0', ink: '#777777', accent: '#ffdd00' };
+    window.wgn.state.history.reset(d);
+    live().textContent = '';
+    window.wgn.sayContrast();
+    out.dirty = live().textContent.trim();
+    return out;
+  `);
+  const badWords = /contrast|below|4\.5|pair|contraste|paire/i;
+  ok("exporting a failing theme says so", badWords.test(exportSays?.dirty || ""),
+     `status: "${exportSays?.dirty || "(nothing said)"}"`);
+  ok("exporting a readable theme says nothing about contrast", !badWords.test(exportSays?.clean || ""),
+     `status: "${exportSays?.clean || "(silent, as intended)"}"`);
+
   /* ---------------------------- the audit catches a duplicated page title */
   const auditTitle = await tryEval(`
     window.wgn.applyTemplate('business');

@@ -80,7 +80,7 @@ again. Add `--head` to any of them to watch the browser work.
 | suite | checks | what it covers |
 |---|---:|---|
 | **core** (`npm test`) | 104 | The pure engine in Node: XSS boundary, `safeHref`, contrast maths, dark-mode derivation, block registry, all 9 templates and their distinctness, bilingual output, nav integrity, hostile project import, undo/redo, ZIP writer. |
-| **browser** | 81 | The real editor: language switching, every template and all 18 section types, inspector, quality report, undo/redo, drag-to-reorder, preview-frame navigation guard, the live contrast readout, accessible names, the theme's light and dark output. |
+| **browser** | 83 | The real editor: language switching, every template and all 18 section types, inspector, quality report, undo/redo, drag-to-reorder, preview-frame navigation guard, the live contrast readout, accessible names, the theme's light and dark output. |
 | **accessibility** | 31 | Real Tab keypresses, accessible names on every control, focus visibility, landmarks, focus retention across a language switch, overflow at maximum text size. |
 | **i18n** | 11 | Autosave and reload round-trip, language independence, both site languages surviving a reload. |
 | **export** | 54 | Builds a real ZIP, re-reads it with an **independent** reader (Node's `zlib`, not our writer), then serves the extracted tree over HTTP and renders it — twice, once with the system pinned to light and once to dark. |
@@ -314,7 +314,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **303 checks passing across 6 suites** and
+`npm run verify` currently reports **305 checks passing across 6 suites** and
 exits 0:
 
 ```
@@ -351,7 +351,7 @@ MURTHER FABRIQUE — website generator/
 ├─ dist/                  generated: generator.html
 └─ test/
    ├─ test.mjs            104 core checks (node --test)
-   ├─ browser.mjs         81 end-to-end editor checks
+   ├─ browser.mjs         83 end-to-end editor checks
    ├─ a11y.mjs            31 accessibility checks
    ├─ i18n.mjs            11 language and persistence checks
    ├─ export.mjs          54 export checks (real ZIP, real HTTP, real render)

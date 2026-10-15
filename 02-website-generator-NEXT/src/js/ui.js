@@ -752,11 +752,11 @@ function renderImageField(f, b, p) {
 /**
  * Live WCAG readout, right under the colour pickers.
  *
- * The quality report already refuses a failing theme at export; this is the
- * same measurement shown while you drag the colour, so a beginner learns which
- * pair is the problem instead of just being told "contrast fails". It is a
- * nested <details> so fifteen rows do not bury the Design form, but it opens
- * itself whenever something fails.
+ * The quality report lists the same measurement, and the export says so at the
+ * moment it happens. It does not block: holding someone's files hostage until
+ * a colour is acceptable is not this tool's business - but going quiet while
+ * shipping an unreadable theme is. It is a nested <details> so fifteen rows do
+ * not bury the Design form, but it opens itself whenever something fails.
  */
 function contrastPanel(theme) {
   const rows = contrastChecks(theme);
@@ -1143,6 +1143,9 @@ function renderExport() {
     const blob = await zip(toEntries(files));
     download(blob, `${uniqueSlug(doc().name.en) || "site"}.zip`);
     say(tf("exported", human(blob.size), Object.keys(files).length), "ok");
+    // The files are the user's, so they are never held back. But shipping an
+    // unreadable theme silently is worse: say it, naming the count.
+    sayContrast();
   }, "btn btn--primary"));
 
   if (typeof window.showDirectoryPicker === "function") {
@@ -1159,6 +1162,7 @@ function renderExport() {
           await w.close();
         }
         say(tf("exported", t("exportedFolder"), Object.keys(files).length), "ok");
+        sayContrast();
       } catch (e) {
         if (e.name !== "AbortError") say(t("noFolderApi"), "ko");
       }
@@ -1171,6 +1175,19 @@ function renderExport() {
 }
 
 /** The exact file set an export produces, preview included. */
+/**
+ * One line after an export, if the theme still has unreadable pairs.
+ *
+ * The export is never blocked - the files belong to the user - but a palette
+ * that fails the audit used to ship in silence, with the red rows still sitting
+ * in another panel. This says it at the moment it matters, and says nothing at
+ * all when everything passes.
+ */
+function sayContrast() {
+  const bad = contrastChecks(doc().theme).filter((c) => !c.ok);
+  if (bad.length) say(tf("contrastBad", bad.length), "ko");
+}
+
 async function exportFiles(d) {
   const files = { ...build(d).files };
   const og = await ogPng(d);
@@ -1613,6 +1630,7 @@ if (new URLSearchParams(location.search).has("probe")) {
     setBilingual: (v) => commit(edit((d) => (d.meta.bilingual = !!v))),
     setSiteLang: (l) => commit(edit((d) => (d.meta.lang = l))),
     openPicker: () => openBlockPicker(),
+    sayContrast: () => sayContrast(),
   addBlock: (type, pageIdx = 0) => {
       const p = doc().pages[pageIdx];
       if (!p) return false;

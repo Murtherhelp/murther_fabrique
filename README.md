@@ -29,7 +29,7 @@ cd "murther_fabrique/02-website-generator-NEXT"
 
 npm start          # editor at http://localhost:5173/
 npm test           # 104 core checks, no browser needed
-npm run verify     # 303 checks across 6 suites, browsers included
+npm run verify     # 305 checks across 6 suites, browsers included
 npm run build      # dist/generator.html — one file, opens by double-click
 ```
 
@@ -119,7 +119,7 @@ you control; that `.json` reopens in either generator.
 Being precise about this, because "audited" and "looked at carefully" are not
 the same word.
 
-**Verified by running it.** 303 automated checks across six suites
+**Verified by running it.** 305 automated checks across six suites
 (`npm run verify`, exit 0), plus the packaged application's own self-test
 exercising both generators inside the built `.exe`.
 
@@ -179,6 +179,10 @@ Upload the folder as-is. The preview you saw and the ZIP come from the same
 - **Custom CSS is sanitised**: remote `@import` and `url()` are stripped, so an
   exported site never calls a third party. The quality report says how many
   rules it removed.
+- **Exporting never blocks, but it never hides either.** The files are yours,
+  so a failing palette does not hold them hostage — yet the export says how
+  many colour pairs are below 4.5:1 as it happens, instead of leaving the red
+  rows sitting in another panel.
 - **The desktop shell** serves the application from a WebView2 virtual host with
   cross-origin access denied, disables DevTools and host objects, and opens
   external links in your browser rather than in its own window.
