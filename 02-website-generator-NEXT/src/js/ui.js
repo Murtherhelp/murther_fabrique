@@ -367,7 +367,7 @@ function registryEnum(value, options, onChange) {
   for (const [val, pair] of options) {
     n.append(el("option", { value: val }, pair[ui.lang === "fr" ? 1 : 0] || pair[0]));
   }
-  n.value = value;
+  n.value = options.some(([v]) => v === value) ? value : (options[0]?.[0] ?? "");
   on(n, "change", () => onChange(n.value));
   return n;
 }
@@ -386,7 +386,10 @@ function enumInput(value, options, onChange) {
   for (const [val, key] of options) {
     n.append(el("option", { value: val, "data-lbl": key }, t(key)));
   }
-  n.value = value;
+  // A value the option list does not contain leaves selectedIndex at -1, and
+  // the control then renders as a blank box. Every enum in the editor funnels
+  // through here, so the fallback belongs here rather than at each call site.
+  n.value = options.some(([v]) => v === value) ? value : (options[0]?.[0] ?? "");
   on(n, "change", () => onChange(n.value));
   return n;
 }

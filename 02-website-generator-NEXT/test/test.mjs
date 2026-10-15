@@ -378,6 +378,102 @@ test("a look is a class on the section, and an unknown one adds nothing", () => 
   assert.match(BLOCKS.steps.render(def, ctx), /class="section"/);
 });
 
+/**
+ * The thirteen original blocks build their own <section> tag, so the look used
+ * to reach only the six written after it existed. The dispatcher is what fixes
+ * that; this is the test that notices if it is removed. One block per build, so
+ * a failure names the type instead of a count.
+ */
+test("the look reaches every block type, including the ones that predate it", () => {
+  // A real 1x1 PNG, so the three blocks that render nothing without a picture
+  // still render and the loop actually covers all eighteen.
+  const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  for (const type of BLOCK_ORDER) {
+    const doc = blankDoc();
+    doc.assets = [{ id: "a1", name: "pic.png", type: "image/png", data: PNG }];
+    const b = { ...makeBlock(type), effect: "outline" };
+    for (const item of b.items || []) {
+      if (item.image) item.image = { assetId: "a1", alt: bi("A picture", "Une image") };
+    }
+    if (b.image) b.image = { assetId: "a1", alt: bi("A picture", "Une image") };
+    doc.pages[0].blocks = [b];
+    const html = build(doc).files["index.html"];
+    const sections = (html.match(/<section/g) || []).length;
+    assert.ok(sections > 0, `${type} rendered no section at all`);
+    assert.match(html, /<section class="section fx-outline[ "]/, `${type} ignored its look`);
+    assert.equal((html.match(/fx-outline/g) || []).length, sections, `${type} painted only some of its sections`);
+  }
+});
+
+test("the look never lands twice on the same section", () => {
+  const doc = blankDoc();
+  doc.pages[0].blocks = [
+    { ...makeBlock("steps"), effect: "card" },
+    { ...makeBlock("text"), effect: "card" },
+    { ...makeBlock("faq"), effect: "card" }
+  ];
+  const html = build(doc).files["index.html"];
+  assert.doesNotMatch(html, /fx-card fx-card/);
+  assert.equal((html.match(/fx-card/g) || []).length, (html.match(/<section/g) || []).length);
+});
+
+test("a look does not corrupt a section that already carries a variant class", () => {
+  const doc = blankDoc();
+  doc.pages[0].blocks = [{ ...makeBlock("stats"), effect: "soft" }];
+  const html = build(doc).files["index.html"];
+  // "section--tight" must survive intact; a naive insert after `class="section`
+  // would produce "section fx-soft--tight", which matches no rule at all.
+  assert.doesNotMatch(html, /fx-\w+--/);
+  assert.doesNotMatch(html, /class="section fx-soft--/);
+});
+
+test("the motion rules hang off selectors the renderer really emits", () => {
+  // Union the classes all nine templates actually produce, then reject any
+  // motion rule whose subject matches nothing anywhere. This is what catches
+  // a utility class written for markup that was never emitted.
+  const used = new Set();
+  const collect = (html) => {
+    for (const m of html.matchAll(/class="([^"]+)"/g)) for (const c of m[1].split(/\s+/)) used.add(c);
+  };
+  for (const key of TEMPLATE_ORDER) {
+    const files = build(fromTemplate(key)).files;
+    for (const name of Object.keys(files)) if (name.endsWith(".html")) collect(files[name]);
+  }
+  // `.hero__media` only exists once somebody uploads a picture, so give one
+  // hero an image rather than declaring that rule dead.
+  const withPic = fromTemplate("portfolio");
+  withPic.assets = [{ id: "a1", name: "pic.png", type: "image/png", data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" }];
+  for (const p of withPic.pages) {
+    for (const b of p.blocks) if (b.type === "hero") b.image = { assetId: "a1", alt: bi("A picture", "Une image") };
+  }
+  for (const name of Object.keys(build(withPic).files)) {
+    if (name.endsWith(".html")) collect(build(withPic).files[name]);
+  }
+  for (const motion of ["subtle", "expressive"]) {
+    const css = siteCss({ ...blankDoc().theme, motion }, { title: "T", slug: "t", lang: "en" });
+    const dead = [];
+    for (const m of css.matchAll(/(^|[};])\s*([^{};]*)\{[^}]*animation:/g)) {
+      for (const sel of m[2].split(",")) {
+        const cls = sel.trim().match(/^\.([a-z][\w-]*)/);
+        if (cls && !used.has(cls[1]) && !["keyframes"].includes(cls[1])) dead.push(`.${cls[1]}`);
+      }
+    }
+    assert.equal([...new Set(dead)].join(" "), "", `${motion}: motion CSS targets nothing on any page`);
+  }
+});
+
+test("the feature card carries the class its icon CSS is written against", () => {
+  const doc = blankDoc();
+  const b = makeBlock("features");
+  b.items = [{ ...b.items[0], icon: "bolt" }];
+  doc.pages[0].blocks = [b];
+  const html = build(doc).files["index.html"];
+  assert.match(html, /class="card feature"/);
+  assert.match(html, /<svg class="ico"/);
+  // And the icon must sit inside the element the size rule is written against.
+  assert.match(html, /class="card feature"><svg class="ico"/);
+});
+
 test("a block with nothing to say renders nothing rather than an empty shell", () => {
   const ctx = { lang: "en", img: () => "" };
   for (const type of ["testimonial", "timeline", "skills", "steps", "logos"]) {
@@ -435,6 +531,48 @@ test("every block label and hint carries both languages", () => {
     }
   }
   assert.equal(bad.length, 0, `missing a language: ${bad.join(", ")}`);
+});
+
+/**
+ * Enum options are a different shape from labels - [value, [en, fr]] - and
+ * the shape is what the inspector reads. A flat [value, en, fr] renders eight
+ * blank options with no error anywhere, so the shape is asserted here.
+ */
+test("every enum option is a value plus an EN/FR pair, not a flat tuple", () => {
+  const bad = [];
+  const check = (type, where, options) => {
+    for (const o of options || []) {
+      if (!Array.isArray(o) || o.length !== 2) { bad.push(`${type}.${where}: ${JSON.stringify(o)}`); continue; }
+      if (typeof o[0] !== "string" || !o[0]) bad.push(`${type}.${where}: value is not a string`);
+      const pair = o[1];
+      if (!Array.isArray(pair) || !pair[0] || !pair[1]) bad.push(`${type}.${where}.${o[0]}: label is not an EN/FR pair`);
+    }
+  };
+  for (const [type, def] of Object.entries(BLOCKS)) {
+    for (const f of def.fields) {
+      if (f.t === "enum") check(type, f.k, f.options);
+      for (const sf of f.of || []) if (sf.t === "enum") check(type, `${f.k}.${sf.k}`, sf.options);
+    }
+  }
+  assert.equal(bad.length, 0, `malformed enum options: ${bad.join(", ")}`);
+});
+
+test("every enum option value survives normalisation instead of becoming a blank control", () => {
+  const doc = normalizeDoc(JSON.parse(JSON.stringify(fromTemplate("cv")))).doc;
+  const empty = [];
+  for (const page of doc.pages) {
+    for (const b of page.blocks) {
+      const def = BLOCKS[b.type];
+      for (const f of def.fields) {
+        const options = f.options || [];
+        if (!options.length) continue;
+        const v = b[f.k];
+        if (v == null) continue;
+        if (!options.some(([val]) => val === v)) empty.push(`${b.type}.${f.k}=${v}`);
+      }
+    }
+  }
+  assert.equal(empty.length, 0, `no matching option, the control renders blank: ${empty.join(", ")}`);
 });
 
 test("every template label and description carries both languages", () => {

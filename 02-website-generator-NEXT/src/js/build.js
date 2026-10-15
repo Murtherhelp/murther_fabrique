@@ -13,7 +13,7 @@
  */
 import { esc, md, safeHref } from "./safe.js";
 import { siteCss, resolve } from "./themes.js";
-import { BLOCKS, T } from "./blocks.js";
+import { BLOCKS, T, withEffect } from "./blocks.js";
 import { st, fillLegal } from "./site-strings.js";
 
 export const FORMAT = "wgn/1";
@@ -173,7 +173,7 @@ function renderBlocks(doc, page, lang, assetPath) {
       const def = BLOCKS[b.type];
       if (!def) return "";
       try {
-        return def.render(b, c);
+        return withEffect(b, def.render(b, c));
       } catch {
         // One broken block must never take the whole page down.
         return `<section class="section"><div class="wrap"><p><small>${esc(b.type)}</small></p></div></section>`;

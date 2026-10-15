@@ -28,8 +28,8 @@ git clone https://github.com/Murtherhelp/murther_fabrique.git
 cd "murther_fabrique/02-website-generator-NEXT"
 
 npm start          # editor at http://localhost:5173/
-npm test           # 91 core checks, no browser needed
-npm run verify     # 256 checks across 6 suites, browsers included
+npm test           # 98 core checks, no browser needed
+npm run verify     # 263 checks across 6 suites, browsers included
 npm run build      # dist/generator.html — one file, opens by double-click
 ```
 

@@ -258,28 +258,45 @@ const EFFECT_CSS = `
  * as a page. The prefers-reduced-motion rule at the end of
  * the sheet) collapses every duration, so the setting can never fight it.
  */
+/**
+ * Motion.
+ *
+ * Three settings, and the default is none. Everything is CSS animation on load
+ * rather than an IntersectionObserver: the exported site keeps its "one small
+ * script" promise, and a page that animates before its images land still reads
+ * as a page. The prefers-reduced-motion rule at the end of
+ * the stylesheet turns all of it off for anyone who asked the system to.
+ *
+ * The rules hang off selectors the renderer already emits rather than off
+ * utility classes nobody writes. A motion setting that needs markup edits to
+ * take effect is a motion setting that silently does nothing on the thirteen
+ * blocks that were written before it existed.
+ */
 function MOTION_CSS(motion) {
-  if (motion !== "subtle" && motion !== "expressive") return "";
-  const rise = motion === "expressive" ? "18px" : "10px";
+  if (motion === "none") return "";
   const dur = motion === "expressive" ? ".62s" : ".42s";
+  const rise = motion === "expressive" ? "1.4rem" : ".7rem";
+  const stagger = motion === "expressive";
   return `
-.rise{animation:mf-rise ${dur} cubic-bezier(.2,.7,.3,1) both}
+${stagger ? "" : `.hero > .wrap > *{animation:mf-rise ${dur} cubic-bezier(.2,.7,.3,1) both}
+.hero > .wrap > :nth-child(2){animation-delay:.05s}
+.hero > .wrap > :nth-child(3){animation-delay:.1s}`}
+.grid > *,.steps > *,.time > *,.logos > *{animation:mf-rise ${dur} cubic-bezier(.2,.7,.3,1) both}
+.section > .wrap > .prose,.section > .wrap > p.lede{animation:mf-fade ${dur} ease both}
+.card,.quote,.feature{transition:transform .2s cubic-bezier(.2,.7,.3,1),box-shadow .2s cubic-bezier(.2,.7,.3,1)}
+.card:hover,.quote:hover{transform:translateY(-3px)}
 @keyframes mf-rise{from{opacity:0;transform:translateY(${rise})}to{opacity:1;transform:none}}
-.lift{transition:transform .2s cubic-bezier(.2,.7,.3,1),box-shadow .2s cubic-bezier(.2,.7,.3,1)}
-.lift:hover{transform:translateY(-3px)}
-.fade{animation:mf-fade ${dur} ease both}
 @keyframes mf-fade{from{opacity:0}to{opacity:1}}
-.pop{animation:mf-pop ${dur} cubic-bezier(.2,.9,.3,1) both}
-@keyframes mf-pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
-${motion === "expressive" ? `.hero__media{animation:mf-float 7s ease-in-out infinite alternate}
-@keyframes mf-float{from{transform:translateY(-6px)}to{transform:translateY(6px)}}
-.stagger > *{animation:mf-rise ${dur} cubic-bezier(.2,.7,.3,1) both}
-.stagger > :nth-child(1){animation-delay:.04s}
-.stagger > :nth-child(2){animation-delay:.11s}
-.stagger > :nth-child(3){animation-delay:.18s}
-.stagger > :nth-child(4){animation-delay:.25s}
-.stagger > :nth-child(5){animation-delay:.32s}
-.stagger > :nth-child(6){animation-delay:.39s}` : ""}`;
+${stagger ? `.grid > *:nth-child(1),.steps > *:nth-child(1),.time > *:nth-child(1),.logos > *:nth-child(1){animation-delay:.04s}
+.grid > *:nth-child(2),.steps > *:nth-child(2),.time > *:nth-child(2),.logos > *:nth-child(2){animation-delay:.11s}
+.grid > *:nth-child(3),.steps > *:nth-child(3),.time > *:nth-child(3),.logos > *:nth-child(3){animation-delay:.18s}
+.grid > *:nth-child(4),.steps > *:nth-child(4),.time > *:nth-child(4),.logos > *:nth-child(4){animation-delay:.25s}
+.grid > *:nth-child(5),.steps > *:nth-child(5),.time > *:nth-child(5),.logos > *:nth-child(5){animation-delay:.32s}
+.hero > .wrap > *{animation:mf-rise ${dur} cubic-bezier(.2,.7,.3,1) both}
+.hero > .wrap > :nth-child(2){animation-delay:.07s}
+.hero > .wrap > :nth-child(3){animation-delay:.14s}
+.hero__media{animation:mf-float 7s ease-in-out infinite alternate}
+@keyframes mf-float{from{transform:translateY(-6px)}to{transform:translateY(6px)}}` : ""}`;
 }
 
 /* -------------------------------------------------------------- components */

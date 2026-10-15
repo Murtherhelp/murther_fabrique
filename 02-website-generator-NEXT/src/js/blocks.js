@@ -38,14 +38,14 @@ export const bi = (en, fr = en) => ({ en: String(en ?? ""), fr: String(fr ?? "")
  * and no render function is touched.
  */
 export const EFFECTS = [
-  ["none", "None", "Aucun"],
-  ["soft", "Soft panel", "Panneau doux"],
-  ["card", "Card", "Carte"],
-  ["outline", "Outline", "Contour"],
-  ["inset", "Inset", "Enfoncé"],
-  ["gradient", "Gradient", "Dégradé"],
-  ["shadow", "Shadow", "Ombre"],
-  ["accent", "Accent fill", "Fond accent"]
+  ["none", ["None", "Aucun"]],
+  ["soft", ["Soft panel", "Panneau doux"]],
+  ["card", ["Card", "Carte"]],
+  ["outline", ["Outline", "Contour"]],
+  ["inset", ["Inset", "Enfoncé"]],
+  ["gradient", ["Gradient", "Dégradé"]],
+  ["shadow", ["Shadow", "Ombre"]],
+  ["accent", ["Accent fill", "Fond accent"]]
 ];
 
 export const effectField = () => ({
@@ -57,15 +57,28 @@ export const effectField = () => ({
 });
 
 /**
- * A section wrapper. `b.effect` is optional, so a block without the field still
- * renders, and an unknown value falls back to no class rather than emitting a
- * class that means nothing.
+ * Attach a section's look to already-rendered markup.
+ *
+ * This runs on the dispatcher's output rather than inside eighteen render
+ * functions, so the look reaches every block type - including the thirteen that
+ * were written before it existed - from one place. `sec()` is the same helper
+ * for a render that builds its own wrapper, and it is idempotent, so a block
+ * routed through both does not end up with `fx-card fx-card`.
  */
-export const sec = (b, inner, extra = "") => {
-  const fx = EFFECTS.some(([v]) => v === b?.effect) && b.effect !== "none" ? ` fx-${esc(b.effect)}` : "";
-  const cls = `section${fx}${extra ? ` ${extra}` : ""}`;
-  return `<section class="${cls}"><div class="wrap">${inner}</div></section>`;
+export const withEffect = (b, html) => {
+  const fx = EFFECTS.some(([v]) => v === b?.effect) && b.effect !== "none" ? `fx-${esc(b.effect)}` : "";
+  if (!fx || html.includes(`"${fx}`) || html.includes(` ${fx}`)) return html;
+  // Insert straight after the word "section", so a variant class already on
+  // that attribute ("section--tight") stays intact.
+  return html.replace(/<section class="section(?=[ "])/, `<section class="section ${fx}`);
 };
+
+/**
+ * A section wrapper, for a render that builds its own. The dispatcher applies
+ * the same helper to every block, so the look lands either way.
+ */
+export const sec = (b, inner) =>
+  withEffect(b, `<section class="section"><div class="wrap">${inner}</div></section>`);
 
 /** Resolve a {en,fr} field for the target language, falling back to the other. */
 export const T = (v, lang) =>
@@ -96,7 +109,8 @@ export const BLOCKS = {
       { k: "lead", t: "md", lbl: ["Text", "Texte"], i18n: true },
       { k: "image", t: "img", lbl: ["Image", "Image"] },
       { k: "ctaLabel", t: "text", lbl: ["Button label", "Libellé du bouton"], i18n: true },
-      { k: "ctaHref", t: "url", lbl: ["Button destination", "Destination du bouton"] }
+      { k: "ctaHref", t: "url", lbl: ["Button destination", "Destination du bouton"] },
+    effectField()
     ],
     render(b, c) {
       const img = c.img(b.image);
@@ -121,7 +135,8 @@ export const BLOCKS = {
     }),
     fields: [
       { k: "title", t: "text", lbl: ["Title", "Titre"], i18n: true },
-      { k: "body", t: "md", lbl: ["Body", "Contenu"], i18n: true }
+      { k: "body", t: "md", lbl: ["Body", "Contenu"], i18n: true },
+    effectField()
     ],
     render(b, c) {
       return `<section class="section"><div class="wrap"><h2>${esc(T(b.title, c.lang))}</h2><div class="prose">${md(esc(T(b.body, c.lang)), 3)}</div></div></section>`;
@@ -147,13 +162,14 @@ export const BLOCKS = {
         { k: "title", t: "text", lbl: ["Title", "Titre"], i18n: true },
         { k: "icon", t: "enum", lbl: ["Icon", "Icône"], options: ICON_OPTIONS },
         { k: "body", t: "long", lbl: ["Text", "Texte"], i18n: true }
-      ] }
+      ] },
+    effectField()
     ],
     render(b, c) {
       return sec(b, `
   <h2>${esc(T(b.title, c.lang))}</h2>
   ${T(b.lead, c.lang) ? `<p class="lede">${esc(T(b.lead, c.lang))}</p>` : ""}
-  ${list(b.items, (it) => `<li class="card">${icon(it.icon)}<h3>${esc(T(it.title, c.lang))}</h3><p>${esc(T(it.body, c.lang))}</p></li>`, "grid grid--3")}`);
+  ${list(b.items, (it) => `<li class="card feature">${icon(it.icon)}<h3>${esc(T(it.title, c.lang))}</h3><p>${esc(T(it.body, c.lang))}</p></li>`, "grid grid--3")}`);
     }
   },
 
@@ -173,7 +189,8 @@ export const BLOCKS = {
       { k: "items", t: "list", lbl: ["Figures", "Chiffres"], of: [
         { k: "value", t: "text", lbl: ["Value", "Valeur"] },
         { k: "label", t: "text", lbl: ["Label", "Libellé"], i18n: true }
-      ] }
+      ] },
+    effectField()
     ],
     render(b, c) {
       return `<section class="section section--tight"><div class="wrap">
@@ -196,7 +213,8 @@ export const BLOCKS = {
       { k: "items", t: "list", lbl: ["Images", "Images"], of: [
         { k: "image", t: "img", lbl: ["Image", "Image"] },
         { k: "caption", t: "text", lbl: ["Caption", "Légende"], i18n: true }
-      ] }
+      ] },
+    effectField()
     ],
     render(b, c) {
       const figs = (b.items || []).map((it) => {
@@ -225,7 +243,8 @@ export const BLOCKS = {
       { k: "items", t: "list", lbl: ["Questions", "Questions"], of: [
         { k: "q", t: "text", lbl: ["Question", "Question"], i18n: true },
         { k: "a", t: "md", lbl: ["Answer", "Réponse"], i18n: true }
-      ] }
+      ] },
+    effectField()
     ],
     render(b, c) {
       return `<section class="section"><div class="wrap"><h2>${esc(T(b.title, c.lang))}</h2><div class="faq">
@@ -253,7 +272,8 @@ export const BLOCKS = {
         { k: "date", t: "date", lbl: ["Date", "Date"] },
         { k: "excerpt", t: "long", lbl: ["Summary", "Résumé"], i18n: true },
         { k: "href", t: "url", lbl: ["Link (optional)", "Lien (facultatif)"] }
-      ] }
+      ] },
+    effectField()
     ],
     render(b, c) {
       const date = (d) => {
@@ -291,7 +311,8 @@ export const BLOCKS = {
       { k: "items", t: "list", lbl: ["Rows", "Lignes"], of: [
         { k: "label", t: "text", lbl: ["Left column", "Colonne de gauche"], i18n: true },
         { k: "value", t: "md", lbl: ["Right column", "Colonne de droite"], i18n: true }
-      ] }
+      ] },
+    effectField()
     ],
     render(b, c) {
       const rows = (b.items || []).map((it) =>
@@ -322,7 +343,8 @@ export const BLOCKS = {
         { k: "price", t: "text", lbl: ["Price", "Prix"] },
         { k: "blurb", t: "long", lbl: ["Description", "Description"], i18n: true },
         { k: "href", t: "url", lbl: ["Link (optional)", "Lien (facultatif)"] }
-      ] }
+      ] },
+    effectField()
     ],
     render(b, c) {
       const cards = (b.items || []).map((it) => {
@@ -364,7 +386,8 @@ export const BLOCKS = {
         { k: "date", t: "date", lbl: ["Date", "Date"] },
         { k: "tags", t: "text", lbl: ["Tags (comma separated)", "Étiquettes (séparées par des virgules)"], i18n: true },
         { k: "pinned", t: "bool", lbl: ["Pinned", "Épinglé"] }
-      ] }
+      ] },
+    effectField()
     ],
     render(b, c) {
       const date = (d) => {
@@ -402,7 +425,8 @@ export const BLOCKS = {
         { k: "label", t: "text", lbl: ["Label", "Libellé"], i18n: true },
         { k: "url", t: "url", lbl: ["Address", "Adresse"] },
         { k: "note", t: "text", lbl: ["Small note", "Petite note"], i18n: true }
-      ] }
+      ] },
+    effectField()
     ],
     render(b, c) {
       const links = (b.items || []).map((it) => {
@@ -427,7 +451,8 @@ export const BLOCKS = {
       { k: "title", t: "text", lbl: ["Title", "Titre"], i18n: true },
       { k: "body", t: "md", lbl: ["Text", "Texte"], i18n: true },
       { k: "label", t: "text", lbl: ["Button label", "Libellé du bouton"], i18n: true },
-      { k: "href", t: "url", lbl: ["Button destination", "Destination du bouton"] }
+      { k: "href", t: "url", lbl: ["Button destination", "Destination du bouton"] },
+    effectField()
     ],
     render(b, c) {
       return `<section class="section"><div class="wrap"><div class="cta">
@@ -453,7 +478,8 @@ export const BLOCKS = {
       { k: "wantName", t: "bool", lbl: ["Name field", "Champ nom"] },
       { k: "wantEmail", t: "bool", lbl: ["Email field", "Champ email"] },
       { k: "wantSubject", t: "bool", lbl: ["Subject field", "Champ objet"] },
-      { k: "wantMessage", t: "bool", lbl: ["Message field", "Champ message"] }
+      { k: "wantMessage", t: "bool", lbl: ["Message field", "Champ message"] },
+    effectField()
     ],
     render(b, c) {
       const action = safeHref(b.action) || "#";
