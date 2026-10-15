@@ -386,6 +386,26 @@ async function main() {
       const distinct = names.some((a) => names.some((b) => a !== b && signature(byName.get(a)) !== signature(byName.get(b))));
       ok("the French-page check can tell two different pages apart", distinct,
          distinct ? "comparing pages really does compare them" : "every page looks identical - the comparison is vacuous");
+
+    // The pages with no sections: the 404, the legal notice and the privacy
+    // policy. They carry no look, so the question is only whether they clear
+    // the audited text pairs, and they do use --ink and --muted on --bg.
+    // Measured on one template: build.js writes all three from the same
+    // template, so a second palette would repeat the same pair.
+    const chrome = ["404.html", "privacy.html", "legal.html"];
+    const first = (lookRuns || [])[0];
+    if (first) {
+      const read = spawnSyncZip(first.b64);
+      for (const page of chrome) {
+        if (!read.all.some((e) => e.name === page)) { frDrift.push(`missing ${page}`); continue; }
+        for (const scheme of [null, "light"]) {
+          const r = await renderExported(read, scheme, page);
+          const p = r.page;
+          ok(`${page} stays readable (${scheme || "dark"})`, (p?.worst ?? 0) >= 4.5 && (p?.sampled ?? 0) > 0,
+             p?.sampled ? `worst ${p.worst.toFixed(2)}:1 over ${p.sampled} elements — ${p.first} ${p.detail}` : "nothing was measured");
+        }
+      }
+    }
     }
   }
 
@@ -511,9 +531,12 @@ async function renderExported(zipRead, scheme = null, page = "index.html") {
 
     const { targetId } = await send("Target.createTarget", { url: `http://localhost:${PORT}/${folder}/${page}` });
     const { sessionId: sid } = await send("Target.attachToTarget", { targetId, flatten: true });
-    const ask = async (expr) => {
+    const ask = async (expr, label = 'probe') => {
       const r = await send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }, sid);
-      if (r.exceptionDetails) return { __error: r.exceptionDetails.exception?.description };
+      if (r.exceptionDetails) {
+        throw new Error(label + " threw at line " + (r.exceptionDetails.lineNumber ?? "?") + ": " +
+          (r.exceptionDetails.exception?.description || r.exceptionDetails.text));
+      }
       return r.result.value;
     };
     await send("Runtime.enable", {}, sid);
@@ -599,9 +622,35 @@ async function renderExported(zipRead, scheme = null, page = "index.html") {
         }
         return { worst, sampled, sections: secs.length, perLook, components, first, detail, bg: cs.backgroundColor, fg: cs.color };
       })()
-    })`);
+})`, "look");
+
+    // The same measurement over the whole document, for the pages that carry no
+    // look at all: the 404, the legal notice, the privacy policy. A separate
+    // expression, because one probe per question is easier to read than one
+    // expression that answers three.
+    const whole = await ask(`(function(){
+      function rgba(c){ var n=(c.match(/-?[0-9.]+/g)||[]).map(Number); return {rgb:n.slice(0,3), a:n.length>3?n[3]:1}; }
+      function lum(v){ var f=function(x){ x/=255; return x<=0.03928 ? x/12.92 : Math.pow((x+0.055)/1.055,2.4); };
+        return 0.2126*f(v[0])+0.7152*f(v[1])+0.0722*f(v[2]); }
+      function behind(el){ for (var n=el; n && n!==document.documentElement; n=n.parentElement) {
+          var c=rgba(getComputedStyle(n).backgroundColor); if (c.a>0.05) return c.rgb; }
+        return rgba(getComputedStyle(document.body).backgroundColor).rgb; }
+      var worst=99, n=0, first='', colour='';
+      var els=document.querySelectorAll('h1,h2,h3,p,li,a,small,td,th,dt,dd,cite,figcaption');
+      for (var i=0;i<els.length;i++){
+        var el=els[i], s=getComputedStyle(el);
+        if (s.display==='none'||s.visibility==='hidden') continue;
+        if (!el.textContent.trim()) continue;
+        var fg=rgba(s.color).rgb, bg=behind(el);
+        var x=lum(fg), y=lum(bg);
+        var r=((Math.max(x,y)+0.05)/(Math.min(x,y)+0.05));
+        n++;
+        if (r<worst){ worst=r; first=el.className||el.tagName; colour=s.color; }
+      }
+      return { worst: n?worst:null, sampled:n, first:first, detail:colour };
+    })()`, "whole");
     await send("Target.closeTarget", { targetId });
-    return JSON.parse(info || "{}");
+    return Object.assign(JSON.parse(info || "{}"), { page: whole });
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
