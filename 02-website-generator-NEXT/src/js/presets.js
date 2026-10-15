@@ -81,8 +81,9 @@ export function themeOf(key, extra = {}) {
     radius: p.radius,
     tone: "sans",
     scale: "normal",
-    scheme: "auto",
-    customCss: "",
+scheme: "auto",
+  motion: "none",
+  customCss: "",
     ...extra
   };
 }

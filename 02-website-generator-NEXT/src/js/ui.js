@@ -839,7 +839,11 @@ function renderDesign() {
   ], (v) => commit(edit((d) => (d.theme.tone = v))))));
   host.append(field(t("schemeLabel"), enumInput(th.scheme, [
     ["auto", "schemeAuto"], ["light", "schemeLight"], ["dark", "schemeDark"]
-  ], (v) => commit(edit((d) => (d.theme.scheme = v))))));
+], (v) => commit(edit((d) => (d.theme.scheme = v))))));
+  host.append(field(t("motionLabel"), enumInput(th.motion || "none", [
+    ["none", "motionNone"], ["subtle", "motionSubtle"], ["expressive", "motionExpressive"]
+  ], (v) => commit(edit((d) => (d.theme.motion = v))))));
+  host.append(el("p", { className: "hint", "data-lbl": "hintMotion" }, t("hintMotion")));
   host.append(field(t("customCss"), textInput(th.customCss, (v) => commit(edit((d) => (d.theme.customCss = v)), { push: false }), { multiline: true, rows: 5 })));
   host.append(el("p", { className: "hint", "data-i18n": "hintCss" }, t("hintCss")));
 }
@@ -1567,6 +1571,7 @@ if (new URLSearchParams(location.search).has("probe")) {
     t,
     build: () => build(doc()),
     audit: runAudit,
+    blockOrder: () => BLOCK_ORDER.slice(),
     /* Mirrors what the <select> does: repaint labels now, rebuild once focus has
        left. Used by the browser probes, which cannot open a real <select>. */
     setLang: (c) => {

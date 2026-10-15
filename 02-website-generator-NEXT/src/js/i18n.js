@@ -160,6 +160,11 @@ export const T = {
   schemeLight: ["Light", "Clair"],
   schemeDark: ["Dark", "Sombre"],
   customCss: ["Custom CSS", "CSS personnalisé"],
+  motionLabel: ["Animation", "Animations"],
+  motionNone: ["None", "Aucune"],
+  motionSubtle: ["Subtle", "Discrète"],
+  motionExpressive: ["Expressive", "Marquante"],
+  hintMotion: ["CSS-only entrance animations, so the exported site still ships one small script and no third-party requests. Your reduced-motion system setting always wins.", "Animations d'entrée en CSS pur : le site exporté garde son petit script et n'appelle aucun tiers. Votre réglage système « animations réduites » l'emporte toujours."],
   hintCss: ["Appended to the end of the generated stylesheet. Remote @import and url() rules are removed: the exported site calls no third party. Use !important to override generated rules.", "Ajouté à la fin de la feuille de style générée. Les règles @import et url() distantes sont retirées : le site exporté n'appelle aucun tiers. Utilisez !important pour passer devant les règles générées."],
 
   /* --- SEO & settings --- */

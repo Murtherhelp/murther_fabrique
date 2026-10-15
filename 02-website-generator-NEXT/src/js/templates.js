@@ -171,13 +171,42 @@ export const TEMPLATES = {
                 { label: bi("Portfolio", "Portfolio"), url: "#", note: bi("Case studies with process", "Études de cas avec processus") },
                 { label: bi("LinkedIn", "LinkedIn"), url: "#", note: bi("Full history", "Parcours complet") },
                 { label: bi("GitHub", "GitHub"), url: "#", note: bi("Small tools and experiments", "Petits outils et expérimentations") }
-              ]
+              ],
+              effect: "soft"
             }],
             ["cta", {
               title: bi("Available for contract work", "Disponible en mission"),
               body: bi("Back from March. Happy to talk about scope before anything is signed.", "Disponible à partir de mars. Discutons du périmètre avant toute signature."),
               label: bi("Get in touch", "Me contacter"),
               href: "mailto:hello@example.com"
+            }],
+            ["timeline", {
+              title: bi("Where I have been", "O\u00f9 j'ai \u00e9t\u00e9"),
+              items: [
+                { when: bi("2022 \u2014 now", "2022 \u2014 aujourd'hui"), title: bi("Independent, interface work", "Ind\u00e9pendante, design d'interface"), org: bi("For studios and product teams", "Pour des studios et des \u00e9quipes produit"), body: bi("Design systems, redesigns, and the accessibility work that comes after the launch.", "Design systems, refontes, et le travail d'accessibilit\u00e9 qui suit le lancement.") },
+                { when: bi("2019 \u2014 2022", "2019 \u2014 2022"), title: bi("Senior designer", "Designer principale"), org: bi("Verdan Systems", "Verdan Systems"), body: bi("Owned the component library used by six product teams.", "Responsable de la biblioth\u00e8que de composants utilis\u00e9e par six \u00e9quipes produit.") },
+                { when: bi("2017 \u2014 2019", "2017 \u2014 2019"), title: bi("Designer", "Designer"), org: bi("Northlight", "Northlight"), body: bi("Editorial sites, then the first taste of design systems.", "Sites \u00e9ditoriaux, puis le premier go\u00fbt d'un design system.") }
+              ]
+            }],
+            ["skills", {
+              title: bi("What I am good at", "Ce que je sais faire"),
+              showBar: true,
+              items: [
+                { name: bi("Interface design", "Design d'interface"), level: "expert" },
+                { name: bi("Design systems", "Design systems"), level: "advanced" },
+                { name: bi("Accessibility (WCAG)", "Accessibilit\u00e9 (WCAG)"), level: "advanced" },
+                { name: bi("French / English", "Fran\u00e7ais / Anglais"), level: "expert" }
+              ]
+            }],
+            /* Before this block, a CV was a table. Now it is a quote with a name. */
+            ["testimonial", {
+              title: bi("", ""),
+              quote: bi("Miyabo took a mess of requirements and handed back something we shipped without a single rework ticket.",
+                "Miyabo a transformé un cahier des charges flou en un produit que nous avons livré sans une seule demande de retouche."),
+              author: bi("Alex N.", "Alex N."),
+              role: bi("Product lead, Verdan Systems", "Responsable produit, Verdan Systems"),
+              avatar: { assetId: "", alt: bi("", "") },
+              effect: "shadow"
             }]
           ])
         ]
@@ -255,6 +284,24 @@ export const TEMPLATES = {
                 { value: bi("6 weeks", "6 semaines"), label: bi("median project length", "durée médiane d'un projet") },
                 { value: bi("81%", "81 %"), label: bi("of work from referrals", "du travail par recommandation") }
               ]
+            }],
+            ["steps", {
+              title: bi("How a project runs", "Comment se déroule un projet"),
+              items: [
+                { title: bi("A call, not a pitch", "Un échange, pas un discours"), body: bi("Thirty minutes. You describe the problem, I ask what already failed.", "Trente minutes. Vous décrivez le problème, je demande ce qui a déjà échoué.") },
+                { title: bi("A written scope", "Un périmètre écrit"), body: bi("What is in, what is out, what it costs. Fixed before any code.", "Ce qui est inclus, exclu, et son coût. Fixé avant toute ligne de code.") },
+                { title: bi("Fortnightly builds", "Des versions tous les quinze jours"), body: bi("You see the real thing every two weeks, not a slide about it.", "Vous voyez le produit réel tous les quinze jours, pas une diapositive.") }
+              ]
+            }],
+            ["logos", {
+              title: bi("Recent clients", "Clients récents"),
+              items: [
+                { name: bi("Verdan Systems", "Verdan Systems"), image: { assetId: "", alt: bi("", "") } },
+                { name: bi("Halcyon Press", "Halcyon Press"), image: { assetId: "", alt: bi("", "") } },
+                { name: bi("Northlight", "Northlight"), image: { assetId: "", alt: bi("", "") } },
+                { name: bi("Corvid Labs", "Corvid Labs"), image: { assetId: "", alt: bi("", "") } }
+              ],
+              effect: "soft"
             }]
           ]),
           page("contact", { en: "Contact", fr: "Contact" }, { en: "Contact", fr: "Contact" }, [

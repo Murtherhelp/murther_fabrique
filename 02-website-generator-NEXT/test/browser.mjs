@@ -226,12 +226,12 @@ async function main() {
   /* ------------------------------------------- every block type renders */
   await tryEval("window.wgn.applyTemplate('blank'); return 1;");
   const blockTypes = await tryEval(`
-    const types = ${JSON.stringify(["hero", "text", "features", "stats", "gallery", "posts", "table", "products", "threads", "faq", "links", "cta", "contact"])};
+    const types = window.wgn.blockOrder();
     for (const t of types) window.wgn.addBlock(t);
     const b = window.wgn.build();
-    return { files: Object.keys(b.files).length, errors: window.wgn.errors().length };
+    return { n: types.length, files: Object.keys(b.files).length, errors: window.wgn.errors().length };
   `);
-  ok("all 13 block types render together", blockTypes.errors === 0 && blockTypes.files > 5,
+  ok(`all ${blockTypes.n} block types render together`, blockTypes.errors === 0 && blockTypes.files > 5,
      `${blockTypes.files} files, ${blockTypes.errors} self-check errors`);
 
   /* --------------------------------------------- inspector is driven by spec */

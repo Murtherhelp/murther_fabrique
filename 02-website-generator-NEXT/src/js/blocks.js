@@ -22,9 +22,50 @@
  */
 import { esc, md, safeHref, uid } from "./safe.js";
 import { st } from "./site-strings.js";
+import { icon, ICON_OPTIONS } from "./icons.js";
 
 /** Build a bilingual value. Every template seeds both at once. */
 export const bi = (en, fr = en) => ({ en: String(en ?? ""), fr: String(fr ?? "") });
+
+/* ----------------------------------------------------------------- shared */
+
+/**
+ * The one "look" field, and the one "look" wrapper.
+ *
+ * A section is emitted through `sec()` so an effect is a class on the section
+ * rather than a conditional branch inside thirteen render functions. Adding a
+ * look means one entry here, one enum value here, one rule in the stylesheet --
+ * and no render function is touched.
+ */
+export const EFFECTS = [
+  ["none", "None", "Aucun"],
+  ["soft", "Soft panel", "Panneau doux"],
+  ["card", "Card", "Carte"],
+  ["outline", "Outline", "Contour"],
+  ["inset", "Inset", "Enfoncé"],
+  ["gradient", "Gradient", "Dégradé"],
+  ["shadow", "Shadow", "Ombre"],
+  ["accent", "Accent fill", "Fond accent"]
+];
+
+export const effectField = () => ({
+  k: "effect", t: "enum", lbl: ["Look", "Apparence"],
+  options: EFFECTS, hint: [
+    "How this section sits on the page. Purely visual — it changes nothing a visitor reads.",
+    "Comment cette section s'insère dans la page. Purement visuel — cela ne change rien au contenu."
+  ]
+});
+
+/**
+ * A section wrapper. `b.effect` is optional, so a block without the field still
+ * renders, and an unknown value falls back to no class rather than emitting a
+ * class that means nothing.
+ */
+export const sec = (b, inner, extra = "") => {
+  const fx = EFFECTS.some(([v]) => v === b?.effect) && b.effect !== "none" ? ` fx-${esc(b.effect)}` : "";
+  const cls = `section${fx}${extra ? ` ${extra}` : ""}`;
+  return `<section class="${cls}"><div class="wrap">${inner}</div></section>`;
+};
 
 /** Resolve a {en,fr} field for the target language, falling back to the other. */
 export const T = (v, lang) =>
@@ -104,15 +145,15 @@ export const BLOCKS = {
       { k: "lead", t: "text", lbl: ["Intro line", "Chapeau"], i18n: true },
       { k: "items", t: "list", lbl: ["Items", "Éléments"], of: [
         { k: "title", t: "text", lbl: ["Title", "Titre"], i18n: true },
+        { k: "icon", t: "enum", lbl: ["Icon", "Icône"], options: ICON_OPTIONS },
         { k: "body", t: "long", lbl: ["Text", "Texte"], i18n: true }
       ] }
     ],
     render(b, c) {
-      return `<section class="section"><div class="wrap">
+      return sec(b, `
   <h2>${esc(T(b.title, c.lang))}</h2>
   ${T(b.lead, c.lang) ? `<p class="lede">${esc(T(b.lead, c.lang))}</p>` : ""}
-  ${list(b.items, (it) => `<li class="card"><h3>${esc(T(it.title, c.lang))}</h3><p>${esc(T(it.body, c.lang))}</p></li>`, "grid grid--3")}
-</div></section>`;
+  ${list(b.items, (it) => `<li class="card">${icon(it.icon)}<h3>${esc(T(it.title, c.lang))}</h3><p>${esc(T(it.body, c.lang))}</p></li>`, "grid grid--3")}`);
     }
   },
 
@@ -438,10 +479,207 @@ export const BLOCKS = {
   }
 };
 
+/* ------------------------------------------------------------------ added */
+
+/** Skill levels, and the two things derived from them: a width and a word. */
+const SKILL_LEVELS = [
+  ["beginner", ["Beginner", "Débutant"]],
+  ["familiar", ["Familiar", "Familier"]],
+  ["advanced", ["Advanced", "Avancé"]],
+  ["expert", ["Expert", "Expert"]]
+];
+const SKILL_PCT = { beginner: 30, familiar: 55, advanced: 78, expert: 100 };
+const SKILL_WORD = Object.fromEntries(SKILL_LEVELS);
+
+/**
+ * Five blocks that close the gaps the first thirteen left.
+ *
+ * Every one of them exists because a real page of that kind has it and ours
+ * could not: a testimonial, a dated career timeline, skills with a level, a
+ * numbered "how it works", and a logo strip. Before these, a CV was a table
+ * and a business page had nowhere to say how it worked.
+ */
+
+BLOCKS.testimonial = {
+  label: ["Testimonial", "Témoignage"],
+  hint: ["What somebody said. One quote, one person.", "Ce que quelqu'un a dit. Une citation, une personne."],
+  defaults: () => ({
+    title: bi("", ""),
+    quote: bi("They shipped it in three weeks and it has not needed a rewrite since.",
+      "Livré en trois semaines, et aucune réécriture depuis."),
+    author: bi("A name", "Un nom"),
+    role: bi("Role, company", "Fonction, entreprise"),
+    avatar: { assetId: "", alt: bi("", "") },
+    effect: "soft"
+  }),
+  fields: [
+    { k: "title", t: "text", lbl: ["Title (optional)", "Titre (facultatif)"], i18n: true },
+    { k: "quote", t: "long", lbl: ["Quote", "Citation"], i18n: true },
+    { k: "author", t: "text", lbl: ["Author", "Auteur"], i18n: true },
+    { k: "role", t: "text", lbl: ["Role", "Fonction"], i18n: true },
+    { k: "avatar", t: "img", lbl: ["Photo", "Photo"] },
+    effectField()
+  ],
+  render(b, c) {
+    const img = c.img(b.avatar);
+    const q = T(b.quote, c.lang);
+    if (!q) return "";
+    return sec(b, `
+  ${T(b.title, c.lang) ? `<h2>${esc(T(b.title, c.lang))}</h2>` : ""}
+  <figure class="quote">
+    <p>${esc(q)}</p>
+    <figcaption><footer>
+      ${img ? `<img src="${esc(img)}" alt="${esc(T(b.avatar.alt, c.lang))}" width="44" height="44">` : ""}
+      <div><cite>${esc(T(b.author, c.lang))}</cite><small>${esc(T(b.role, c.lang))}</small></div>
+    </footer></figcaption>
+  </figure>`);
+  }
+};
+
+BLOCKS.timeline = {
+  label: ["Timeline", "Parcours"],
+  hint: ["Dated entries: jobs, studies, milestones. Best for a CV.", "Entrées datées : postes, études, étapes. Idéal pour un CV."],
+  defaults: () => ({
+    title: bi("Experience", "Parcours"),
+    items: [
+      { when: bi("2022 — now", "2022 — aujourd'hui"), title: bi("Job title", "Intitulé du poste"), org: bi("Company", "Entreprise"), body: bi("What you did there.", "Ce que vous y avez fait.") },
+      { when: bi("2019 — 2022", "2019 — 2022"), title: bi("Earlier role", "Poste précédent"), org: bi("Somewhere else", "Ailleurs"), body: bi("What you did there.", "Ce que vous y avez fait.") }
+    ],
+    effect: "none"
+  }),
+  fields: [
+    { k: "title", t: "text", lbl: ["Title", "Titre"], i18n: true },
+    { k: "items", t: "list", lbl: ["Entries", "Entrées"], of: [
+      { k: "when", t: "text", lbl: ["When", "Période"], i18n: true },
+      { k: "title", t: "text", lbl: ["Role or degree", "Poste ou diplôme"], i18n: true },
+      { k: "org", t: "text", lbl: ["Company or school", "Entreprise ou école"], i18n: true },
+      { k: "body", t: "long", lbl: ["What you did", "Ce que vous avez fait"], i18n: true }
+    ] },
+    effectField()
+  ],
+  render(b, c) {
+    const items = b.items || [];
+    if (!items.length) return "";
+    return sec(b, `
+  <h2>${esc(T(b.title, c.lang))}</h2>
+  <ul class="time">${items.map((it) => `<li class="time__item">
+    ${T(it.when, c.lang) ? `<p class="time__when">${esc(T(it.when, c.lang))}</p>` : ""}
+    <h3>${esc(T(it.title, c.lang))}</h3>
+    ${T(it.org, c.lang) ? `<p>${esc(T(it.org, c.lang))}</p>` : ""}
+    ${T(it.body, c.lang) ? `<div class="prose">${md(esc(T(it.body, c.lang)), 3)}</div>` : ""}
+  </li>`).join("")}</ul>`);
+  }
+};
+
+BLOCKS.skills = {
+  label: ["Skills", "Compétences"],
+  hint: ["Named skills with a level. Also good for the languages you speak.", "Compétences nommées avec un niveau. Également utile pour les langues que vous parlez."],
+  defaults: () => ({
+    title: bi("Skills", "Compétences"),
+    showBar: true,
+    items: [
+      { name: bi("Design", "Design"), level: "advanced" },
+      { name: bi("Development", "Développement"), level: "advanced" },
+      { name: bi("Strategy", "Stratégie"), level: "familiar" }
+    ],
+    effect: "none"
+  }),
+  fields: [
+    { k: "title", t: "text", lbl: ["Title", "Titre"], i18n: true },
+    { k: "showBar", t: "bool", lbl: ["Show a level bar", "Afficher une barre de niveau"] },
+    { k: "items", t: "list", lbl: ["Skills", "Compétences"], of: [
+      { k: "name", t: "text", lbl: ["Name", "Nom"], i18n: true },
+      { k: "level", t: "enum", lbl: ["Level", "Niveau"], options: SKILL_LEVELS }
+    ] },
+    effectField()
+  ],
+  render(b, c) {
+    const items = b.items || [];
+    if (!items.length) return "";
+    return sec(b, `
+  <h2>${esc(T(b.title, c.lang))}</h2>
+  <dl class="skills">${items.map((it) => {
+      const pct = SKILL_PCT[it.level] ?? 60;
+      const word = SKILL_WORD[it.level]?.[c.lang === "fr" ? 1 : 0] || "";
+      return `<div>
+    <dt>${esc(T(it.name, c.lang))}${word ? `<span>${esc(word)}</span>` : ""}</dt>
+    ${b.showBar === false ? "" : `<dd class="skills__bar"><i style="width:${pct}%"></i></dd>`}
+  </div>`;
+    }).join("")}</dl>`);
+  }
+};
+
+BLOCKS.steps = {
+  label: ["Steps", "Étapes"],
+  hint: ["Numbered steps: how it works, what happens next.", "Étapes numérotées : comment ça marche, la suite."],
+  defaults: () => ({
+    title: bi("How it works", "Comment ça marche"),
+    items: [
+      { title: bi("You tell us", "Vous nous dites"), body: bi("What you want, in plain words.", "Ce que vous voulez, avec vos mots.") },
+      { title: bi("We build it", "Nous le réalisons"), body: bi("A first version in days, not months.", "Une première version en quelques jours.") },
+      { title: bi("You keep control", "Vous gardez la main"), body: bi("Everything is yours, editable, exportable.", "Tout vous appartient, modifiable, exportable.") }
+    ],
+    effect: "none"
+  }),
+  fields: [
+    { k: "title", t: "text", lbl: ["Title", "Titre"], i18n: true },
+    { k: "items", t: "list", lbl: ["Steps", "Étapes"], of: [
+      { k: "title", t: "text", lbl: ["Step title", "Intitulé"], i18n: true },
+      { k: "body", t: "long", lbl: ["Description", "Description"], i18n: true }
+    ] },
+    effectField()
+  ],
+  render(b, c) {
+    const items = b.items || [];
+    if (!items.length) return "";
+    return sec(b, `
+  <h2>${esc(T(b.title, c.lang))}</h2>
+  <ol class="steps">${items.map((it) => `<li><h3>${esc(T(it.title, c.lang))}</h3><p>${esc(T(it.body, c.lang))}</p></li>`).join("")}</ol>`);
+  }
+};
+
+BLOCKS.logos = {
+  label: ["Logo strip", "Bandeau de logos"],
+  hint: ["Who already trusts you. Images, or names if you have none.", "Qui vous fait déjà confiance. Images, ou noms à défaut."],
+  defaults: () => ({
+    title: bi("Trusted by", "Ils nous font confiance"),
+    items: [
+      { name: bi("Client one", "Client un"), image: { assetId: "", alt: bi("", "") } },
+      { name: bi("Client two", "Client deux"), image: { assetId: "", alt: bi("", "") } },
+      { name: bi("Client three", "Client trois"), image: { assetId: "", alt: bi("", "") } }
+    ],
+    effect: "none"
+  }),
+  fields: [
+    { k: "title", t: "text", lbl: ["Title", "Titre"], i18n: true },
+    { k: "items", t: "list", lbl: ["Logos", "Logos"], of: [
+      { k: "name", t: "text", lbl: ["Name", "Nom"], i18n: true },
+      { k: "image", t: "img", lbl: ["Logo image", "Image du logo"] }
+    ] },
+    effectField()
+  ],
+  render(b, c) {
+    const items = b.items || [];
+    if (!items.length) return "";
+    return sec(b, `
+  ${T(b.title, c.lang) ? `<h2>${esc(T(b.title, c.lang))}</h2>` : ""}
+  <ul class="logos">${items.map((it) => {
+      const img = c.img(it.image);
+      const name = esc(T(it.name, c.lang));
+      return `<li>${img
+        ? `<img src="${esc(img)}" alt="${name}" width="160" height="34" loading="lazy">`
+        : `<span>${name}</span>`}</li>`;
+    }).join("")}</ul>`);
+  }
+};
+
+
+
 /** Block types, in the order they are offered in the "Add a section" menu. */
 export const BLOCK_ORDER = [
   "hero", "text", "features", "stats", "gallery", "posts",
-  "table", "products", "threads", "faq", "links", "cta", "contact"
+  "table", "products", "threads", "faq", "links", "cta", "contact",
+  "testimonial", "timeline", "skills", "steps", "logos"
 ];
 
 /** A fresh block of the given type, carrying its defaults and an id. */

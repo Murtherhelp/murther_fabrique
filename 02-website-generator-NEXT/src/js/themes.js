@@ -224,6 +224,112 @@ const vars = (t, g) =>
  * Layout primitives are shared by every block, which is why adding a block does
  * not add CSS: it only uses the classes below.
  */
+/* ---------------------------------------------------------------- sections */
+
+/**
+ * Section wrappers.
+ *
+ * `.fx-*` is the one place a "look" lives, so a new effect is one class here
+ * and one enum value in the block spec -- not a new branch in every render.
+ * Every variant is built from tokens, never from a literal colour, so all of
+ * them follow the theme and both colour schemes without being written twice.
+ */
+const EFFECT_CSS = `
+.fx > .wrap{position:relative}
+.fx-card > .wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
+.fx-outline > .wrap{border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
+.fx-soft > .wrap{background:var(--surface);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
+.fx-accent > .wrap{background:var(--accent);color:var(--accent-on);border-radius:var(--radius);padding:clamp(1.5rem,3vw,2.5rem)}
+.fx-accent .lede,.fx-accent small{color:var(--accent-on);opacity:.85}
+.fx-gradient > .wrap{background:linear-gradient(160deg,var(--surface),var(--bg));border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
+.fx-shadow > .wrap{background:var(--surface);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem);box-shadow:0 18px 50px -24px rgb(0 0 0 / .55)}
+.fx-inset > .wrap{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
+.section--alt{background:var(--surface)}
+.section--flush{padding-block:0}`;
+
+/* ----------------------------------------------------------------- motion */
+
+/**
+ * Motion.
+ *
+ * Three settings, and the default is none. Everything is CSS animation on load
+ * rather than an IntersectionObserver: the exported site keeps its "one small
+ * script" promise, and a page that animates before its images land still reads
+ * as a page. The prefers-reduced-motion rule at the end of
+ * the sheet) collapses every duration, so the setting can never fight it.
+ */
+function MOTION_CSS(motion) {
+  if (motion !== "subtle" && motion !== "expressive") return "";
+  const rise = motion === "expressive" ? "18px" : "10px";
+  const dur = motion === "expressive" ? ".62s" : ".42s";
+  return `
+.rise{animation:mf-rise ${dur} cubic-bezier(.2,.7,.3,1) both}
+@keyframes mf-rise{from{opacity:0;transform:translateY(${rise})}to{opacity:1;transform:none}}
+.lift{transition:transform .2s cubic-bezier(.2,.7,.3,1),box-shadow .2s cubic-bezier(.2,.7,.3,1)}
+.lift:hover{transform:translateY(-3px)}
+.fade{animation:mf-fade ${dur} ease both}
+@keyframes mf-fade{from{opacity:0}to{opacity:1}}
+.pop{animation:mf-pop ${dur} cubic-bezier(.2,.9,.3,1) both}
+@keyframes mf-pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+${motion === "expressive" ? `.hero__media{animation:mf-float 7s ease-in-out infinite alternate}
+@keyframes mf-float{from{transform:translateY(-6px)}to{transform:translateY(6px)}}
+.stagger > *{animation:mf-rise ${dur} cubic-bezier(.2,.7,.3,1) both}
+.stagger > :nth-child(1){animation-delay:.04s}
+.stagger > :nth-child(2){animation-delay:.11s}
+.stagger > :nth-child(3){animation-delay:.18s}
+.stagger > :nth-child(4){animation-delay:.25s}
+.stagger > :nth-child(5){animation-delay:.32s}
+.stagger > :nth-child(6){animation-delay:.39s}` : ""}`;
+}
+
+/* -------------------------------------------------------------- components */
+
+const COMPONENT_CSS = `
+.ico{width:1.6em;height:1.6em;flex:none;color:var(--accent)}
+.feature{display:grid;gap:.4rem;align-content:start}
+.feature .ico{width:2.1rem;height:2.1rem;margin-bottom:.3rem}
+.feature p{color:var(--muted);margin:0}
+
+.quote{display:grid;gap:.9rem;background:var(--surface);border:1px solid var(--border);
+ border-radius:var(--radius);padding:clamp(1.1rem,2.5vw,1.6rem)}
+.quote p{font-size:var(--step-1);text-wrap:pretty;margin:0}
+.quote footer{display:flex;align-items:center;gap:.7rem;font-size:var(--step--1)}
+.quote img{width:2.75rem;height:2.75rem;border-radius:999px;object-fit:cover;border:1px solid var(--border)}
+.quote cite{font-style:normal;font-weight:650}
+.quote small{display:block;font-weight:400}
+
+.time{position:relative;margin:0;padding:0;list-style:none}
+.time::before{content:"";position:absolute;inset-block:1rem;inset-inline-start:.45rem;width:2px;background:var(--border)}
+.time__item{position:relative;padding-inline-start:2.1rem;padding-bottom:1.6rem}
+.time__item:last-child{padding-bottom:0}
+.time__item::before{content:"";position:absolute;inset-inline-start:0;top:.45rem;width:.95rem;height:.95rem;
+ border-radius:999px;background:var(--accent);box-shadow:0 0 0 4px var(--bg)}
+.time__when{font-size:var(--step--1);color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.time h3{margin:.2rem 0 .1rem}
+.time p{color:var(--muted);margin:0}
+.time ul{margin:.4rem 0 0;padding-inline-start:1.1rem;color:var(--muted)}
+
+.steps{counter-reset:mf-step;display:grid;gap:1.25rem;margin:0;padding:0;list-style:none}
+.steps li{counter-increment:mf-step;position:relative;padding-inline-start:3.1rem}
+.steps li::before{content:counter(mf-step);position:absolute;inset-inline-start:0;top:-.1rem;
+ width:2.2rem;height:2.2rem;border-radius:999px;display:grid;place-items:center;
+ background:var(--accent);color:var(--accent-on);font-weight:700;font-size:var(--step--1)}
+.steps h3{margin:0 0 .2rem}
+.steps p{margin:0;color:var(--muted)}
+
+.skills{display:grid;gap:.7rem}
+.skills div{display:grid;gap:.3rem}
+.skills dt{font-weight:600;display:flex;justify-content:space-between;gap:1rem}
+.skills dt span{font-weight:400;color:var(--muted);font-size:var(--step--1)}
+.skills__bar{height:.45rem;border-radius:999px;background:var(--border);overflow:hidden}
+.skills__bar i{display:block;height:100%;background:var(--accent);border-radius:999px}
+
+.logos{display:flex;flex-wrap:wrap;gap:1.25rem 2.25rem;align-items:center;justify-content:center;list-style:none;padding:0;margin:0}
+.logos img{height:2.1rem;width:auto;opacity:.75;filter:grayscale(1)}
+.logos span{font-size:var(--step--1);color:var(--muted)}
+
+.dropzone{border:1px dashed var(--border);border-radius:var(--radius);padding:.9rem;color:var(--muted);font-size:var(--step--1)}`;
+
 export function siteCss(theme, opts = {}) {
   const g = {
     radius: theme.radius ?? 8,
@@ -333,6 +439,9 @@ border-radius:999px;padding:.15rem .6rem;margin:0 .35rem .35rem 0}
 .notfound{text-align:center;padding-block:6rem}
 .cta{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.5rem,3vw,2.5rem);text-align:center}
 .cta h2{margin-top:0}
+${COMPONENT_CSS}
+${EFFECT_CSS}
+${MOTION_CSS(theme.motion)}
 form.stack{display:grid;gap:.9rem;max-width:38rem}
 form.stack label{display:grid;gap:.3rem;font-size:var(--step--1);font-weight:600}
 input,textarea,select{font:inherit;font-size:var(--step-0);color:var(--ink);background:var(--bg);

@@ -13,7 +13,7 @@ small script, nothing to compile and nothing to install. Everything here runs on
 
 | | What it is | Who it is for |
 |---|---|---|
-| [**02-website-generator-NEXT**](02-website-generator-NEXT/) | The current generator. A visual editor, nine starter templates, thirteen section types, a quality report, and a ZIP of finished static files. | Anyone shipping a small business site, portfolio, CV, brochure or landing page — with or without coding experience. |
+| [**02-website-generator-NEXT**](02-website-generator-NEXT/) | The current generator. A visual editor, nine starter templates, eighteen section types, a quality report, and a ZIP of finished static files. | Anyone shipping a small business site, portfolio, CV, brochure or landing page — with or without coding experience. |
 | [**01-legacy-generator-ORIGINAL**](01-legacy-generator-ORIGINAL/) | The first generator, kept whole. One 156 KB HTML file, opened by double-click. Its logic is untouched; its interface now wears the same brand. | Reference and history. Still runs, still generates sites. |
 
 ---
@@ -28,8 +28,8 @@ git clone https://github.com/Murtherhelp/murther_fabrique.git
 cd "murther_fabrique/02-website-generator-NEXT"
 
 npm start          # editor at http://localhost:5173/
-npm test           # 81 core checks, no browser needed
-npm run verify     # 245 checks across 6 suites, browsers included
+npm test           # 91 core checks, no browser needed
+npm run verify     # 256 checks across 6 suites, browsers included
 npm run build      # dist/generator.html — one file, opens by double-click
 ```
 
@@ -119,7 +119,7 @@ you control; that `.json` reopens in either generator.
 Being precise about this, because "audited" and "looked at carefully" are not
 the same word.
 
-**Verified by running it.** 245 automated checks across six suites
+**Verified by running it.** 256 automated checks across six suites
 (`npm run verify`, exit 0), plus the packaged application's own self-test
 exercising both generators inside the built `.exe`.
 

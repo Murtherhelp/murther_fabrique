@@ -1,15 +1,6 @@
 MIT License
 
-Copyright (c) 2026 <<COPYRIGHT HOLDER TO BE CONFIRMED>>
-
-<!--
-  The owner of this repository has not been recorded anywhere in the project, so
-  the copyright line above is a deliberate placeholder rather than a guess.
-  Replace `<<COPYRIGHT HOLDER TO BE CONFIRMED>>` with the legal name of the
-  person or organisation that owns MURTHER FABRIQUE before publishing, and
-  commit that change. Everything else in this file is the standard MIT text and
-  does not need editing.
--->
+Copyright (c) 2026 Furtherhelp
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -34,3 +25,7 @@ SOFTWARE.
 The logo, the application icon and every image under `assets/logo/` are
 original artwork created for this repository and are covered by the same
 licence. No third-party brand, stock image or traced asset is included.
+
+The copyright holder above is the account that owns this repository on GitHub.
+If the work is owned by somebody else, replace that one line with the legal
+name of the person or organisation and commit the change.

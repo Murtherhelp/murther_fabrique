@@ -34,7 +34,7 @@ export function blankDoc() {
     description: bi("One sentence describing this site for search engines.", "Une phrase décrivant ce site pour les moteurs de recherche."),
     baseUrl: "",
     meta: { lang: "en", bilingual: false, noindex: false },
-    theme: { palette: "ink", colors: {}, radius: 8, tone: "sans", scale: "normal", scheme: "auto", customCss: "" },
+    theme: { palette: "ink", colors: {}, radius: 8, tone: "sans", scale: "normal", scheme: "auto", motion: "none", customCss: "" },
     company: "",
     address: "",
     email: "",
@@ -115,6 +115,7 @@ export function normalizeDoc(raw) {
       tone: ["sans", "serif", "mono"].includes(raw.theme?.tone) ? raw.theme.tone : "sans",
       scale: ["compact", "normal", "large", "huge"].includes(raw.theme?.scale) ? raw.theme.scale : "normal",
       scheme: ["auto", "light", "dark"].includes(raw.theme?.scheme) ? raw.theme.scheme : "auto",
+      motion: ["none", "subtle", "expressive"].includes(raw.theme?.motion) ? raw.theme.motion : "none",
       customCss: str(raw.theme?.customCss, 60000)
     },
     company: str(raw.company, 120),

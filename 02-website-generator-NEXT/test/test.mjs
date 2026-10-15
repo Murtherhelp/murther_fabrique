@@ -15,6 +15,7 @@ import { T, t, tf } from "../src/js/i18n.js";
 import { S } from "../src/js/site-strings.js";
 import { PALETTES, contrastChecks, paletteOf, resolve, sanitizeCss, siteCss } from "../src/js/themes.js";
 import { BLOCKS, BLOCK_ORDER, makeBlock, bi, missing, blockTypeLabel } from "../src/js/blocks.js";
+import { ICON_KEYS, icon } from "../src/js/icons.js";
 import { build, pagePath, docWarnings, FORMAT } from "../src/js/build.js";
 import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "../src/js/templates.js";
 import { PRESETS, PRESET_FOR } from "../src/js/presets.js";
@@ -304,6 +305,105 @@ test("sanitizeCss strips remote @import and url(), reports the count", () => {
 test("the registry exposes the block types the templates need", () => {
   for (const k of BLOCK_ORDER) assert.ok(BLOCKS[k], `missing block ${k}`);
   assert.ok(BLOCK_ORDER.length >= 10);
+});
+
+/* ------------------------------------------------------- the new vocabulary */
+
+/**
+ * A block type nobody can reach from the interface is dead weight, so the
+ * templates have to exercise all of them. This is the test that fails when
+ * someone adds a block and forgets to put it on a page.
+ */
+test("every block type is actually used by a template", () => {
+  const used = new Set();
+  for (const key of TEMPLATE_ORDER) {
+    const doc = fromTemplate(key);
+    for (const page of doc.pages) for (const b of page.blocks) used.add(b.type);
+  }
+  const orphans = BLOCK_ORDER.filter((k) => !used.has(k));
+  assert.equal(orphans.length, 0, `no template uses: ${orphans.join(", ")}`);
+});
+
+test("a feature card renders its icon, and 'none' renders nothing", () => {
+  const ctx = { lang: "en", img: () => "" };
+  const withIcon = BLOCKS.features.render({ ...BLOCKS.features.defaults(), items: [{ title: bi("A", "A"), body: bi("B", "B"), icon: "bolt" }] }, ctx);
+  assert.match(withIcon, /<svg class="ico"/);
+  const without = BLOCKS.features.render({ ...BLOCKS.features.defaults(), items: [{ title: bi("A", "A"), body: bi("B", "B"), icon: "none" }] }, ctx);
+  assert.doesNotMatch(without, /<svg/);
+});
+
+test("icons are drawn, not fetched: no src, no href, no http", () => {
+  for (const key of ICON_KEYS) {
+    if (key === "none") continue;
+    const svg = icon(key);
+    assert.ok(svg.startsWith("<svg"), `${key} is not an svg`);
+    assert.doesNotMatch(svg, /src=|href=|http|url\(/i, `${key} reaches outside the page`);
+  }
+});
+
+test("the five new blocks render real markup from their own defaults", () => {
+  const ctx = { lang: "en", img: () => "" };
+  const cases = {
+    testimonial: /<figure class="quote">[\s\S]*<cite>/,
+    timeline: /<ul class="time">[\s\S]*time__item/,
+    skills: /<dl class="skills">[\s\S]*skills__bar/,
+    steps: /<ol class="steps">[\s\S]*<h3>/,
+    logos: /<ul class="logos">[\s\S]*<li>/,
+  };
+  for (const [type, re] of Object.entries(cases)) {
+    const html = BLOCKS[type].render(BLOCKS[type].defaults(), ctx);
+    assert.match(html, re, `${type} rendered ${html.slice(0, 120)}`);
+  }
+});
+
+test("a skill bar carries a real width, never the literal 'undefined'", () => {
+  const b = BLOCKS.skills.defaults();
+  const html = BLOCKS.skills.render(b, { lang: "en", img: () => "" });
+  assert.doesNotMatch(html, /undefined|NaN/);
+  assert.match(html, /width:(30|55|78|100)%/);
+});
+
+test("a logo with no image falls back to its name, so the strip is never blank", () => {
+  const html = BLOCKS.logos.render(BLOCKS.logos.defaults(), { lang: "en", img: () => "" });
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /<span>Client one<\/span>/);
+});
+
+test("a look is a class on the section, and an unknown one adds nothing", () => {
+  const ctx = { lang: "en", img: () => "" };
+  const def = BLOCKS.steps.defaults();
+  assert.match(BLOCKS.steps.render({ ...def, effect: "gradient" }, ctx), /class="section fx-gradient"/);
+  assert.match(BLOCKS.steps.render({ ...def, effect: "none" }, ctx), /class="section"/);
+  assert.match(BLOCKS.steps.render({ ...def, effect: "drop table" }, ctx), /class="section"/);
+  assert.match(BLOCKS.steps.render(def, ctx), /class="section"/);
+});
+
+test("a block with nothing to say renders nothing rather than an empty shell", () => {
+  const ctx = { lang: "en", img: () => "" };
+  for (const type of ["testimonial", "timeline", "skills", "steps", "logos"]) {
+    const b = { ...BLOCKS[type].defaults(), items: [] };
+    if (type === "testimonial") b.quote = bi("", "");
+    assert.equal(BLOCKS[type].render(b, ctx), "", `${type} emitted an empty section`);
+  }
+});
+
+test("an empty look value cannot smuggle a class into the class attribute", () => {
+  const html = BLOCKS.steps.render({ ...BLOCKS.steps.defaults(), effect: `card" onclick="alert(1)` }, { lang: "en", img: () => "" });
+  assert.doesNotMatch(html, /onclick|alert\(1\)|class="section fx-card"/);
+});
+
+test("motion is off by default, and 'expressive' is the only one that floats", () => {
+  const page = (m) => siteCss({ ...blankDoc().theme, motion: m }, { title: "T", slug: "t", lang: "en" });
+  assert.equal(/mf-float/.test(page("none")), false, "the default must not move anything");
+  assert.equal(/mf-float/.test(page("subtle")), false, "subtle must stay still");
+  assert.equal(/mf-float/.test(page("expressive")), true, "expressive is the one that floats the hero");
+});
+
+test("every motion level still yields a stylesheet a browser accepts", () => {
+  for (const m of ["none", "subtle", "expressive", "", "wild", null]) {
+    const css = siteCss({ ...blankDoc().theme, motion: m }, { title: "T", slug: "t", lang: "en" });
+    assert.doesNotMatch(css, /undefined|NaN|\$\{/, `motion=${m}`);
+  }
 });
 
 test("every block declares fields matching its defaults", () => {
