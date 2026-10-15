@@ -575,6 +575,48 @@ test("every enum option value survives normalisation instead of becoming a blank
   assert.equal(empty.length, 0, `no matching option, the control renders blank: ${empty.join(", ")}`);
 });
 
+/**
+ * The quality report flags an image with no alt, so every image the inspector
+ * can reach needs an alt control beside it. The picker used to be the whole
+ * field: the hero had a second, separately written alt input, and every image
+ * added after it - gallery items, logos, a testimonial photo - had a warning
+ * with no way to act on it.
+ */
+test("every image field the inspector offers also offers alt text", () => {
+  // The alt input writes into `spec.alt`, so an image spec without that slot
+  // would silently drop what the user typed. The picker used to be the whole
+  // field: the hero had a second, separately written alt input, and every image
+  // added after it had a quality warning with no way to act on it.
+  const missing = [];
+  const ok = (v) => v && typeof v === "object" && "alt" in v && v.alt && "en" in v.alt && "fr" in v.alt;
+  for (const [type, def] of Object.entries(BLOCKS)) {
+    const d = def.defaults();
+    for (const f of def.fields) {
+      if (f.t === "img" && !ok(d[f.k])) missing.push(`${type}.${f.k} default has no alt slot`);
+      for (const sf of f.of || []) {
+        if (sf.t !== "img") continue;
+        const row = (d[f.k] || [])[0] || {};
+        if (!ok(row[sf.k])) missing.push(`${type}.${f.k}[].${sf.k} default has no alt slot`);
+      }
+    }
+  }
+  assert.equal(missing.length, 0, `alt cannot be entered for: ${missing.join(", ")}`);
+});
+
+test("an image written through the inspector lands an alt in the built page", () => {
+  const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const doc = blankDoc();
+  doc.assets = [{ id: "a1", name: "pic.png", type: "image/png", data: PNG }];
+  const b = makeBlock("logos");
+  b.items = [{ name: bi("Client", "Client"), image: { assetId: "a1", alt: bi("Client wordmark", "Logotype du client") } }];
+  doc.pages[0].blocks = [b];
+  const html = build(doc).files["index.html"];
+  assert.match(html, /<img src="assets\/pic\.png" alt="Client wordmark"/);
+  // And the quality report has nothing to complain about.
+  const imgs = [...html.matchAll(/<img\b[^>]*>/g)].map((m) => m[0]);
+  assert.equal(imgs.filter((t) => !/\balt="[^"]+"/.test(t)).length, 0, `images without alt: ${imgs.join(" ")}`);
+});
+
 test("every template label and description carries both languages", () => {
   const bad = [];
   for (const [key, tpl] of Object.entries(TEMPLATES)) {

@@ -253,7 +253,29 @@ async function main() {
   await tryEval("window.wgn.setLang('en'); return 1;");
   await new Promise((r) => setTimeout(r, 150));
 
-  /* ------------------------------------------------ bilingual site output */
+  /* Every image control must sit next to an alt field. The picker used to be
+     the whole control: only the hero had one, so a logo strip or a testimonial
+     photo raised a quality warning the inspector gave no way to clear. */
+  const altProbe = await tryEval(`
+    const out = [];
+    for (const type of ['hero', 'logos', 'testimonial', 'gallery']) {
+      window.wgn.applyTemplate('blank');
+      window.wgn.addBlock(type);
+      window.wgn.select(0, 0);
+      const pickers = document.querySelectorAll('#blockForm .field__img').length;
+      const alts = [...document.querySelectorAll('#blockForm .field__label')]
+        .filter(n => /alt/i.test(n.textContent)).length;
+      out.push(type + ':' + pickers + '/' + alts);
+    }
+    return out.join(' ');
+  `);
+  const altBad = (altProbe || "").split(" ").filter((s) => {
+    const [pair] = s.split(":");
+    const [pickers, alts] = (pair || "").split("/").map(Number);
+    return pickers > 0 && alts < pickers;
+  });
+  ok("every image picker sits next to an alt field", (altProbe?.length ?? 0) > 0 && altBad.length === 0,
+     `${altProbe}${altBad.length ? ` | no alt field in ${altBad.join(", ")}` : ""}`);
   const bi = await tryEval(`
     window.wgn.applyTemplate('business');
     window.wgn.setBilingual(true);

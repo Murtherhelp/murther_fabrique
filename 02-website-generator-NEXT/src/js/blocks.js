@@ -691,10 +691,13 @@ BLOCKS.logos = {
   ${T(b.title, c.lang) ? `<h2>${esc(T(b.title, c.lang))}</h2>` : ""}
   <ul class="logos">${items.map((it) => {
       const img = c.img(it.image);
-      const name = esc(T(it.name, c.lang));
+      // The alt the user typed wins; the name is the fallback, because a logo
+      // strip that renders "Client one" three times tells a screen reader
+      // nothing, and an empty alt would hide the row entirely.
+      const label = T(it.image?.alt, c.lang) || T(it.name, c.lang);
       return `<li>${img
-        ? `<img src="${esc(img)}" alt="${name}" width="160" height="34" loading="lazy">`
-        : `<span>${name}</span>`}</li>`;
+        ? `<img src="${esc(img)}" alt="${esc(label)}" width="160" height="34" loading="lazy">`
+        : `<span>${esc(T(it.name, c.lang))}</span>`}</li>`;
     }).join("")}</ul>`);
   }
 };

@@ -394,8 +394,25 @@ function enumInput(value, options, onChange) {
   return n;
 }
 
+/**
+ * Alt text, next to the picker.
+ *
+ * The picker on its own leaves an image with no way to describe itself: the
+ * quality report flags the missing alt, and the inspector offers no field to
+ * fix it. It used to exist once, for the hero, so every image added since -
+ * gallery items, a logo strip, a testimonial photo - shipped with a warning
+ * nobody could act on.
+ */
+function altField(read, write) {
+  const lang = doc().meta.bilingual ? S.contentLang : doc().meta.lang;
+  const pair = () => ({ en: "", fr: "", ...(read()?.alt || {}) });
+  return field(t("imageAltLabel"), textInput(bT(read()?.alt, lang), (v) =>
+    write({ ...(read() || {}), alt: { ...pair(), [lang]: v } })
+  ));
+}
+
 /** Asset picker: real file input, preview thumb, remove. */
-function imageInput(spec, onChange) {
+function imageInput(spec) {
   const wrap = el("div", { className: "field__img" });
   const asset = doc().assets.find((a) => a.id === spec.assetId);
   if (asset) wrap.append(el("img", { src: asset.data, alt: "" }));
@@ -497,7 +514,8 @@ function renderField(spec, type, get, set) {
       // Reached for image sub-fields inside a list (gallery items, products).
       const wrap = el("div", { className: "field" });
       wrap.append(specLabel(spec, at));
-      wrap.append(imageInput(get() || { assetId: "", alt: bi("", "") }, set));
+      wrap.append(imageInput(get() || { assetId: "", alt: bi("", "") }));
+      wrap.append(altField(get, set));
       return wrap;
     }
     case "list":
@@ -708,28 +726,11 @@ function renderInspector() {
     };
     host.append(renderField(f, b.type, read, write));
   }
-
-  /* alt text is part of an image, and mandatory — render it right after */
-  if (b.image) {
-    const lang = bilingual ? S.contentLang : doc().meta.lang;
-    host.append(
-      field(t("imageAltLabel"), textInput(bT(b.image.alt, lang), (v) => {
-        const next = structuredClone(doc());
-        next.pages.find((x) => x.id === p.id).blocks.find((x) => x.id === b.id).image.alt[lang] = v;
-        commit(next);
-      }))
-    );
-  }
 }
 
 function renderImageField(f, b, p) {
   const spec = b[f.k] || { assetId: "", alt: bi("", "") };
-  const picker = imageInput(spec, (v) => {
-    commit(edit((d) => {
-      const target = d.pages.find((x) => x.id === p.id).blocks.find((x) => x.id === b.id);
-      target[f.k] = { ...target[f.k], assetId: v.assetId };
-    }));
-  });
+  const picker = imageInput(spec);
   // The picker is a group of buttons, not a single input, so the label is
   // associated with the group via aria-labelledby.
   const wrap = el("div", { className: "field" }, [specLabel(f, `${b.type}.${f.k}`), picker]);
@@ -737,6 +738,12 @@ function renderImageField(f, b, p) {
   wrap.querySelector(".field__label").id = lid;
   picker.setAttribute("role", "group");
   picker.setAttribute("aria-labelledby", lid);
+  wrap.append(altField(() => spec, (v) => {
+    commit(edit((d) => {
+      const target = d.pages.find((x) => x.id === p.id).blocks.find((x) => x.id === b.id);
+      target[f.k] = v;
+    }));
+  }));
   return wrap;
 }
 
