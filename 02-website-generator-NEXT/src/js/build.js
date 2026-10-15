@@ -30,6 +30,24 @@ export function pagePath(doc, page, lang) {
 
 /* ------------------------------------------------------------------ head */
 
+/**
+ * JSON for a `<script type="application/ld+json">` body.
+ *
+ * NOT `esc()`. The content of a script element is raw text: the HTML parser
+ * hands it to the script verbatim and never decodes entities, so escaping the
+ * quotes shipped every exported page a JSON-LD block full of `&quot;` that no
+ * search engine can parse. Silent loss of every rich result.
+ *
+ * What the block does need is protection from its own payload closing the tag:
+ * `<` is escaped as the JSON-legal `<`, which cannot open a tag and still
+ * parses. `>` and `&` go with it for good measure.
+ */
+const jsonLdScript = (o) =>
+  JSON.stringify(o)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+
 function head(doc, page, lang, otherPath, selfPath) {
   const name = T(doc.name, lang) || doc.name.en || "Site";
   const title = T(page.title, lang) || name;
@@ -315,7 +333,7 @@ function favicon(doc) {
 
 /* The generated site's only JavaScript: theme toggle + the static form.
    No framework, no analytics, no network. */
-const SITE_JS = `/* Website Generator Next — theme toggle + static form. */
+const SITE_JS = `/* MURTHER FABRIQUE — theme toggle + static form. */
 (function () {
   "use strict";
   var KEY = "theme";

@@ -71,6 +71,6 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Website Generator Next -> http://localhost:${PORT}/`);
+  console.log(`MURTHER FABRIQUE -> http://localhost:${PORT}/`);
   console.log(`serving ${ROOT}`);
 });

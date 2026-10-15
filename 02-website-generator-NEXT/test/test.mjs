@@ -453,6 +453,33 @@ test("user content can never inject a script into a generated page", () => {
   assert.equal((html.match(/<script/g) || []).length, 2, "only the site.js tag and the JSON-LD tag");
 });
 
+test("the JSON-LD block is real JSON, and still cannot close its own tag", () => {
+  const ld = (html) => /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)[1];
+
+  // 1. It parses. It used to be run through esc(), and since a script element's
+  //    content is raw text the quotes stayed as &quot; — every exported page
+  //    shipped structured data that no search engine could read.
+  const d = doc("business");
+  d.company = 'Bob "The <Builder>"';
+  d.baseUrl = "https://example.test";
+  const parsed = JSON.parse(ld(build(d).files["index.html"]));
+  assert.equal(parsed["@type"], "Organization");
+  assert.equal(parsed.url, "https://example.test");
+
+  // 2. Escaping the markup is still the point: a hostile value cannot end the
+  //    element and open a script of its own.
+  const evil = doc("blank");
+  evil.pages[0].blocks = [{
+    id: "x", type: "text",
+    title: bi("</script><script>alert(1)</script>", ""),
+    body: bi("", "")
+  }];
+  const html = build(evil).files["index.html"];
+  assert.equal((html.match(/<script/g) || []).length, 2, "only the site.js tag and the JSON-LD tag");
+  assert.ok(!html.includes("alert(1)</script>"), "nothing escaped the JSON-LD block");
+  assert.doesNotThrow(() => JSON.parse(ld(html)), "still parses after the payload");
+});
+
 test("a page that duplicates another page's file name is reported", () => {
   const d = doc("blank");
   d.pages.push({ ...d.pages[0], id: "p2", slug: "about" });
