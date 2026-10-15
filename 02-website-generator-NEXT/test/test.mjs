@@ -495,6 +495,39 @@ test("motion is off by default, and 'expressive' is the only one that floats", (
   assert.equal(/mf-float/.test(page("expressive")), true, "expressive is the one that floats the hero");
 });
 
+test("an accent fill repaints every text token, not just the accent pair", () => {
+  const css = siteCss({ ...blankDoc().theme }, { title: "T", slug: "t", lang: "en" });
+  // One rule, instead of an override per component: an accent-filled section
+  // swaps the tokens everything inside it is drawn with. Flipping only
+  // --accent left page ink and muted grey on the fill - in the DOM, invisible
+  // on screen.
+  for (const token of ["--accent", "--accent-on", "--ink", "--muted", "--border"]) {
+    assert.match(css, new RegExp(`\\.fx-accent\\{[^}]*${token}:var\\(--mf-accent`), `${token} is not repainted inside an accent fill`);
+  }
+});
+
+test("the accent snapshots are literal colours, not var() of themselves", () => {
+  const css = siteCss({ ...blankDoc().theme }, { title: "T", slug: "t", lang: "en" });
+  // Custom properties are substituted where they are USED, not where they are
+  // declared. A snapshot written --mf-accent: var(--accent) is not a snapshot:
+  // --accent: var(--mf-accent-on) would resolve straight back to --accent and
+  // the browser would drop the whole declaration as a cycle.
+  const snap = [...css.matchAll(/--mf-accent(?:-on)?:\s*([^;]+);/g)].map((m) => m[1].trim());
+  assert.ok(snap.length >= 2, "no accent snapshots in the stylesheet");
+  for (const v of snap) {
+    assert.doesNotMatch(v, /var\(/, `snapshot ${v} is a reference, not a copy`);
+    assert.match(v, /^#[0-9a-f]{3,8}$|^\d+$/, `snapshot ${v} is not a colour literal`);
+  }
+});
+
+test("the accent fill's own background is the accent, not the colour meant to sit on it", () => {
+  const css = siteCss({ ...blankDoc().theme }, { title: "T", slug: "t", lang: "en" });
+  // If the fill itself used the swapped --accent it would come out the colour
+  // of the text, and the section would vanish into the page.
+  assert.match(css, /\.fx-accent\{[^}]*background:var\(--mf-accent\)/);
+  assert.match(css, /\.fx-accent > \.wrap\{[^}]*background:var\(--mf-accent\)/);
+});
+
 test("every motion level still yields a stylesheet a browser accepts", () => {
   for (const m of ["none", "subtle", "expressive", "", "wild", null]) {
     const css = siteCss({ ...blankDoc().theme, motion: m }, { title: "T", slug: "t", lang: "en" });

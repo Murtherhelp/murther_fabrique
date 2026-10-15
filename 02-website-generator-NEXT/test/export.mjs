@@ -246,6 +246,28 @@ async function main() {
      lightRendered.bg !== rendered.bg,
      `${lightRendered.bg} vs ${rendered.bg}`);
 
+  /* An accent-filled section paints itself in --accent. Every link, icon, skill
+     bar and timeline dot inside it also used --accent, which is accent on
+     accent: present in the DOM, invisible on screen. The section swaps the two
+     tokens; this measures the result in a real browser rather than trusting the
+     rule, and in both colour schemes, since the tokens are emitted twice. */
+  const accentZip = {
+    ...check,
+    all: check.all.map((e) =>
+      e.name === "index.html"
+        ? { ...e, body: e.body.toString("utf8").replace('<section class="section"', '<section class="section fx-accent"') }
+        : e)
+  };
+  for (const scheme of [null, "light"]) {
+    const fill = await renderExported(accentZip, scheme);
+    ok(`an accent-filled section stays readable (${scheme || "dark"})`,
+       (fill.accent?.worst ?? 0) >= 4.5 && (fill.accent?.sampled ?? 0) > 0,
+       `worst ${(fill.accent?.worst ?? 0).toFixed(2)}:1 over ${fill.accent?.sampled ?? 0} elements — ${fill.accent?.first || "nothing sampled"}: ${fill.accent?.detail || ""}`);
+    ok(`the accent fill paints the accent, not the colour meant to sit on it (${scheme || "dark"})`,
+       fill.accent?.bg !== fill.accent?.fg && !!fill.accent?.bg,
+       `${fill.accent?.bg} on ${fill.accent?.fg}`);
+  }
+
   /* French export, read back from the archive. */
   const frZip = await ev(`
     const { zip, toEntries } = await import('./js/zip.js');
@@ -391,7 +413,46 @@ async function renderExported(zipRead, scheme = null) {
       external: performance.getEntriesByType('resource')
         .filter(r => !r.name.startsWith(location.origin) && !r.name.startsWith('data:') && !r.name.startsWith('blob:')).length,
       styleSheets: document.styleSheets.length,
-      scriptsRan: typeof document.querySelector('[data-theme-toggle]') !== 'undefined'
+      scriptsRan: typeof document.querySelector('[data-theme-toggle]') !== 'undefined',
+      accent: (() => {
+        const sec = document.querySelector('.fx-accent');
+        if (!sec) return null;
+        // rgba parse, alpha included: "is this background transparent" must be
+        // decided on the alpha, not by matching a string a browser may format
+        // its own way.
+        const rgba = (c) => {
+          const n = (c.match(/-?[\\d.]+/g) || []).map(Number);
+          return { rgb: n.slice(0, 3), a: n.length > 3 ? n[3] : 1 };
+        };
+        const lum = ([r, g, b]) => {
+          const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+          return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+        };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+        const cs = getComputedStyle(sec);
+        // The background an element is actually read against: its own if it
+        // paints an opaque one, otherwise the nearest ancestor that does. A
+        // chip, a card and a button all carry their own fill, so measuring
+        // them against the section would report failures that are not real.
+        const behind = (el) => {
+          for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+            const c = rgba(getComputedStyle(n).backgroundColor);
+            if (c.a > 0.05) return c.rgb;
+          }
+          return rgba(getComputedStyle(document.body).backgroundColor).rgb;
+        };
+        let worst = 99, sampled = 0, first = '', detail = '';
+        for (const el of sec.querySelectorAll('a, h2, h3, p, .ico, .skills__bar i, .btn, .eyebrow')) {
+          const own = getComputedStyle(el);
+          // A bar is a fill, not text: measure it against what it sits on.
+          const fg = el.tagName === 'I' ? rgba(own.backgroundColor).rgb : rgba(own.color).rgb;
+          const bg = behind(el);
+          const r = ratio(fg, bg);
+          if (r < worst) { worst = r; first = el.className || el.tagName; detail = own.color + ' on ' + own.backgroundColor + ' over ' + bg; }
+          sampled++;
+        }
+        return { worst, sampled, first, detail, bg: cs.backgroundColor, fg: cs.color };
+      })()
     })`);
     await send("Target.closeTarget", { targetId });
     return JSON.parse(info || "{}");

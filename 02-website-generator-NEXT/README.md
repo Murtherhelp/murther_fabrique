@@ -69,7 +69,7 @@ tests still import `src/js/*.js` directly. **`dist/generator.html` is generated
 ## Test it
 
 ```bash
-npm test          # 100 core checks, no browser needed
+npm test          # 103 core checks, no browser needed
 npm run verify    # everything: core + 5 more suites, starting its own servers
 ```
 
@@ -79,11 +79,11 @@ again. Add `--head` to any of them to watch the browser work.
 
 | suite | checks | what it covers |
 |---|---:|---|
-| **core** (`npm test`) | 100 | The pure engine in Node: XSS boundary, `safeHref`, contrast maths, dark-mode derivation, block registry, all 9 templates and their distinctness, bilingual output, nav integrity, hostile project import, undo/redo, ZIP writer. |
+| **core** (`npm test`) | 103 | The pure engine in Node: XSS boundary, `safeHref`, contrast maths, dark-mode derivation, block registry, all 9 templates and their distinctness, bilingual output, nav integrity, hostile project import, undo/redo, ZIP writer. |
 | **browser** | 81 | The real editor: language switching, every template and all 18 section types, inspector, quality report, undo/redo, drag-to-reorder, preview-frame navigation guard, the live contrast readout, accessible names, the theme's light and dark output. |
 | **accessibility** | 31 | Real Tab keypresses, accessible names on every control, focus visibility, landmarks, focus retention across a language switch, overflow at maximum text size. |
 | **i18n** | 11 | Autosave and reload round-trip, language independence, both site languages surviving a reload. |
-| **export** | 32 | Builds a real ZIP, re-reads it with an **independent** reader (Node's `zlib`, not our writer), then serves the extracted tree over HTTP and renders it — twice, once with the system pinned to light and once to dark. |
+| **export** | 36 | Builds a real ZIP, re-reads it with an **independent** reader (Node's `zlib`, not our writer), then serves the extracted tree over HTTP and renders it — twice, once with the system pinned to light and once to dark. |
 | **single-file** | 11 | Builds `dist/generator.html`, then **opens it over `file://`** — no server, no Node — and checks it produces the identical file tree, template by template, that the modules do. |
 
 That last one is the important one: a bug in the ZIP writer cannot hide behind a
@@ -314,7 +314,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **266 checks passing across 6 suites** and
+`npm run verify` currently reports **273 checks passing across 6 suites** and
 exits 0:
 
 ```
@@ -350,11 +350,11 @@ MURTHER FABRIQUE — website generator/
 ├─ desktop/               the Win32 + WebView2 launcher and its build script
 ├─ dist/                  generated: generator.html
 └─ test/
-   ├─ test.mjs            100 core checks (node --test)
+   ├─ test.mjs            103 core checks (node --test)
    ├─ browser.mjs         81 end-to-end editor checks
    ├─ a11y.mjs            31 accessibility checks
    ├─ i18n.mjs            11 language and persistence checks
-   ├─ export.mjs          32 export checks (real ZIP, real HTTP, real render)
+   ├─ export.mjs          36 export checks (real ZIP, real HTTP, real render)
    ├─ single.mjs          11 single-file checks (real file:// load)
    └─ verify.mjs          runs all six suites
    serve.mjs           the server a browser suite starts for itself

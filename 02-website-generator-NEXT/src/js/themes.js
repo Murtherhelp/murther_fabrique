@@ -210,6 +210,14 @@ export function sanitizeCss(input) {
 const vars = (t, g) =>
   `${css("bg")}${t.bg};\n${css("surface")}${t.surface};\n${css("ink")}${t.ink};\n` +
   `${css("muted")}${t.muted};\n${css("accent")}${t.accent};\n${css("accent-on")}${t.accentOn};\n` +
+  // The same two colours as literals, under names a rule may swap. An
+  // accent-filled section reassigns --accent and --accent-on so every link,
+  // icon, bar and bullet inside it flips at once. They have to be literal
+  // copies: a snapshot written as var(--accent) is not a snapshot. Custom
+  // properties are substituted where they are used, not where they are
+  // declared, so --accent: var(--mf-accent-on) would resolve back to --accent
+  // and the browser would drop the whole declaration as a cycle.
+  `${css("mf-accent")}${t.accent};\n${css("mf-accent-on")}${t.accentOn};\n` +
   `${css("alt")}${t.alt};\n${css("alt-on")}${t.altOn};\n${css("border")}${t.border};\n` +
   `${css("radius")}${g.radius}px;\n` +
   `${css("font")}${TONES[g.tone] || TONES.sans};\n${css("step--1")}calc(var(--step-0) * 0.84);\n` +
@@ -239,8 +247,17 @@ const EFFECT_CSS = `
 .fx-card > .wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
 .fx-outline > .wrap{border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
 .fx-soft > .wrap{background:var(--surface);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
-.fx-accent > .wrap{background:var(--accent);color:var(--accent-on);border-radius:var(--radius);padding:clamp(1.5rem,3vw,2.5rem)}
-.fx-accent .lede,.fx-accent small{color:var(--accent-on);opacity:.85}
+/*
+ * An accent fill has to repaint everything inside it, not just the accent.
+ * Every heading, caption and rule in a section is drawn with --ink, --muted
+ * or --border, so flipping only the accent pair left page ink on the accent
+ * fill: present in the DOM, invisible on screen. Repointing the tokens is one
+ * rule instead of a list of overrides, and it covers rules added later.
+ */
+.fx-accent{--accent:var(--mf-accent-on);--accent-on:var(--mf-accent);--ink:var(--mf-accent-on);
+ --muted:var(--mf-accent-on);--border:var(--mf-accent-on);background:var(--mf-accent);color:var(--mf-accent-on)}
+.fx-accent > .wrap{background:var(--mf-accent);color:var(--mf-accent-on);border-radius:var(--radius);padding:clamp(1.5rem,3vw,2.5rem)}
+.fx-accent .lede,.fx-accent small{color:var(--mf-accent-on);opacity:.85}
 .fx-gradient > .wrap{background:linear-gradient(160deg,var(--surface),var(--bg));border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
 .fx-shadow > .wrap{background:var(--surface);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem);box-shadow:0 18px 50px -24px rgb(0 0 0 / .55)}
 .fx-inset > .wrap{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
