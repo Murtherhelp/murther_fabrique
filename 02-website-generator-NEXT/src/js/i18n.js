@@ -27,6 +27,12 @@ export const T = {
   /* --- language + scale (device prefs) --- */
   lblUiLang: ["Interface language", "Langue de l'interface"],
   lblUiScale: ["Interface text size", "Taille du texte de l'interface"],
+  // Short forms for the visible micro-labels above the two toolbar selects.
+  // The long ones are the accessible description and the tooltip; as visible
+  // labels they wrapped the toolbar onto a second row in French, which is
+  // exactly the wrapping the grid row was supposed to survive gracefully.
+  lblLangShort: ["Language", "Langue"],
+  lblSizeShort: ["Text size", "Taille"],
   scale100: ["Text 100%", "Texte 100 %"],
   scale115: ["Text 115%", "Texte 115 %"],
   scale130: ["Text 130%", "Texte 130 %"],

@@ -23,6 +23,9 @@
 <a class="sr" href="#outline" data-i18n="skipEditor">Skip to the editor</a>
 
 <!-- ============================ top bar: editor chrome ========================= -->
+<!-- Left: who this is. Then the one thing you do first. Right: everything you
+     do often, in groups, so the bar reads as three decisions rather than seven
+     buttons. -->
 <header class="topbar">
   <div class="brandmark">
     <!-- The mark is inlined, not linked: the single-file build has to carry it,
@@ -49,9 +52,14 @@
 
 <span class="spacer"></span>
 
-    <!-- Arrow glyphs, not letters: they stay legible at every text size. -->
-    <button class="btn btn--icon" type="button" id="undoBtn" data-i18n-title="undo" title="Undo" disabled aria-label="Undo">&#8592;</button>
-    <button class="btn btn--icon" type="button" id="redoBtn" data-i18n-title="redo" title="Redo" disabled aria-label="Redo">&#8594;</button>
+  <!-- Undo and redo are one control split in two: they are a pair, and a gap
+       between them makes them read as unrelated buttons. -->
+  <div class="group">
+    <button class="btn btn--icon" type="button" id="undoBtn" data-i18n-title="undo" title="Undo" aria-label="Undo">&#8630;</button>
+    <button class="btn btn--icon" type="button" id="redoBtn" data-i18n-title="redo" title="Redo" aria-label="Redo">&#8631;</button>
+  </div>
+
+  <span class="vr" aria-hidden="true"></span>
 
   <button class="btn" type="button" id="saveProjBtn" data-i18n="dlProject">Save project</button>
   <button class="btn" type="button" id="openProjBtn" data-i18n="loadProject">Open project</button>
@@ -60,14 +68,19 @@
   <input type="file" id="projFile" accept="application/json,.json" hidden
          aria-label="Project file" data-i18n-title="loadProject" title="Open project">
 
-  <label class="sr" for="uiLang" data-i18n="lblUiLang">Interface language</label>
-  <select id="uiLang">
+  <span class="vr" aria-hidden="true"></span>
+
+  <!-- Visible micro-labels. Two unlabelled selects in a toolbar are a riddle.
+       Short on purpose: the full wording stays on the tooltip and in the
+       accessible description. -->
+  <label class="mini" for="uiLang" data-i18n="lblLangShort">Language</label>
+  <select id="uiLang" data-i18n-title="lblUiLang" title="Interface language">
     <option value="en">English</option>
     <option value="fr">Français</option>
   </select>
 
-  <label class="sr" for="uiScale" data-i18n="lblUiScale">Interface text size</label>
-  <select id="uiScale">
+  <label class="mini" for="uiScale" data-i18n="lblSizeShort">Text size</label>
+  <select id="uiScale" data-i18n-title="lblUiScale" title="Interface text size">
     <option value="1" data-i18n="scale100">Text 100%</option>
     <option value="1.15" data-i18n="scale115">Text 115%</option>
     <option value="1.3" data-i18n="scale130">Text 130%</option>
