@@ -29,7 +29,7 @@ cd "murther_fabrique/02-website-generator-NEXT"
 
 npm start          # editor at http://localhost:5173/
 npm test           # 106 core checks, no browser needed
-npm run verify     # 309 checks across 6 suites, browsers included
+npm run verify     # 315 checks across 6 suites, browsers included
 npm run build      # dist/generator.html — one file, opens by double-click
 ```
 
@@ -119,7 +119,7 @@ you control; that `.json` reopens in either generator.
 Being precise about this, because "audited" and "looked at carefully" are not
 the same word.
 
-**Verified by running it.** 309 automated checks across six suites
+**Verified by running it.** 315 automated checks across six suites
 (`npm run verify`, exit 0), plus the packaged application's own self-test
 exercising both generators inside the built `.exe`.
 

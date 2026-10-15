@@ -387,35 +387,6 @@ async function main() {
       ok("the French-page check can tell two different pages apart", distinct,
          distinct ? "comparing pages really does compare them" : "every page looks identical - the comparison is vacuous");
 
-    // Every block type at once, all under the accent fill. The nine templates
-    // each exercise a handful of blocks; the combination nobody ships - a link
-    // inside a card inside an accent section - is exactly where a two-level
-    // colour scheme falls over, and no template happens to contain it.
-    const allInOne = await ev(`
-      const { toEntries, zip } = await import('./js/zip.js');
-      window.wgn.applyTemplate('blank');
-      const d = window.wgn.doc();
-      d.baseUrl = 'https://all.test';
-      d.company = 'All Co';
-      d.email = 'hello@all.test';
-      d.meta.bilingual = false;
-      d.pages[0].blocks = window.wgn.blockOrder().map((type, i) => ({ ...window.wgn.makeBlock(type), id: 'b' + i, effect: 'accent' }));
-      window.wgn.state.history.reset(d);
-      const files = await window.wgn.files();
-      const blob = await zip(toEntries(files), new Date(2026, 0, 1));
-      const bytes = new Uint8Array(await blob.arrayBuffer());
-      let bin = '';
-      const CH = 0x8000;
-      for (let k = 0; k < bytes.length; k += CH) bin += String.fromCharCode.apply(null, bytes.subarray(k, k + CH));
-      return { b64: btoa(bin), types: d.pages[0].blocks.map(b => b.type) };
-    `);
-    for (const scheme of [null, "light"]) {
-      const read = spawnSyncZip(allInOne.b64);
-      const r = await renderExported(read, scheme);
-      ok(`all ${allInOne.types?.length} block types under one accent fill (${scheme || "dark"})`,
-         (r.look?.worst ?? 0) >= 4.5 && (r.look?.sampled ?? 0) > 0,
-         `worst ${(r.look?.worst ?? 0).toFixed(2)}:1 over ${r.look?.sampled ?? 0} elements in ${r.look?.sections ?? 0} sections — ${r.look?.first || "none"}: ${r.look?.detail || ""}`);
-    }
     // The pages with no sections: the 404, the legal notice and the privacy
     // policy. They carry no look, so the question is only whether they clear
     // the audited text pairs, and they do use --ink and --muted on --bg.
@@ -435,6 +406,44 @@ async function main() {
         }
       }
     }
+    }
+  }
+
+  /* Every block type under every look.
+     The nine templates each exercise a handful of blocks with a handful of
+     looks; the combination nobody ships - a link inside a card inside a section
+     - is exactly where a colour scheme falls over. All eighteen at once, once
+     per look, in both colour schemes. Outside the loop above on purpose: this
+     one iterates the schemes itself. */
+  const buildAllInOne = async (look) => ev(`
+    const { toEntries, zip } = await import('./js/zip.js');
+    window.wgn.applyTemplate('blank');
+    const d = window.wgn.doc();
+    d.baseUrl = 'https://all.test';
+    d.company = 'All Co';
+    d.email = 'hello@all.test';
+    d.meta.bilingual = false;
+    d.pages[0].blocks = window.wgn.blockOrder().map((type, i) => ({ ...window.wgn.makeBlock(type), id: 'b' + i, effect: '${look}' }));
+    window.wgn.state.history.reset(d);
+    const files = await window.wgn.files();
+    const blob = await zip(toEntries(files), new Date(2026, 0, 1));
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let bin = '';
+    const CH = 0x8000;
+    for (let k = 0; k < bytes.length; k += CH) bin += String.fromCharCode.apply(null, bytes.subarray(k, k + CH));
+    return { b64: btoa(bin), types: d.pages[0].blocks.map(b => b.type) };
+  `);
+
+  for (const look of EFFECTS.map(([v]) => v).filter((v) => v !== "none")) {
+    const run = await buildAllInOne(look);
+    for (const scheme of [null, "light"]) {
+      const r = await renderExported(spawnSyncZip(run.b64), scheme);
+      // WCAG asks 4.5:1 for text and 3:1 for a graphical object that carries
+      // information. A skill bar is the second: holding it to the text
+      // threshold flagged a passing design as a failure.
+      ok(`all ${run.types.length} block types under the "${look}" look (${scheme || "dark"})`,
+         (r.look?.textWorst ?? 0) >= 4.5 && (r.look?.fillWorst ?? 99) >= 3 && (r.look?.sampled ?? 0) > 0,
+         `text ${(r.look?.textWorst ?? 0).toFixed(2)}:1 (needs 4.5), fills ${(r.look?.fillWorst ?? 0).toFixed(2)}:1 (needs 3), ${r.look?.sampled ?? 0} elements in ${r.look?.sections ?? 0} sections — ${r.look?.first || "none"}`);
     }
   }
 
@@ -615,7 +624,7 @@ async function renderExported(zipRead, scheme = null, page = "index.html") {
           }
           return rgba(getComputedStyle(document.body).backgroundColor).rgb;
         };
-        let worst = 99, sampled = 0, first = '', detail = '';
+        let textWorst = 99, fillWorst = 99, sampled = 0, first = '', detail = '';
         const perLook = {};
         for (const sec of secs) {
           // Which look this section carries, so the breakdown can name it.
@@ -630,8 +639,10 @@ async function renderExported(zipRead, scheme = null, page = "index.html") {
             const r = ratio(fg, behind(el, isFill));
             perLook[key].worst = Math.min(perLook[key].worst, r);
             perLook[key].n++;
-            if (r < worst) {
-              worst = r; first = (el.className || el.tagName) + ' in ' + key;
+            if (isFill) fillWorst = Math.min(fillWorst, r);
+            else textWorst = Math.min(textWorst, r);
+            if (!first) {
+              first = (el.className || el.tagName) + ' in ' + key + (isFill ? ' (a fill)' : ' (text)');
               const chain = [];
               for (let n = el; n && n !== document.documentElement && chain.length < 7; n = n.parentElement) {
                 chain.push(n.tagName + '.' + (n.className || '-') + '=' + getComputedStyle(n).backgroundColor);
@@ -649,7 +660,7 @@ async function renderExported(zipRead, scheme = null, page = "index.html") {
           const n = document.querySelectorAll(sel).length;
           if (n) components[sel.slice(1)] = n;
         }
-        return { worst, sampled, sections: secs.length, perLook, components, first, detail, bg: cs.backgroundColor, fg: cs.color };
+        return { worst: Math.min(textWorst, fillWorst), textWorst, fillWorst, sampled, sections: secs.length, perLook, components, first, detail, bg: cs.backgroundColor, fg: cs.color };
       })()
 })`, "look");
 
