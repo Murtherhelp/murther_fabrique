@@ -462,6 +462,9 @@ async function main() {
       ok(`nothing is left invisible when the page is ${label === "print" ? "printed" : "shown"} (${label})`,
          (r.visible?.total ?? 0) > 20 && (r.visible?.hidden ?? 1) === 0,
          `${r.visible?.total ?? 0} elements, ${r.visible?.hidden ?? 0} invisible${r.visible?.sample?.length ? " — " + r.visible.sample.join("; ") : ""}`);
+      ok(`every marker-less list keeps its list semantics (${label})`,
+         (r.lists?.bare?.length ?? 1) === 0 && (r.lists?.fixed?.length ?? 0) > 0,
+         `${r.lists?.fixed?.length ?? 0} lists carry role="list"${r.lists?.bare?.length ? ", missing: " + r.lists.bare.join(", ") : ""}`);
     }
   }
 
@@ -494,9 +497,6 @@ async function main() {
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} export checks passed`);
   stop();
-  // `failed` is an array: an empty array is truthy in JS, so `failed ? 1 : 0` exits 1 even
-  // when every check passed.
-  process.exit(failed.length ? 1 : 0);
   process.exit(failed.length ? 1 : 0);
 }
 
@@ -585,7 +585,11 @@ async function renderExported(zipRead, scheme = null, page = "index.html", media
       writeFileSync(target, e.body);
     }
 
-    const { targetId } = await send("Target.createTarget", { url: `http://localhost:${PORT}/${folder}/${page}` });
+    // Opened blank on purpose and navigated after attaching: a target created
+    // straight at the page can answer a probe before it has navigated, and
+    // `about:blank` reports readyState "complete" with a body and no content -
+    // so a fixed sleep measured the blank tab and reported zero sections.
+    const { targetId } = await send("Target.createTarget", { url: "about:blank" });
     const { sessionId: sid } = await send("Target.attachToTarget", { targetId, flatten: true });
     const ask = async (expr, label = 'probe') => {
       const r = await send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true }, sid);
@@ -600,7 +604,31 @@ async function renderExported(zipRead, scheme = null, page = "index.html", media
     if (scheme) {
       await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: scheme }] }, sid);
     }
-    await new Promise((r) => setTimeout(r, 1200));
+    if (media) {
+      await send("Emulation.setEmulatedMedia", { media }, sid);
+    }
+    // Wait for the document, not for a stopwatch. This suite renders forty-odd
+    // pages in a row; a fixed 1200 ms is enough on a quiet machine and not
+    // enough on a busy one, and a page measured before its stylesheet landed
+    // reports zero sections - which reads as a design failure.
+    await send("Page.navigate", { url: `http://localhost:${PORT}/${folder}/${page}` }, sid);
+    let ready = false;
+    for (let i = 0; i < 80 && !ready; i++) {
+      ready = await ask(`location.pathname.endsWith('/${page}') && document.readyState === 'complete' && !!document.body`);
+      if (!ready) await new Promise((r) => setTimeout(r, 100));
+    }
+    if (!ready) throw new Error(`${folder}/${page} never finished loading`);
+    // Then wait for the entrance animations to finish. The visibility check
+    // below asks whether anything is left at opacity 0; measuring mid-animation
+    // answers that question about the animation, not about the page. Capped,
+    // because a document with an endless animation would hang the suite.
+    for (let i = 0; i < 40; i++) {
+      const running = await ask("document.getAnimations ? document.getAnimations().some(a => a.playState === 'running') : false");
+      if (!running) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    // One frame for layout and computed styles to settle.
+    await new Promise((r) => setTimeout(r, 120));
     const info = await ask(`JSON.stringify({
       title: document.title,
       bg: getComputedStyle(document.body).backgroundColor,
@@ -617,6 +645,20 @@ async function renderExported(zipRead, scheme = null, page = "index.html", media
       // Everything a reader would actually see: no element left at the start
       // of an entrance animation, nothing transparent, nothing off-screen. A
       // printed page is the case where animations never run.
+      // A marker-less list is out of the accessibility tree in WebKit unless
+      // role="list" puts it back. Chrome keeps the semantics either way, so the
+      // browser cannot prove this; the attribute is what is checked.
+      lists: (() => {
+        const bare = [], fixed = [];
+        for (const el of document.querySelectorAll('ul, ol')) {
+          const s = getComputedStyle(el);
+          const markerless = s.listStyleType === 'none' || s.display === 'grid';
+          if (!markerless) continue;
+          const name = el.tagName.toLowerCase() + '.' + (el.className || '-');
+          (el.getAttribute('role') === 'list' ? fixed : bare).push(name);
+        }
+        return { bare, fixed };
+      })(),
       visible: (() => {
         const out = { hidden: 0, total: 0, worst: '', sample: [] };
         for (const el of document.querySelectorAll('main *')) {

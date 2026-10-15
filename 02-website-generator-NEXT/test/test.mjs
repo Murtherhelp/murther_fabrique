@@ -345,10 +345,10 @@ test("the five new blocks render real markup from their own defaults", () => {
   const ctx = { lang: "en", img: () => "" };
   const cases = {
     testimonial: /<figure class="quote">[\s\S]*<cite>/,
-    timeline: /<ul class="time">[\s\S]*time__item/,
+    timeline: /<ul class="time"[^>]*>[\s\S]*time__item/,
     skills: /<dl class="skills">[\s\S]*skills__bar/,
-    steps: /<ol class="steps">[\s\S]*<h3>/,
-    logos: /<ul class="logos">[\s\S]*<li>/,
+    steps: /<ol class="steps"[^>]*>[\s\S]*<h3>/,
+    logos: /<ul class="logos"[^>]*>[\s\S]*<li>/,
   };
   for (const [type, re] of Object.entries(cases)) {
     const html = BLOCKS[type].render(BLOCKS[type].defaults(), ctx);
@@ -584,6 +584,36 @@ test("a descendant rule does not leak into a panel it was not meant for", () => 
   // text colour painted on the panel's own ground: 1.00:1, measured.
   assert.doesNotMatch(css, /\.fx-accent small/);
   assert.doesNotMatch(css, /\.fx-accent [a-z]+,[^{]*\.fx-accent small/);
+});
+
+test("every marker-less list still announces itself as a list", () => {
+  // WebKit drops a <ul> or <ol> out of the accessibility tree the moment its
+  // markers are removed, and `display: grid` does the same: a screen reader
+  // then hears a flat run of items with no count and no position. role="list"
+  // puts it back. Which lists those are is decided by the STYLESHEET, so the
+  // check reads the stylesheet rather than a hand-kept list.
+  const css = siteCss({ ...blankDoc().theme }, { title: "T", slug: "t", lang: "en" });
+  const stripped = new Set();
+  for (const m of css.matchAll(/\.([a-z][\w-]*)[^{]*\{[^}]*(?:list-style:none|display:grid)/g)) {
+    stripped.add(m[1]);
+  }
+  assert.ok(stripped.size >= 3, `expected several marker-less lists, found ${[...stripped].join(", ")}`);
+
+  const missing = [];
+  for (const key of TEMPLATE_ORDER) {
+    const files = build(fromTemplate(key)).files;
+    for (const [name, html] of Object.entries(files)) {
+      if (!name.endsWith(".html")) continue;
+      for (const m of html.matchAll(/<(ul|ol)\b([^>]*)>/g)) {
+        const cls = (m[2].match(/class="([^"]*)"/) || ["", ""])[1].split(/\s+/);
+        const isStripped = cls.some((c) => stripped.has(c));
+        if (isStripped && !/\brole="list"/.test(m[2])) {
+          missing.push(`${key}/${name}: <${m[1]} class="${cls.join(" ")}">`);
+        }
+      }
+    }
+  }
+  assert.equal(missing.length, 0, `lists WebKit would drop from the accessibility tree:\n  ${missing.join("\n  ")}`);
 });
 
 test("printing cannot leave content at the start of an entrance animation", () => {

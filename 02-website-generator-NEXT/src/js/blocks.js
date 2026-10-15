@@ -88,8 +88,17 @@ export const T = (v, lang) =>
 export const missing = (v, lang) =>
   v == null || typeof v === "string" ? !String(v || "").trim() : !String(v[lang] || v.en || "").trim();
 
+/**
+ * A list of cards.
+ *
+ * `role="list"` is not decoration. WebKit drops a `<ul>` or `<ol>` out of the
+ * accessibility tree as soon as its markers are removed, and `display: grid`
+ * does the same: a screen reader then hears a flat run of items with no count
+ * and no position. The attribute puts the list back, and it is what every
+ * marker-less list in this stylesheet has to carry.
+ */
 const list = (items, fn, cls) =>
-  items?.length ? `<ul class="${cls}">${items.map(fn).join("")}</ul>` : "";
+  items?.length ? `<ul class="${cls}" role="list">${items.map(fn).join("")}</ul>` : "";
 
 /* ------------------------------------------------------------------ */
 
@@ -362,7 +371,7 @@ export const BLOCKS = {
       return `<section class="section"><div class="wrap">
   <h2>${esc(T(b.title, c.lang))}</h2>
   ${T(b.lead, c.lang) ? `<p class="lede">${esc(T(b.lead, c.lang))}</p>` : ""}
-  ${cards ? `<ul class="grid grid--3">${cards}</ul>` : ""}
+  ${cards ? `<ul class="grid grid--3" role="list">${cards}</ul>` : ""}
 </div></section>`;
     }
   },
@@ -435,7 +444,7 @@ export const BLOCKS = {
         return `<li class="card"><h3><a href="${esc(href)}">${esc(T(it.label, c.lang))}</a></h3>${T(it.note, c.lang) ? `<p><small>${esc(T(it.note, c.lang))}</small></p>` : ""}</li>`;
       }).filter(Boolean).join("");
       if (!links) return "";
-      return `<section class="section"><div class="wrap"><h2>${esc(T(b.title, c.lang))}</h2><ul class="grid grid--3">${links}</ul></div></section>`;
+      return `<section class="section"><div class="wrap"><h2>${esc(T(b.title, c.lang))}</h2><ul class="grid grid--3" role="list">${links}</ul></div></section>`;
     }
   },
 
@@ -588,7 +597,7 @@ BLOCKS.timeline = {
     if (!items.length) return "";
     return sec(b, `
   <h2>${esc(T(b.title, c.lang))}</h2>
-  <ul class="time">${items.map((it) => `<li class="time__item">
+  <ul class="time" role="list">${items.map((it) => `<li class="time__item">
     ${T(it.when, c.lang) ? `<p class="time__when">${esc(T(it.when, c.lang))}</p>` : ""}
     <h3>${esc(T(it.title, c.lang))}</h3>
     ${T(it.org, c.lang) ? `<p>${esc(T(it.org, c.lang))}</p>` : ""}
@@ -660,7 +669,7 @@ BLOCKS.steps = {
     if (!items.length) return "";
     return sec(b, `
   <h2>${esc(T(b.title, c.lang))}</h2>
-  <ol class="steps">${items.map((it) => `<li><h3>${esc(T(it.title, c.lang))}</h3><p>${esc(T(it.body, c.lang))}</p></li>`).join("")}</ol>`);
+  <ol class="steps" role="list">${items.map((it) => `<li><h3>${esc(T(it.title, c.lang))}</h3><p>${esc(T(it.body, c.lang))}</p></li>`).join("")}</ol>`);
   }
 };
 
@@ -689,7 +698,7 @@ BLOCKS.logos = {
     if (!items.length) return "";
     return sec(b, `
   ${T(b.title, c.lang) ? `<h2>${esc(T(b.title, c.lang))}</h2>` : ""}
-  <ul class="logos">${items.map((it) => {
+  <ul class="logos" role="list">${items.map((it) => {
       const img = c.img(it.image);
       // The alt the user typed wins; the name is the fallback, because a logo
       // strip that renders "Client one" three times tells a screen reader
