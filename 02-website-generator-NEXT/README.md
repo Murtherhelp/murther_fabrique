@@ -86,6 +86,7 @@ again. Add `--head` to any of them to watch the browser work.
 | **export** | 84 | Builds a real ZIP, re-reads it with an **independent** reader (Node's `zlib`, not our writer), then serves the extracted tree over HTTP and renders it — twice, once with the system pinned to light and once to dark. |
 | **single-file** | 11 | Builds `dist/generator.html`, then **opens it over `file://`** — no server, no Node — and checks it produces the identical file tree, template by template, that the modules do. |
 | **original** | 6 | Loads the archived legacy generator over a real origin and reads the self-check it already runs at start-up. Silence counts as a failure: the suite requires the positive report, so a generator that never checks itself cannot pass. |
+| **server** | 14 | Malformed URL is a 400 **and the process survives it**, reads stay under `src/`, and the CSP carries the live SHA-256 of the scripts it hashes at start-up. |
 That last one is the important one: a bug in the ZIP writer cannot hide behind a
 matching bug in a reader that shares no code with it, and "the export works" is
 verified by looking at the rendered page, not by trusting the builder.
@@ -314,7 +315,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **335 checks passing across 7 suites** and
+`npm run verify` currently reports **349 checks passing across 8 suites** and
 exits 0:
 
 ```
@@ -357,7 +358,8 @@ MURTHER FABRIQUE — website generator/
    ├─ export.mjs          84 export checks (real ZIP, real HTTP, real render)
    ├─ single.mjs          11 single-file checks (real file:// load)
   original.mjs          6 original checks (reads the legacy self-check)
-   └─ verify.mjs          runs all seven suites
+  server.mjs            14 server checks (traversal, 400 survival, live CSP hashes)
+   └─ verify.mjs          runs all eight suites
    serve.mjs           the server a browser suite starts for itself
 ```
 

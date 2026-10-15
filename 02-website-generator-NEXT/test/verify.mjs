@@ -26,7 +26,9 @@ const SUITES = [
   { name: "single-file", port: null,    cmd: ["test/single.mjs"], node: true },
   // Serves the archived generator on an ephemeral port, so it has no fixed one.
   // Still a browser suite: --no-browser has to skip it.
-  { name: "original",   port: null, browser: true, cmd: ["test/original.mjs"] }
+  { name: "original",   port: null, browser: true, cmd: ["test/original.mjs"] },
+  // Plain HTTP, no browser: --no-browser must still run it.
+  { name: "server",     port: 5203, browser: false, cmd: ["test/server.mjs"] }
 ];
 
 const run = (cmd, args, env) =>

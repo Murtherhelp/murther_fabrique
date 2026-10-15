@@ -15,6 +15,7 @@
     "test:export": "node test/export.mjs",
     "test:single": "node test/single.mjs",
     "test:original": "node test/original.mjs",
+    "test:server": "node test/server.mjs",
     "verify": "node test/verify.mjs",
     "test:all": "npm test && npm run verify",
     "dist:windows": "powershell -ExecutionPolicy Bypass -File desktop/build.ps1"
