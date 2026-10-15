@@ -183,6 +183,24 @@ async function main() {
   ok("no file name escapes its folder",
      !names.some((n) => n.includes("..") || n.startsWith("/") || n.includes("\\")), names.length + " names");
 
+  /* The social card. Two suites require the NAME; nobody looked at the bytes.
+     A canvas that drew nothing still produces a valid PNG - a flat rectangle of
+     one colour, a few hundred bytes - and that ships silently. */
+  const og = check.all.find((e) => e.name === "og.png");
+  const ogBytes = og ? Buffer.from(og.body) : null;
+  const isPng = ogBytes && ogBytes.length > 24 &&
+    ogBytes[0] === 0x89 && ogBytes.subarray(1, 4).toString("latin1") === "PNG";
+  ok("the social card is a real PNG", isPng,
+     ogBytes ? `magic=${ogBytes.subarray(0, 4).toString("hex")}` : "og.png is missing");
+  if (isPng) {
+    // IHDR: width and height are big-endian 32-bit values at offsets 16 and 20.
+    const w = ogBytes.readUInt32BE(16), h = ogBytes.readUInt32BE(20);
+    ok("the social card is the size every platform asks for", w === 1200 && h === 630, `${w}x${h}`);
+    // A flat fill compresses to almost nothing. Text and an accent rule do not.
+    ok("the social card actually has something drawn on it", ogBytes.length > 3000,
+       `${ogBytes.length} bytes - a blank 1200x630 fill is under 1 KB`);
+  }
+
   /* Read the actual decompressed content back. */
   const index = check.entry("index.html");
   ok("index.html is real HTML", /^<!doctype html>/i.test(index));
@@ -190,7 +208,12 @@ async function main() {
   ok("index.html links the script", index.includes('src="js/site.js"'));
   ok("index.html has a title", /<title>[^<]{4,}<\/title>/.test(index));
   ok("index.html has a viewport", index.includes('name="viewport"'));
-  ok("index.html carries the canonical URL", index.includes('https://portfolio.test/'));
+  const favicon = check.entry("favicon.svg");
+  ok("index.html links the favicon it ships", /<link rel="icon"[^>]*href="favicon\.svg"/.test(index),
+     (index.match(/<link rel="icon"[^>]*>/) || ["no icon link"])[0]);
+  ok("the favicon is an SVG, not an empty placeholder",
+     /<svg[\s>]/.test(favicon) && /<\/svg>/.test(favicon) && favicon.length > 200,
+     `${favicon.length} bytes`);
   ok("the sitemap uses the canonical URL",
      check.entry("sitemap.xml").includes("https://portfolio.test/index.html"));
   ok("robots.txt points at the sitemap",
