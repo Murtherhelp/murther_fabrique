@@ -1,11 +1,12 @@
 # Node
 node_modules/
 
-# Build outputs. Both are generated, both are reproducible:
-#   node build.mjs                                -> dist/generator.html
-#   powershell -File desktop/build.ps1            -> dist/MurtherFabrique.exe
+# Build outputs. All three are generated, all three are reproducible:
+#   node build.mjs                                -> 02-.../dist/generator.html
+#   powershell -File desktop/build.ps1            -> ./MurtherFabrique.exe
 #   powershell -File assets/logo/make-logos.ps1   -> assets/logo/*.png, *.ico
 dist/
+/MurtherFabrique.exe
 
 # The WebView2 SDK that desktop/build.ps1 downloads (~50 MB unpacked). Pinned by
 # URL in the script, fetched on demand, never committed.

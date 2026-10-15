@@ -45,34 +45,36 @@ no Node and no network.
 ```powershell
 cd "murther_fabrique\02-website-generator-NEXT"
 powershell -ExecutionPolicy Bypass -File desktop\build.ps1
-# -> dist\MurtherFabrique.exe   (495 KB)
+# -> MutherFabrique.exe, at the root of the repository   (655 KB)
 ```
 
-`MurtherFabrique.exe` is **one self-contained file**. Double-click it. There is
-no installer, no sidecar DLL, and nothing is downloaded after launch. The
-application itself is compiled into the executable and unpacked to your profile
-on first run.
+`MurtherFabrique.exe` is **one self-contained file**. Double-click it and a
+chooser asks which generator to open — **NEXT**, the current one, or
+**ORIGINAL**, the archived first version. Both are compiled into the executable,
+so the choice costs no download and no install. There is no installer, no
+sidecar DLL, and nothing is fetched after launch.
+
+```
+MurtherFabrique.exe --original    # skip the chooser, open ORIGINAL
+MurtherFabrique.exe --selftest    # check both, then exit
+```
 
 It is a native Win32 window hosting the Microsoft Edge **WebView2** runtime —
 the component Windows 10 21H2 and Windows 11 already ship, which is why the file
-is half a megabyte instead of the 150 MB an Electron wrapper would cost. Your
-projects autosave to the application profile, so they survive a restart and a
-reinstall.
+is half a megabyte instead of the 150 MB an Electron wrapper would cost. The
+applications are unpacked to your profile on first run and served from a real
+`https://murther-fabrique.local/` origin, so projects autosave and survive a
+restart.
 
 **Requirements to build it:** the MSVC build tools with the *Desktop development
 with C++* workload and the Windows SDK. The build downloads one pinned NuGet
-package (the WebView2 SDK, ~10 MB) into `desktop/.cache/` and never a second
-time. **Requirements to run it:** Windows. Nothing else.
+package (the WebView2 SDK) into `desktop/.cache/` and never a second time.
+**Requirements to run it:** Windows. Nothing else.
 
-The packaged application can check itself:
-
-```powershell
-.\dist\MurtherFabrique.exe --selftest ; $LASTEXITCODE
-```
-
-It boots the real application, confirms the editor is alive, builds a site,
-verifies that storage works, and exits `0` on success. A transcript is written
-to `%LOCALAPPDATA%\MurtherFabrique\selftest.txt`.
+`--selftest` boots both generators in turn and checks each one is really
+rendered — correct origin, working storage, a real viewport, and for NEXT that
+it builds a site and passes its own self-check. It exits `0` only when both are
+healthy; a transcript lands in `%LOCALAPPDATA%\MurtherFabrique\selftest.txt`.
 
 ### Known limitation
 
@@ -146,6 +148,7 @@ silently produce an unreadable theme.
 
 ```
 murther_fabrique/
+├─ MutherFabrique.exe         built by desktop\build.ps1 — opens either generator
 ├─ assets/logo/              MURTHER FABRIQUE logo, icon and .ico (original artwork)
 ├─ 01-legacy-generator-ORIGINAL/
 │  └─ index.html             the previous generator, unchanged, SHA-256 recorded

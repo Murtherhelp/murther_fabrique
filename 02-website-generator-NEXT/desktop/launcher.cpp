@@ -1,21 +1,27 @@
 // MURTHER FABRIQUE — Windows desktop shell.
 //
-// A window, an icon, and a WebView2. That is the whole program.
+// A window, an icon, a two-button chooser, and a WebView2. That is the whole
+// program.
 //
-// Why this and not Electron: the application is already a single ~255 KB HTML
-// file that runs with no server and no network. Electron would wrap it in a
-// 150 MB copy of an engine Windows already ships, plus an updater, a crash
-// reporter and a dependency tree to audit. The WebView2 Runtime is an operating
-// system component on Windows 10 21H2 and Windows 11, so this file links only
-// the loader that talks to it.
+// It opens either generator in this repository: NEXT, the current one, and
+// ORIGINAL, the archived first version. Both are single self-contained HTML
+// files and both are compiled into this executable, so the choice still costs
+// the user nothing to download and nothing to install.
+//
+// Why this and not Electron: the applications are already single HTML files
+// that run with no server and no network. Electron would wrap them in a 150 MB
+// copy of an engine Windows already ships, plus an updater, a crash reporter
+// and a dependency tree to audit. The WebView2 Runtime is an operating system
+// component on Windows 10 21H2 and Windows 11, so this file links only the
+// loader that talks to it.
 //
 // Why a virtual host rather than file://: a mapped virtual host gives the page a
 // real https origin, which is what localStorage needs for autosave. Over file://
 // the origin is opaque and the project the user was working on would not
 // survive a restart.
 //
-// The application is embedded as an RCDATA resource and unpacked to the user's
-// profile on first run, keyed by a hash of its own bytes. That is what makes
+// The applications are embedded as RCDATA resources and unpacked to the user's
+// profile on first run, keyed by a hash of their own bytes. That is what makes
 // this a single file: there is nothing beside it to keep together.
 
 #define WIN32_LEAN_AND_MEAN
@@ -43,14 +49,28 @@ constexpr wchar_t kFolder[] = L"MurtherFabrique";
 // than from inside the event callback.
 constexpr UINT kSelftestMsg = WM_APP + 1;
 
-// Matched by the .rc that build.ps1 generates from the repository's .ico.
+// Matched by the .rc that build.ps1 generates from the repository's .ico and
+// from the two generator sources.
 constexpr int kIconId = 1;
-constexpr int kAppHtmlId = 100;
+constexpr int kNextHtmlId = 100;
+constexpr int kOriginalHtmlId = 101;
+
+// Chooser controls, created in code rather than from a dialog resource: four
+// controls and a message loop are not worth a .rc template and a DIALOGPROC.
+constexpr int kBtnNext = 201;
+constexpr int kBtnOriginal = 202;
+constexpr int kLblTitle = 203;
+constexpr int kLblHint = 204;
+
+enum class App { None, Next, Original };
 
 ComPtr<ICoreWebView2Controller> gController;
 // ICoreWebView2_2, not the base interface: add_DOMContentLoaded lives on it.
 ComPtr<ICoreWebView2_2> gWebView;
 HWND gWindow = nullptr;
+App gChoice = App::None;
+std::wstring gNextFile;
+std::wstring gOriginalFile;
 bool gSelftest = false;
 // Never cleared, unlike gSelftest: the self-test sets that one false as soon as
 // it has its turn, and Say() keeps having to be able to write its log after it.
@@ -137,31 +157,23 @@ std::wstring Fingerprint(const BYTE* data, size_t size) {
 }
 
 /**
- * Unpack the embedded application and return the full path of the file on disk.
+ * Unpack one embedded generator and return the full path of the file on disk.
  *
  * The file name carries the fingerprint, so an upgraded build writes a new file
  * rather than overwriting one a running instance is reading, and files from
  * previous builds can be swept without guessing which one is current.
+ *
+ * `leaf` is the sub-folder; each generator gets its own so a sweep of one can
+ * never touch the other.
  */
-// The unpacked application, and the virtual-host URL it is served from. The
-// file name is fingerprinted, so the URL is built from it rather than guessed:
-// pointing the WebView at a name that does not exist produces an error page
-// that looks a lot like a broken application.
-std::wstring gAppFile;
-std::wstring gAppUrl() {
-  std::wstring url = std::wstring(L"https://") + kVhost + L"/" + gAppFile;
-  if (gSelftest) url += L"?probe=1";
-  return url;
-}
-
-std::wstring UnpackApp() {
-HRSRC res = FindResourceW(nullptr, MAKEINTRESOURCEW(kAppHtmlId), RT_RCDATA);
+std::wstring UnpackApp(int resourceId, const wchar_t* leaf) {
+  HRSRC res = FindResourceW(nullptr, MAKEINTRESOURCEW(resourceId), RT_RCDATA);
   if (!res) return {};
   const size_t size = SizeofResource(nullptr, res);
   const BYTE* data = static_cast<const BYTE*>(LockResource(LoadResource(nullptr, res)));
   if (!data || !size) return {};
 
-  const std::wstring dir = ProfileDir(L"\\app");
+  const std::wstring dir = ProfileDir(leaf);
   const std::wstring path = dir + L"\\generator-" + Fingerprint(data, size) + L".html";
 
   if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) {
@@ -192,13 +204,46 @@ HRSRC res = FindResourceW(nullptr, MAKEINTRESOURCEW(kAppHtmlId), RT_RCDATA);
     } while (FindNextFileW(find, &fd));
     FindClose(find);
   }
-  const size_t slash = path.find_last_of(L'\\');
-  gAppFile = (slash == std::wstring::npos) ? path : path.substr(slash + 1);
   return path;
+}
+
+// Which generator is open, and where it lives on disk. The file name is
+// fingerprinted, so the URL is built from it rather than guessed: pointing the
+// WebView at a name that does not exist produces an error page that looks a lot
+// like a broken application.
+// Just the file name: this goes into the URL, and a full path in a URL
+// normalises down to "/" and lands on an error page that looks like a broken
+// application rather than a wrong address.
+const std::wstring& ChosenFile() {
+  static std::wstring name;
+  const std::wstring& full = gChoice == App::Original ? gOriginalFile : gNextFile;
+  const size_t slash = full.find_last_of(L'\\');
+  name = (slash == std::wstring::npos) ? full : full.substr(slash + 1);
+  return name;
+}
+
+const std::wstring& ChosenFolder() {
+  static const std::wstring app = L"\\app";
+  static const std::wstring legacy = L"\\original";
+  return gChoice == App::Original ? legacy : app;
+}
+
+std::wstring ChosenUrl() {
+  std::wstring url = std::wstring(L"https://") + kVhost + L"/" + ChosenFile();
+  // The probe is only mounted by the self-test, and only NEXT answers it.
+  if (gSelftest) url += L"?probe=1";
+  return url;
 }
 
 void CloseSoon();
 void StartProbe();
+void NextPhase();
+void Launch(App which);
+void OnEnvironmentReady(HRESULT hr, ICoreWebView2Environment* env);
+
+// Self-test phase: 0 is NEXT, 1 is ORIGINAL. The executable carries two
+// applications, so the self-test checks both.
+int gPhase = 0;
 
 /* ------------------------------------------------------------------ window */
 
@@ -207,6 +252,43 @@ void ResizeWebView() {
   RECT rc;
   GetClientRect(gWindow, &rc);
   gController->put_Bounds({rc.left, rc.top, rc.right, rc.bottom});
+}
+
+// Hide the chooser. The WebView is created on the same window afterwards, so the
+// chooser controls have to go or they float on top of the application.
+void HideChooser() {
+  for (int id : {kBtnNext, kBtnOriginal, kLblTitle, kLblHint}) {
+    HWND c = GetDlgItem(gWindow, id);
+    if (c) ShowWindow(c, SW_HIDE);
+  }
+}
+
+HFONT gUiFont = nullptr;
+HFONT gUiFontBold = nullptr;
+
+void ShowChooser(HWND hwnd) {
+  HINSTANCE inst = reinterpret_cast<HINSTANCE>(GetWindowLongPtrW(hwnd, GWLP_HINSTANCE));
+
+  auto add = [&](const wchar_t* cls, const wchar_t* text, int id, DWORD style,
+                  int x, int y, int cw, int ch, HFONT font) -> HWND {
+    HWND c = CreateWindowExW(0, cls, text, WS_CHILD | WS_VISIBLE | style,
+                             x, y, cw, ch, hwnd,
+                             reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), inst, nullptr);
+    if (c && font) SendMessageW(c, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
+    return c;
+  };
+
+  add(L"STATIC", L"MURTHER FABRIQUE", kLblTitle, 0, 32, 40, 496, 40, gUiFontBold);
+  add(L"STATIC",
+      L"Two generators live in this repository.\nBoth run entirely offline, from this one file.",
+      kLblHint, 0, 32, 86, 496, 48, gUiFont);
+
+  add(L"BUTTON", L"Open  NEXT  —  the current generator", kBtnNext, BS_PUSHBUTTON,
+      32, 158, 496, 52, gUiFont);
+  add(L"BUTTON", L"Open  ORIGINAL  —  the archived first version", kBtnOriginal, BS_PUSHBUTTON,
+      32, 222, 496, 52, gUiFont);
+
+  SetFocus(GetDlgItem(hwnd, kBtnNext));
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -230,6 +312,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                    rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
       return 0;
     }
+    case WM_COMMAND:
+      if (gChoice == App::None) {
+        if (LOWORD(wp) == kBtnNext) { Launch(App::Next); return 0; }
+        if (LOWORD(wp) == kBtnOriginal) { Launch(App::Original); return 0; }
+      }
+      break;
     case WM_CLOSE:
       if (gController) gController->Close();
       DestroyWindow(hwnd);
@@ -238,6 +326,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
       StartProbe();
       return 0;
     case WM_DESTROY:
+      if (gUiFont) DeleteObject(gUiFont);
+      if (gUiFontBold) DeleteObject(gUiFontBold);
       PostQuitMessage(0);
       return 0;
   }
@@ -246,34 +336,38 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
 /* ---------------------------------------------------------------- self-test */
 
-// Two round trips on purpose: the details come back as a JSON string and the
-// verdict comes back as a number that can be an exit code. Deciding pass or fail
-// by sniffing a substring of the details would be a test that can lie.
-constexpr wchar_t kProbe[] =
-    L"(function(){var o={};try{"
-    L"o.ready=!!window.wgn;"
-    L"o.files=window.wgn?Object.keys(window.wgn.build().files).length:0;"
-    L"o.selfCheck=window.wgn?window.wgn.errors().length:-1;"
-    L"o.storage=(function(){try{localStorage.setItem('__mf','1');var v=localStorage.getItem('__mf')==='1';localStorage.removeItem('__mf');return v;}catch(e){return false;}})();"
-    L"o.origin=location.origin;o.path=location.pathname;o.title=document.title;"
-    L"o.viewport=innerWidth+'x'+innerHeight;"
-    L"}catch(e){o.error=e.message}"
-    L"return JSON.stringify(o)})()";
-// The verdict recomputes everything instead of reading what the probe left
-// behind. Two scripts submitted back to back are not ordered against each
-// other, so a verdict that depended on a value the probe had not written yet
-// would report a failure that is really a race.
+// Both probes are generic: they measure the document, not a particular
+// application. window.wgn only exists on NEXT and only with ?probe=1, so the
+// NEXT-specific assertions are conditional and the rest applies to whichever
+// generator is open. That is what lets one self-test cover both.
 //
 // The viewport check is load-bearing. A 0x0 controller still loads the page and
 // still runs every script, so the original version of this self-test passed on a
 // window that showed the user nothing but black.
+constexpr wchar_t kProbe[] =
+    L"(function(){var o={};try{"
+    L"o.ready=!!window.wgn;"
+    L"o.files=window.wgn?Object.keys(window.wgn.build().files).length:-1;"
+    L"o.selfCheck=window.wgn?window.wgn.errors().length:-1;"
+    L"o.storage=(function(){try{localStorage.setItem('__mf','1');var v=localStorage.getItem('__mf')==='1';localStorage.removeItem('__mf');return v;}catch(e){return false;}})();"
+    L"o.origin=location.origin;o.path=location.pathname;o.title=document.title;"
+    L"o.viewport=innerWidth+'x'+innerHeight;"
+    L"o.scripts=document.scripts.length;"
+    L"o.text=(document.body?document.body.innerText:'').length;"
+    L"}catch(e){o.error=e.message}"
+    L"return JSON.stringify(o)})()";
+
+// The verdict recomputes everything instead of reading what the probe left
+// behind. Two scripts submitted back to back are not ordered against each
+// other, so a verdict that depended on a value the probe had not written yet
+// would report a failure that is really a race.
 constexpr wchar_t kVerdict[] =
     L"(function(){try{"
-    L"var ok=!!window.wgn;"
-    L"var files=window.wgn?Object.keys(window.wgn.build().files).length:0;"
-    L"var self=window.wgn?window.wgn.errors().length:-1;"
-    L"var store=false;try{localStorage.setItem('__mf','1');store=localStorage.getItem('__mf')==='1';localStorage.removeItem('__mf');}catch(e){}"
-    L"return (ok&&files>10&&self===0&&store&&innerWidth>=640&&innerHeight>=400)?0:1;"
+    L"var store=(function(){try{localStorage.setItem('__mf','1');var v=localStorage.getItem('__mf')==='1';localStorage.removeItem('__mf');return v;}catch(e){return false}})();"
+    L"var rendered=innerWidth>=640&&innerHeight>=400&&document.title.length>0"
+    L"&&document.scripts.length>0&&document.body&&document.body.innerText.length>10;"
+    L"var deep=!window.wgn||(Object.keys(window.wgn.build().files).length>10&&window.wgn.errors().length===0);"
+    L"return (rendered&&deep&&store)?0:1;"
     L"}catch(e){return 2}})()";
 
 void CloseSoon() { PostMessage(gWindow, WM_CLOSE, 0, 0); }
@@ -285,28 +379,42 @@ void CloseSoon() { PostMessage(gWindow, WM_CLOSE, 0, 0); }
 std::wstring gProbeJson;
 std::wstring gVerdictJson;
 
+// The self-test walks both generators: NEXT first, then the same window is
+// navigated to ORIGINAL and probed again. One executable carries two
+// applications; checking one of them is half a check.
 void StartProbe() {
   gProbeJson.clear();
   gVerdictJson.clear();
-  gExit = 3;  // the watchdog's answer, unless a verdict replaces it
+
+  const wchar_t* which = gChoice == App::Original ? L"ORIGINAL" : L"NEXT";
+  Say((std::wstring(L"MURTHER FABRIQUE -- probing ") + which).c_str());
 
   const HRESULT probeHr = gWebView->ExecuteScript(
       kProbe, Callback<ICoreWebView2ExecuteScriptCompletedHandler>(
-                  [](HRESULT code, LPCWSTR json) -> HRESULT {
+                  [](HRESULT, LPCWSTR json) -> HRESULT {
                     if (json) gProbeJson = json;
-                    Say(L"MURTHER FABRIQUE -- details");
-                    Say(gProbeJson.empty() ? L"(the page returned nothing)" : gProbeJson.c_str());
-                    return SUCCEEDED(code) ? S_OK : S_OK;
+                    return S_OK;
                   }).Get());
 
   const HRESULT verdictHr = gWebView->ExecuteScript(
       kVerdict, Callback<ICoreWebView2ExecuteScriptCompletedHandler>(
-                    [](HRESULT code, LPCWSTR json) -> HRESULT {
+                    [which](HRESULT code, LPCWSTR json) -> HRESULT {
                       if (json) gVerdictJson = json;
-                      Say(L"MURTHER FABRIQUE -- verdict");
-                      Say(gVerdictJson.empty() ? L"(the page returned nothing)" : gVerdictJson.c_str());
-                      gExit = (SUCCEEDED(code) && gVerdictJson == L"0") ? 0 : 1;
-                      CloseSoon();
+                      Say((std::wstring(L"  ") + which + L"  ").c_str());
+                      Say(gProbeJson.empty() ? L"(the page returned nothing)" : gProbeJson.c_str());
+                      Say((std::wstring(L"  verdict ") + which + L": ").c_str());
+                      Say(gVerdictJson.empty() ? L"(none)" : gVerdictJson.c_str());
+                      const bool ok = SUCCEEDED(code) && gVerdictJson == L"0";
+                      if (!ok) {
+                        gExit = 1;
+                        CloseSoon();
+                      } else if (gPhase == 0) {
+                        NextPhase();
+                      } else {
+                        gExit = 0;
+                        Say(L"MURTHER FABRIQUE -- both generators OK");
+                        CloseSoon();
+                      }
                       return S_OK;
                     }).Get());
 
@@ -319,7 +427,6 @@ void StartProbe() {
 
 void ReportSelftest() {
   Say(L"MURTHER FABRIQUE -- packaged application self-test");
-  Say((ProfileDir(L"\\app") + L"  <- unpacked to").c_str());
   PostMessage(gWindow, kSelftestMsg, 0, 0);
 }
 
@@ -361,10 +468,9 @@ if (gSelftest) {
     webview->add_DOMContentLoaded(
         Callback<ICoreWebView2DOMContentLoadedEventHandler>(
             [](ICoreWebView2*, ICoreWebView2DOMContentLoadedEventArgs*) -> HRESULT {
-              if (gSelftest) {
-                gSelftest = false;
-                ReportSelftest();
-              }
+              // gSelftest stays true: the self-test navigates from one
+              // generator to the other and needs this handler again.
+              if (gSelftest) PostMessage(gWindow, kSelftestMsg, 0, 0);
               return S_OK;
             }).Get(),
         nullptr);
@@ -389,14 +495,15 @@ ComPtr<ICoreWebView2> webview;
     return;
   }
 
-  // Serve the unpacked application as https://murther-fabrique.local/, which is
-  // what gives the page a real origin and therefore a working localStorage.
-  // DENY_CORS: the application makes no cross-origin request and should not be
-  // able to. It is the tighter of the two access modes and costs nothing here.
+  // Serve the chosen generator as https://murther-fabrique.local/, which is what
+  // gives the page a real origin and therefore a working localStorage.
+  // DENY_CORS: neither application makes a cross-origin request and neither
+  // should be able to. It is the tighter of the two modes and costs nothing here.
   ComPtr<ICoreWebView2_3> webview3;
   if (FAILED(gWebView.As(&webview3)) ||
       FAILED(webview3->SetVirtualHostNameToFolderMapping(
-          kVhost, ProfileDir(L"\\app").c_str(), COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS))) {
+          kVhost, ProfileDir(ChosenFolder().c_str()).c_str(),
+          COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS))) {
     Fail(L"The WebView2 runtime is too old (virtual host mapping missing).");
     CloseSoon();
     return;
@@ -428,8 +535,70 @@ ComPtr<ICoreWebView2> webview;
   gController->put_IsVisible(TRUE);
   ResizeWebView();
 
-  const std::wstring url = gAppUrl();
+  const std::wstring url = ChosenUrl();
   gWebView->Navigate(url.c_str());
+}
+
+/**
+ * Open one of the two generators.
+ *
+ * The WebView is created on the same window the chooser used, once, when the
+ * user has chosen — not at startup for both. Two controllers on one window
+ * would fight over the same pixels, and the second one to be created is the one
+ * the user cannot see.
+ */
+void Launch(App which) {
+  if (gChoice != App::None) return;  // one choice per launch
+  gChoice = which;
+  HideChooser();
+
+  if (ChosenFile().empty()) {
+    Fail(which == App::Original ? L"The original generator is missing from this build."
+                                : L"The NEXT generator is missing from this build.");
+    CloseSoon();
+    return;
+  }
+
+  // The WebView profile has to live outside the executable's folder, or the exe
+  // is no longer portable: it cannot write beside itself on a USB stick.
+  const std::wstring userData = ProfileDir(L"\\webview2");
+
+  CreateCoreWebView2EnvironmentWithOptions(
+      nullptr, userData.c_str(), nullptr,
+      Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+          [](HRESULT hr, ICoreWebView2Environment* env) -> HRESULT {
+            OnEnvironmentReady(hr, env);
+            return S_OK;
+          }).Get());
+}
+
+/**
+ * Self-test phase two: same window, other generator.
+ *
+ * Re-pointing the virtual host at the other folder is the whole trick -- one
+ * controller serves both applications, so switching is a remap and a navigate,
+ * not a second WebView.
+ */
+void NextPhase() {
+  gPhase = 1;
+  gChoice = App::Original;
+  if (gOriginalFile.empty()) {
+    Say(L"MURTHER FABRIQUE FAILED: the original generator is missing from this build.");
+    gExit = 2;
+    CloseSoon();
+    return;
+  }
+  ComPtr<ICoreWebView2_3> webview3;
+  if (FAILED(gWebView.As(&webview3)) ||
+      FAILED(webview3->SetVirtualHostNameToFolderMapping(
+          kVhost, ProfileDir(ChosenFolder().c_str()).c_str(),
+          COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS))) {
+    Say(L"MURTHER FABRIQUE FAILED: the original generator could not be remapped.");
+    gExit = 4;
+    CloseSoon();
+    return;
+  }
+  gWebView->Navigate(ChosenUrl().c_str());
 }
 
 void OnEnvironmentReady(HRESULT hr, ICoreWebView2Environment* env) {
@@ -453,14 +622,22 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show) {
 
   int argc = 0;
   LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+  bool wantOriginal = false;
   for (int i = 1; i < argc; i++) {
     if (wcscmp(argv[i], L"--selftest") == 0) { gSelftest = true; gLogToFile = true; }
+    if (wcscmp(argv[i], L"--original") == 0) wantOriginal = true;
   }
   if (argv) LocalFree(argv);
 
-  if (UnpackApp().empty()) return Fail(L"The application could not be unpacked.");
-
-  if (gSelftest) Say((ProfileDir(L"\\app") + L"  <- unpacked to").c_str());
+  // Both generators come out before anything else: a launcher that can only open
+  // one of the two it carries is worse than one that carries one.
+  gNextFile = UnpackApp(kNextHtmlId, L"\\app");
+  gOriginalFile = UnpackApp(kOriginalHtmlId, L"\\original");
+  if (gLogToFile) {
+    Say((ProfileDir(L"\\app") + L"  <- NEXT").c_str());
+    Say((ProfileDir(L"\\original") + L"  <- ORIGINAL").c_str());
+  }
+  if (gNextFile.empty()) return Fail(L"The NEXT generator is missing from this build.");
 
   WNDCLASSEXW wc = {sizeof(wc)};
   wc.hInstance = inst;
@@ -483,17 +660,20 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show) {
                             width, height, nullptr, nullptr, inst, nullptr);
   if (!gWindow) return Fail(L"The window could not be created.");
 
-  // The WebView profile has to live outside the executable's folder, or the exe
-  // is no longer portable: it cannot write beside itself on a USB stick.
-  const std::wstring userData = ProfileDir(L"\\webview2");
+  gUiFont = CreateFontW(-16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+                        DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+  gUiFontBold = CreateFontW(-20, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
+                            DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
 
-  CreateCoreWebView2EnvironmentWithOptions(
-      nullptr, userData.c_str(), nullptr,
-      Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-          [](HRESULT hr, ICoreWebView2Environment* env) -> HRESULT {
-            OnEnvironmentReady(hr, env);
-            return S_OK;
-          }).Get());
+  // A double-click shows the chooser; --original and --selftest do not, because
+  // they are already a decision. Both generators have to be unpacked either way.
+  if (wantOriginal || gSelftest) {
+    Launch(wantOriginal ? App::Original : App::Next);
+  } else {
+    ShowChooser(gWindow);
+  }
 
   ShowWindow(gWindow, show);
   UpdateWindow(gWindow);

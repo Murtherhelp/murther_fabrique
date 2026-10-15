@@ -344,7 +344,7 @@ MURTHER FABRIQUE — website generator/
 ├─ README.md              this file
 ├─ src/                   the application (see Architecture)
 ├─ desktop/               the Win32 + WebView2 launcher and its build script
-├─ dist/                  generated: generator.html, MutherFabrique.exe
+├─ dist/                  generated: generator.html
 └─ test/
    ├─ test.mjs            80 core checks (node --test)
    ├─ browser.mjs         76 end-to-end editor checks
@@ -359,27 +359,28 @@ MURTHER FABRIQUE — website generator/
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File desktop\build.ps1
-# -> dist\MurtherFabrique.exe   (495 KB, one file)
+# -> ..\..\MurtherFabrique.exe   (655 KB, one file)
 ```
 
 A native Win32 window hosting the **WebView2** runtime that Windows 10 21H2 and
 Windows 11 already ship, so the executable is half a megabyte rather than the
-150 MB an Electron wrapper would cost. The single-file application is compiled
-into it as a resource and unpacked to `%LOCALAPPDATA%\MurtherFabrique\` on first
-run, keyed by a hash of its own bytes. Nothing is installed, nothing is
-downloaded after launch, and no file has to stay beside the `.exe`.
+150 MB an Electron wrapper would cost. **Both** generators are compiled into it:
+double-clicking opens a chooser for NEXT or for the archived ORIGINAL. The
+applications are unpacked to `%LOCALAPPDATA%\MurtherFabrique\` on first run,
+keyed by a hash of their own bytes.
 
 The page is served from a `https://murther-fabrique.local/` virtual host rather
 than `file://`, because a real origin is what `localStorage` needs: over
-`file://` the origin is opaque and autosave would not survive a restart.
+`file://` the origin is opaque and autosave would not survive a restart. One
+controller serves both, so switching generators is a remap and a navigate.
 
 ```powershell
-.\dist\MurtherFabrique.exe --selftest ; $LASTEXITCODE   # 0 = healthy
+..\..\MurtherFabrique.exe --selftest ; $LASTEXITCODE   # 0 = both healthy
 ```
 
-It boots the real application, checks the editor is alive, builds a site,
-confirms storage works and exits. The transcript lands in
-`%LOCALAPPDATA%\MurtherFabrique\selftest.txt`.
+It probes NEXT, then navigates the same window to ORIGINAL and probes that too,
+checking each is genuinely rendered rather than merely loaded. The transcript
+lands in `%LOCALAPPDATA%\MurtherFabrique\selftest.txt`.
 
 Building it needs the MSVC build tools (*Desktop development with C++*) and the
 Windows SDK; it fetches one pinned NuGet package into `desktop/.cache/` the
