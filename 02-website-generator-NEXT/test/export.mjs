@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "./serve.mjs";
+import { EFFECTS } from "../src/js/blocks.js";
 import { inflateRawSync } from "node:zlib";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -246,26 +247,36 @@ async function main() {
      lightRendered.bg !== rendered.bg,
      `${lightRendered.bg} vs ${rendered.bg}`);
 
-  /* An accent-filled section paints itself in --accent. Every link, icon, skill
-     bar and timeline dot inside it also used --accent, which is accent on
-     accent: present in the DOM, invisible on screen. The section swaps the two
-     tokens; this measures the result in a real browser rather than trusting the
-     rule, and in both colour schemes, since the tokens are emitted twice. */
-  const accentZip = {
-    ...check,
-    all: check.all.map((e) =>
-      e.name === "index.html"
-        ? { ...e, body: e.body.toString("utf8").replace('<section class="section"', '<section class="section fx-accent"') }
-        : e)
-  };
-  for (const scheme of [null, "light"]) {
-    const fill = await renderExported(accentZip, scheme);
-    ok(`an accent-filled section stays readable (${scheme || "dark"})`,
-       (fill.accent?.worst ?? 0) >= 4.5 && (fill.accent?.sampled ?? 0) > 0,
-       `worst ${(fill.accent?.worst ?? 0).toFixed(2)}:1 over ${fill.accent?.sampled ?? 0} elements — ${fill.accent?.first || "nothing sampled"}: ${fill.accent?.detail || ""}`);
-    ok(`the accent fill paints the accent, not the colour meant to sit on it (${scheme || "dark"})`,
-       fill.accent?.bg !== fill.accent?.fg && !!fill.accent?.bg,
-       `${fill.accent?.bg} on ${fill.accent?.fg}`);
+  /* Every "look", measured rather than assumed.
+     An accent fill painted itself in --accent while everything inside it kept
+     --ink, --muted or --accent: present in the DOM, invisible on screen. The
+     quality report never saw it, because its fifteen pairs only measure what
+     sits on the page background. The other seven looks put the section on
+     --surface or --bg, where those pairs already apply - but "already applies"
+     is a claim, so it gets measured too, in both colour schemes, since the
+     tokens are emitted twice. */
+  for (const effect of EFFECTS.map(([value]) => value)) {
+    if (effect === "none") continue;
+    const zip = {
+      ...check,
+      all: check.all.map((e) =>
+        e.name === "index.html"
+          ? { ...e, body: e.body.toString("utf8").replaceAll('<section class="section', `<section class="section fx-${effect}`) }
+          : e)
+    };
+    for (const scheme of [null, "light"]) {
+      const fill = await renderExported(zip, scheme);
+      const worst = fill.look?.worst ?? 0;
+      const sampled = fill.look?.sampled ?? 0;
+      ok(`the "${effect}" look stays readable (${scheme || "dark"})`,
+         worst >= 4.5 && sampled > 0,
+         `worst ${worst.toFixed(2)}:1 over ${sampled} elements — ${fill.look?.first || "nothing sampled"}: ${fill.look?.detail || ""}`);
+      if (effect === "accent") {
+        ok(`the accent fill paints the accent, not the colour meant to sit on it (${scheme || "dark"})`,
+           fill.look?.bg !== fill.look?.fg && !!fill.look?.bg,
+           `${fill.look?.bg} on ${fill.look?.fg}`);
+      }
+    }
   }
 
   /* French export, read back from the archive. */
@@ -414,9 +425,9 @@ async function renderExported(zipRead, scheme = null) {
         .filter(r => !r.name.startsWith(location.origin) && !r.name.startsWith('data:') && !r.name.startsWith('blob:')).length,
       styleSheets: document.styleSheets.length,
       scriptsRan: typeof document.querySelector('[data-theme-toggle]') !== 'undefined',
-      accent: (() => {
-        const sec = document.querySelector('.fx-accent');
-        if (!sec) return null;
+      look: (() => {
+        const secs = document.querySelectorAll('[class*=" fx-"]');
+        if (!secs.length) return null;
         // rgba parse, alpha included: "is this background transparent" must be
         // decided on the alpha, not by matching a string a browser may format
         // its own way.
@@ -429,7 +440,6 @@ async function renderExported(zipRead, scheme = null) {
           return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
         };
         const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
-        const cs = getComputedStyle(sec);
         // The background an element is actually read against: its own if it
         // paints an opaque one, otherwise the nearest ancestor that does. A
         // chip, a card and a button all carry their own fill, so measuring
@@ -442,16 +452,22 @@ async function renderExported(zipRead, scheme = null) {
           return rgba(getComputedStyle(document.body).backgroundColor).rgb;
         };
         let worst = 99, sampled = 0, first = '', detail = '';
-        for (const el of sec.querySelectorAll('a, h2, h3, p, .ico, .skills__bar i, .btn, .eyebrow')) {
-          const own = getComputedStyle(el);
-          // A bar is a fill, not text: measure it against what it sits on.
-          const fg = el.tagName === 'I' ? rgba(own.backgroundColor).rgb : rgba(own.color).rgb;
-          const bg = behind(el);
-          const r = ratio(fg, bg);
-          if (r < worst) { worst = r; first = el.className || el.tagName; detail = own.color + ' on ' + own.backgroundColor + ' over ' + bg; }
-          sampled++;
+        for (const sec of secs) {
+          for (const el of sec.querySelectorAll('a, h2, h3, h4, p, li, small, .ico, .skills__bar i, .btn, .eyebrow, figcaption, .tag')) {
+            const own = getComputedStyle(el);
+            if (own.display === 'none' || own.visibility === 'hidden') continue;
+            // A bar is a fill, not text: measure it against what it sits on.
+            const fg = el.tagName === 'I' ? rgba(own.backgroundColor).rgb : rgba(own.color).rgb;
+            const r = ratio(fg, behind(el));
+            if (r < worst) {
+              worst = r; first = el.className || el.tagName;
+              detail = own.color + ' on ' + own.backgroundColor + ' inside ' + sec.className;
+            }
+            sampled++;
+          }
         }
-        return { worst, sampled, first, detail, bg: cs.backgroundColor, fg: cs.color };
+        const cs = getComputedStyle(secs[0]);
+        return { worst, sampled, sections: secs.length, first, detail, bg: cs.backgroundColor, fg: cs.color };
       })()
     })`);
     await send("Target.closeTarget", { targetId });

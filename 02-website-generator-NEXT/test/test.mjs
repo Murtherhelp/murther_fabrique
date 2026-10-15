@@ -499,11 +499,24 @@ test("an accent fill repaints every text token, not just the accent pair", () =>
   const css = siteCss({ ...blankDoc().theme }, { title: "T", slug: "t", lang: "en" });
   // One rule, instead of an override per component: an accent-filled section
   // swaps the tokens everything inside it is drawn with. Flipping only
-  // --accent left page ink and muted grey on the fill - in the DOM, invisible
-  // on screen.
-  for (const token of ["--accent", "--accent-on", "--ink", "--muted", "--border"]) {
+  // --accent left page ink and muted grey on the fill, and left cards and
+  // panels painted in the page surface - all present in the DOM, invisible on
+  // screen. --alt and --alt-on stay: a chip carries its own audited pair.
+  for (const token of ["--accent", "--accent-on", "--ink", "--muted", "--border", "--surface", "--bg"]) {
     assert.match(css, new RegExp(`\\.fx-accent\\{[^}]*${token}:var\\(--mf-accent`), `${token} is not repainted inside an accent fill`);
   }
+  assert.doesNotMatch(css, /\.fx-accent\{[^}]*--alt[a-z-]*:var\(/, "the chip pair is audited on its own and must not be flipped");
+});
+
+test("a panel inside an accent fill takes the other ground, not the same one", () => {
+  const css = siteCss({ ...blankDoc().theme }, { title: "T", slug: "t", lang: "en" });
+  // An accent fill offers two colours, so a panel sitting on it has to take the
+  // one the section is not using - and then carry accent text. Giving it the
+  // same ground as the section measured 1.00:1 in the browser: white card on a
+  // white card. This is the layer the flat token swap could not express.
+  assert.match(css, /\.fx-accent \.card,\.fx-accent \.quote\{[^}]*--ink:var\(--mf-accent\)/);
+  assert.match(css, /\.fx-accent \.card,\.fx-accent \.quote\{[^}]*color:var\(--mf-accent\)/);
+  assert.match(css, /\.fx-accent\{[^}]*--surface:var\(--mf-accent-on\)/, "a panel needs a ground of the other colour");
 });
 
 test("the accent snapshots are literal colours, not var() of themselves", () => {

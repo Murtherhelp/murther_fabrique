@@ -248,14 +248,23 @@ const EFFECT_CSS = `
 .fx-outline > .wrap{border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
 .fx-soft > .wrap{background:var(--surface);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
 /*
- * An accent fill has to repaint everything inside it, not just the accent.
- * Every heading, caption and rule in a section is drawn with --ink, --muted
- * or --border, so flipping only the accent pair left page ink on the accent
- * fill: present in the DOM, invisible on screen. Repointing the tokens is one
- * rule instead of a list of overrides, and it covers rules added later.
+ * An accent fill inverts itself, in two layers.
+ *
+ * Everything drawn inside a section uses --ink, --muted, --border or --accent,
+ * and panels are filled with --surface. Flipping only the accent pair left page
+ * ink on the fill: present in the DOM, invisible on screen.
+ *
+ * Two layers, because an accent fill offers exactly two colours. The section
+ * ground is the accent and its text is the accent-on. A panel sitting on that
+ * ground then needs the OTHER ground - accent-on - and accent text inside it,
+ * which is the pair the quality report already measures. Making the panel the
+ * same colour as the section would read as nothing at all.
  */
-.fx-accent{--accent:var(--mf-accent-on);--accent-on:var(--mf-accent);--ink:var(--mf-accent-on);
- --muted:var(--mf-accent-on);--border:var(--mf-accent-on);background:var(--mf-accent);color:var(--mf-accent-on)}
+.fx-accent{--accent:var(--mf-accent-on);--accent-on:var(--mf-accent);
+ --ink:var(--mf-accent-on);--muted:var(--mf-accent-on);--border:var(--mf-accent-on);
+ --surface:var(--mf-accent-on);--bg:var(--mf-accent-on);
+ background:var(--mf-accent);color:var(--mf-accent-on)}
+.fx-accent .card,.fx-accent .quote{--ink:var(--mf-accent);--muted:var(--mf-accent);--accent:var(--mf-accent);color:var(--mf-accent)}
 .fx-accent > .wrap{background:var(--mf-accent);color:var(--mf-accent-on);border-radius:var(--radius);padding:clamp(1.5rem,3vw,2.5rem)}
 .fx-accent .lede,.fx-accent small{color:var(--mf-accent-on);opacity:.85}
 .fx-gradient > .wrap{background:linear-gradient(160deg,var(--surface),var(--bg));border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}
