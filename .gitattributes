@@ -1,0 +1,12 @@
+# Normalise line endings in the repository, keep them as they are on disk.
+# Every source file here was authored with LF; without this, Git's Windows
+# default rewrites them to CRLF on the next checkout and every file shows up as
+# modified in a diff that changed nothing.
+* text=auto eol=lf
+
+# Binary assets: never touch, never translate.
+*.png binary
+*.ico binary
+*.exe binary
+*.zip binary
+*.woff2 binary

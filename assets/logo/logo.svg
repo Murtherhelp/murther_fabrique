@@ -1,0 +1,33 @@
+<!--
+  MURTHER FABRIQUE — the lockup (mark + wordmark), for page headers.
+
+  The mark is inlined rather than referenced so the file stays one asset that
+  GitHub, a browser and the build script can all read from the same path.
+  The wordmark uses a system stack on purpose: embedding a licensed font would
+  put a redistribution question in a repository that wants none, and the stack
+  (Segoe UI / SF / Roboto) is what the reader's machine already renders every
+  other label with. logo-720.png is the pixel-exact version, and that is what the
+  README displays.
+
+  Dark ink on a light background. On a dark background use logo-invert.svg.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 180" width="720" height="180"
+     role="img" aria-label="MURTHER FABRIQUE">
+  <title>MURTHER FABRIQUE</title>
+
+  <g>
+    <rect width="128" height="128" x="8" y="26" rx="28" fill="#111935"/>
+    <path d="M36 100V42l32 32 32-32v58" fill="none" stroke="#FF7A1A" stroke-width="16"
+          stroke-linejoin="miter" stroke-linecap="butt" stroke-miterlimit="2"/>
+  </g>
+
+  <g font-family="system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="168" y="82" font-size="54" font-weight="800" letter-spacing="1"
+          fill="#0B1020">MURTHER</text>
+    <text x="168" y="128" font-size="54" font-weight="800" letter-spacing="1"
+          fill="#0B1020">FABRIQUE</text>
+    <!-- The rule does the work a second colour would: one accent in the whole
+         lockup, and it ties the two lines together without a second hue. -->
+    <rect x="168" y="142" width="296" height="6" rx="3" fill="#FF7A1A"/>
+  </g>
+</svg>

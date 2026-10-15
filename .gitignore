@@ -2,17 +2,26 @@
 node_modules/
 
 # Build outputs. Both are generated, both are reproducible:
-#   node build.mjs            -> dist/generator.html
-#   powershell -File desktop/build.ps1 -> dist/MurtherFabrique.exe
+#   node build.mjs                                -> dist/generator.html
+#   powershell -File desktop/build.ps1            -> dist/MurtherFabrique.exe
+#   powershell -File assets/logo/make-logos.ps1   -> assets/logo/*.png, *.ico
 dist/
 
-# The WebView2 SDK that desktop/build.ps1 downloads (~10 MB). Pinned by URL in
-# the script, fetched on demand, never committed.
-desktop/.cache/
+# The WebView2 SDK that desktop/build.ps1 downloads (~50 MB unpacked). Pinned by
+# URL in the script, fetched on demand, never committed.
+.cache/
+
+# Compiler leftovers. desktop/build.ps1 sends them to dist/rc, which it deletes;
+# this is here so a manual cl.exe run cannot dirty the tree.
+*.obj
+*.pdb
+*.ilk
+*.res
 
 # OS / editor noise
 Thumbs.db
 desktop.ini
 *.lnk
 .vscode/
+.playwright-mcp/
 .DS_Store
