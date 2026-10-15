@@ -247,36 +247,74 @@ async function main() {
      lightRendered.bg !== rendered.bg,
      `${lightRendered.bg} vs ${rendered.bg}`);
 
-  /* Every "look", measured rather than assumed.
+  /* Every "look", on every template, measured rather than assumed.
      An accent fill painted itself in --accent while everything inside it kept
      --ink, --muted or --accent: present in the DOM, invisible on screen. The
      quality report never saw it, because its fifteen pairs only measure what
-     sits on the page background. The other seven looks put the section on
-     --surface or --bg, where those pairs already apply - but "already applies"
-     is a claim, so it gets measured too, in both colour schemes, since the
-     tokens are emitted twice. */
-  for (const effect of EFFECTS.map(([value]) => value)) {
-    if (effect === "none") continue;
-    const zip = {
-      ...check,
-      all: check.all.map((e) =>
-        e.name === "index.html"
-          ? { ...e, body: e.body.toString("utf8").replaceAll('<section class="section', `<section class="section fx-${effect}`) }
-          : e)
-    };
-    for (const scheme of [null, "light"]) {
-      const fill = await renderExported(zip, scheme);
-      const worst = fill.look?.worst ?? 0;
-      const sampled = fill.look?.sampled ?? 0;
-      ok(`the "${effect}" look stays readable (${scheme || "dark"})`,
-         worst >= 4.5 && sampled > 0,
-         `worst ${worst.toFixed(2)}:1 over ${sampled} elements — ${fill.look?.first || "nothing sampled"}: ${fill.look?.detail || ""}`);
-      if (effect === "accent") {
-        ok(`the accent fill paints the accent, not the colour meant to sit on it (${scheme || "dark"})`,
-           fill.look?.bg !== fill.look?.fg && !!fill.look?.bg,
-           `${fill.look?.bg} on ${fill.look?.fg}`);
+     sits on the page background.
+
+     This goes through the real pipeline - applyTemplate, then the effect
+     field, then the export button - rather than patching the finished HTML, so
+     it also covers withEffect() and the dispatcher. Each template's blocks get
+     the looks round-robin, so one render covers all eight at once and all nine
+     templates across the run. Both colour schemes: the tokens are emitted
+     twice, and a palette that only reads well in one of them is broken. */
+  const lookRuns = await ev(`
+    const { toEntries, zip } = await import('./js/zip.js');
+    const { EFFECTS } = await import('./js/blocks.js');
+    const looks = EFFECTS.map(([value]) => value).filter(v => v !== 'none');
+    const out = [];
+    for (const template of window.wgn.templates()) {
+      window.wgn.applyTemplate(template);
+      const d = window.wgn.doc();
+      d.baseUrl = 'https://look.test';
+      d.company = 'Look Co';
+      d.email = 'hello@look.test';
+      let i = 0;
+      for (const p of d.pages) for (const b of p.blocks) b.effect = looks[i++ % looks.length];
+      window.wgn.state.history.reset(d);
+      const files = await window.wgn.files();
+      const blob = await zip(toEntries(files), new Date(2026, 0, 1));
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let bin = '';
+      const CH = 0x8000;
+      for (let k = 0; k < bytes.length; k += CH) {
+        bin += String.fromCharCode.apply(null, bytes.subarray(k, k + CH));
       }
+      out.push({ template, count: Object.keys(files).length, b64: btoa(bin) });
     }
+    return out;
+  `);
+
+  for (const scheme of [null, "light"]) {
+    const perTemplate = [];
+    for (const run of lookRuns || []) {
+      const read = spawnSyncZip(run.b64);
+      const rendered = await renderExported(read, scheme);
+      if (!read.ok) ok(`template "${run.template}" exports a readable archive (${scheme || "dark"})`, false, read.error);
+      perTemplate.push({
+        template: run.template,
+        worst: rendered.look?.worst ?? 0,
+        sampled: rendered.look?.sampled ?? 0,
+        sections: rendered.look?.sections ?? 0,
+        looks: rendered.look?.perLook ?? {},
+        first: rendered.look?.first,
+        detail: rendered.look?.detail
+      });
+    }
+    const broken = perTemplate.filter((t) => t.sections > 0 && t.worst < 4.5);
+    const unmeasured = perTemplate.filter((t) => t.sections === 0).map((t) => t.template);
+    const weakest = perTemplate.filter((t) => t.sections > 0).sort((a, b) => a.worst - b.worst)[0];
+    ok(`every look stays readable on every template (${scheme || "dark"})`,
+       perTemplate.length === 9 && broken.length === 0 && !!weakest,
+       `${perTemplate.length}/9 templates, ${perTemplate.reduce((n, t) => n + t.sampled, 0)} elements measured, worst ${weakest?.worst.toFixed(2)}:1 on ${weakest?.template}${unmeasured.length ? `, nothing to measure on ${unmeasured.join(", ")}` : ""}${broken.length ? ` - failing: ${broken.map((b) => b.template + " " + b.worst.toFixed(2) + " [" + b.first + "] " + (b.detail || "")).join("; ")}` : ""}`);
+
+    // No look may be missing from the run: a look that never got exercised is
+    // not a look that passed.
+    const seen = new Set(perTemplate.flatMap((t) => Object.keys(t.looks)));
+    const missing = (EFFECTS.map(([v]) => v).filter((v) => v !== "none")).filter((v) => !seen.has(v));
+    ok(`every look was actually exercised (${scheme || "dark"})`, missing.length === 0,
+       `measured: ${[...seen].join(", ")}${missing.length ? ` - never exercised: ${missing.join(", ")}` : ""}`);
   }
 
   /* French export, read back from the archive. */
@@ -444,30 +482,43 @@ async function renderExported(zipRead, scheme = null) {
         // paints an opaque one, otherwise the nearest ancestor that does. A
         // chip, a card and a button all carry their own fill, so measuring
         // them against the section would report failures that are not real.
-        const behind = (el) => {
-          for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+        const behind = (el, skipSelf = true) => {
+          // A fill is measured against what it sits on, not against itself,
+          // which would always be 1.00:1.
+          for (let n = skipSelf ? el.parentElement : el; n && n !== document.documentElement; n = n.parentElement) {
             const c = rgba(getComputedStyle(n).backgroundColor);
             if (c.a > 0.05) return c.rgb;
           }
           return rgba(getComputedStyle(document.body).backgroundColor).rgb;
         };
         let worst = 99, sampled = 0, first = '', detail = '';
+        const perLook = {};
         for (const sec of secs) {
+          // Which look this section carries, so the breakdown can name it.
+          const key = ([...sec.classList].find(c => c.startsWith('fx-')) || 'none').slice(3);
+          if (!perLook[key]) perLook[key] = { worst: 99, n: 0 };
           for (const el of sec.querySelectorAll('a, h2, h3, h4, p, li, small, .ico, .skills__bar i, .btn, .eyebrow, figcaption, .tag')) {
             const own = getComputedStyle(el);
             if (own.display === 'none' || own.visibility === 'hidden') continue;
             // A bar is a fill, not text: measure it against what it sits on.
-            const fg = el.tagName === 'I' ? rgba(own.backgroundColor).rgb : rgba(own.color).rgb;
-            const r = ratio(fg, behind(el));
+            const isFill = el.tagName === 'I';
+            const fg = isFill ? rgba(own.backgroundColor).rgb : rgba(own.color).rgb;
+            const r = ratio(fg, behind(el, isFill));
+            perLook[key].worst = Math.min(perLook[key].worst, r);
+            perLook[key].n++;
             if (r < worst) {
-              worst = r; first = el.className || el.tagName;
-              detail = own.color + ' on ' + own.backgroundColor + ' inside ' + sec.className;
+              worst = r; first = (el.className || el.tagName) + ' in ' + key;
+              const chain = [];
+              for (let n = el; n && n !== document.documentElement && chain.length < 7; n = n.parentElement) {
+                chain.push(n.tagName + '.' + (n.className || '-') + '=' + getComputedStyle(n).backgroundColor);
+              }
+              detail = own.color + ' on ' + own.backgroundColor + ' inside ' + sec.className + ' | ' + chain.join(' > ');
             }
             sampled++;
           }
         }
         const cs = getComputedStyle(secs[0]);
-        return { worst, sampled, sections: secs.length, first, detail, bg: cs.backgroundColor, fg: cs.color };
+        return { worst, sampled, sections: secs.length, perLook, first, detail, bg: cs.backgroundColor, fg: cs.color };
       })()
     })`);
     await send("Target.closeTarget", { targetId });

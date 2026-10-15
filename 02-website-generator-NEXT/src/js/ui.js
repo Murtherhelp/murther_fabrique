@@ -1582,6 +1582,7 @@ if (new URLSearchParams(location.search).has("probe")) {
     build: () => build(doc()),
     audit: runAudit,
     blockOrder: () => BLOCK_ORDER.slice(),
+    templates: () => TEMPLATE_ORDER.slice(),
     /* Mirrors what the <select> does: repaint labels now, rebuild once focus has
        left. Used by the browser probes, which cannot open a real <select>. */
     setLang: (c) => {

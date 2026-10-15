@@ -264,7 +264,11 @@ const EFFECT_CSS = `
  --ink:var(--mf-accent-on);--muted:var(--mf-accent-on);--border:var(--mf-accent-on);
  --surface:var(--mf-accent-on);--bg:var(--mf-accent-on);
  background:var(--mf-accent);color:var(--mf-accent-on)}
-.fx-accent .card,.fx-accent .quote{--ink:var(--mf-accent);--muted:var(--mf-accent);--accent:var(--mf-accent);color:var(--mf-accent)}
+.fx-accent .card,.fx-accent .quote,.fx-accent .thread,.fx-accent .cta,
+.fx-accent pre,.fx-accent code,.fx-accent th,
+.fx-accent blockquote,.fx-accent .tag,.fx-accept .price{
+ --ink:var(--mf-accent);--muted:var(--mf-accent);--accent:var(--mf-accent);
+ --accent-on:var(--mf-accent-on);color:var(--mf-accent)}
 .fx-accent > .wrap{background:var(--mf-accent);color:var(--mf-accent-on);border-radius:var(--radius);padding:clamp(1.5rem,3vw,2.5rem)}
 .fx-accent .lede,.fx-accent small{color:var(--mf-accent-on);opacity:.85}
 .fx-gradient > .wrap{background:linear-gradient(160deg,var(--surface),var(--bg));border:1px solid var(--border);border-radius:var(--radius);padding:clamp(1.25rem,3vw,2rem)}

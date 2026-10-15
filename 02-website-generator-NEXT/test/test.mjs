@@ -514,9 +514,29 @@ test("a panel inside an accent fill takes the other ground, not the same one", (
   // one the section is not using - and then carry accent text. Giving it the
   // same ground as the section measured 1.00:1 in the browser: white card on a
   // white card. This is the layer the flat token swap could not express.
-  assert.match(css, /\.fx-accent \.card,\.fx-accent \.quote\{[^}]*--ink:var\(--mf-accent\)/);
-  assert.match(css, /\.fx-accent \.card,\.fx-accent \.quote\{[^}]*color:var\(--mf-accent\)/);
   assert.match(css, /\.fx-accent\{[^}]*--surface:var\(--mf-accent-on\)/, "a panel needs a ground of the other colour");
+
+  // Every component that paints its own --surface inside a section is a panel,
+  // and every one of them was missing at some point: the card and the quote
+  // first, then the CTA on the cv template at 1.00:1. The list has to be
+  // checked against the stylesheet, not trusted.
+  const painted = [...css.matchAll(/^([^{}]+)\{[^}]*background:var\(--surface\)/gm)]
+    .map((m) => m[1].split(",").map((s) => s.trim()).filter(Boolean));
+  const panels = new Set();
+  for (const group of painted) {
+    for (const sel of group) {
+      // Only components that live INSIDE a section. The wrappers that paint a
+      // section's own ground (.fx-card > .wrap) are the section, not a panel,
+      // and the page chrome is outside every look.
+      if (sel.includes(">")) continue;
+      const m = sel.match(/^\.([a-z][\w-]*)/);
+      if (!m || m[1].startsWith("fx-")) continue;
+      if (["site-head", "skip", "theme-toggle", "section--alt"].includes(m[1])) continue;
+      panels.add(m[1]);
+    }
+  }
+  const uncovered = [...panels].filter((c) => !new RegExp(`\\.fx-accent \\.${c}[,\\s]`).test(css));
+  assert.equal(uncovered.length, 0, `painted with --surface but not given accent text inside an accent fill: ${uncovered.join(", ")}`);
 });
 
 test("the accent snapshots are literal colours, not var() of themselves", () => {
