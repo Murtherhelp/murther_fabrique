@@ -14,6 +14,7 @@
     "test:i18n": "node test/i18n.mjs",
     "test:export": "node test/export.mjs",
     "test:single": "node test/single.mjs",
+    "test:original": "node test/original.mjs",
     "verify": "node test/verify.mjs",
     "test:all": "npm test && npm run verify",
     "dist:windows": "powershell -ExecutionPolicy Bypass -File desktop/build.ps1"

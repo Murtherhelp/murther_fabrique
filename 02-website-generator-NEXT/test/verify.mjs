@@ -23,7 +23,10 @@ const SUITES = [
   { name: "i18n",       port: 5201,     cmd: ["test/i18n.mjs"] },
   { name: "export",     port: 5202,     cmd: ["test/export.mjs"] },
   // No server: it opens dist/generator.html over file://, which is the whole point.
-  { name: "single-file", port: null,    cmd: ["test/single.mjs"], node: true }
+  { name: "single-file", port: null,    cmd: ["test/single.mjs"], node: true },
+  // Serves the archived generator on an ephemeral port, so it has no fixed one.
+  // Still a browser suite: --no-browser has to skip it.
+  { name: "original",   port: null, browser: true, cmd: ["test/original.mjs"] }
 ];
 
 const run = (cmd, args, env) =>
@@ -42,7 +45,7 @@ let failed = 0;
 const summary = [];
 
 for (const suite of SUITES) {
-  if (SKIP_BROWSER && suite.port) {
+  if (SKIP_BROWSER && (suite.browser ?? !!suite.port)) {
     console.log(`\n--- ${suite.name}: skipped (--no-browser) ---\n`);
     continue;
   }
