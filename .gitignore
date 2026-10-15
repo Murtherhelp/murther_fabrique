@@ -1,0 +1,18 @@
+# Node
+node_modules/
+
+# Build outputs. Both are generated, both are reproducible:
+#   node build.mjs            -> dist/generator.html
+#   powershell -File desktop/build.ps1 -> dist/MurtherFabrique.exe
+dist/
+
+# The WebView2 SDK that desktop/build.ps1 downloads (~10 MB). Pinned by URL in
+# the script, fetched on demand, never committed.
+desktop/.cache/
+
+# OS / editor noise
+Thumbs.db
+desktop.ini
+*.lnk
+.vscode/
+.DS_Store

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Website Generator Next — visual site builder</title>
+<meta name="description" content="Build, preview and export a real static website. No account, no server, no tracking.">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%235b9dff'/%3E%3Ctext x='32' y='44' font-family='system-ui' font-size='34' font-weight='700' text-anchor='middle' fill='%23061020'%3EW%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- The editor is a single form so the browser's autofill can be turned off for
+     all of it at once. A browser that decided to fill "Atelier Lumen" into a
+     page title would silently corrupt the document. -->
+<form id="editorForm" autocomplete="off" novalidate>
+
+<!-- The one h1: the editor's own name. Panels use h2, everything else is a
+     heading-free region, which keeps the document outline unambiguous. -->
+<h1 class="sr">Website Generator Next</h1>
+
+<a class="sr" href="#outline" data-i18n="skipEditor">Skip to the editor</a>
+
+<!-- ============================ top bar: editor chrome ========================= -->
+<header class="topbar">
+  <div class="brandmark">
+    Website Generator Next
+    <small data-i18n="taglineApp">Build, preview and export a real static website.</small>
+  </div>
+
+  <button class="btn btn--primary" type="button" id="tplBtn" data-i18n="panelTemplates">Templates</button>
+
+<span class="spacer"></span>
+
+    <!-- Arrow glyphs, not letters: they stay legible at every text size. -->
+    <button class="btn btn--icon" type="button" id="undoBtn" data-i18n-title="undo" title="Undo" disabled aria-label="Undo">&#8592;</button>
+    <button class="btn btn--icon" type="button" id="redoBtn" data-i18n-title="redo" title="Redo" disabled aria-label="Redo">&#8594;</button>
+
+  <button class="btn" type="button" id="saveProjBtn" data-i18n="dlProject">Save project</button>
+  <button class="btn" type="button" id="openProjBtn" data-i18n="loadProject">Open project</button>
+  <!-- Hidden, but still reachable and still needing a name: a file input with
+       no label is announced as just "button" by a screen reader. -->
+  <input type="file" id="projFile" accept="application/json,.json" hidden
+         aria-label="Project file" data-i18n-title="loadProject" title="Open project">
+
+  <label class="sr" for="uiLang" data-i18n="lblUiLang">Interface language</label>
+  <select id="uiLang">
+    <option value="en">English</option>
+    <option value="fr">Français</option>
+  </select>
+
+  <label class="sr" for="uiScale" data-i18n="lblUiScale">Interface text size</label>
+  <select id="uiScale">
+    <option value="1" data-i18n="scale100">Text 100%</option>
+    <option value="1.15" data-i18n="scale115">Text 115%</option>
+    <option value="1.3" data-i18n="scale130">Text 130%</option>
+  </select>
+</header>
+
+<nav class="tabs" id="tabs" aria-label="Panels">
+  <button class="btn btn--sm" type="button" data-pane="outline" aria-pressed="true" data-i18n="panelOutline">Structure</button>
+  <button class="btn btn--sm" type="button" data-pane="canvas" aria-pressed="false" data-i18n="panelPreview">Preview</button>
+  <button class="btn btn--sm" type="button" data-pane="inspect" aria-pressed="false" data-i18n="panelInspector">Content</button>
+</nav>
+
+<main class="work">
+
+  <!-- ============================== 1. OUTLINE ============================== -->
+  <section class="pane pane--outline is-active" id="outline" aria-labelledby="outlineHead">
+    <h2 class="pane__head" id="outlineHead">
+      <span data-i18n="panelOutline">Structure</span>
+      <span class="spacer"></span>
+      <button class="btn btn--sm" type="button" id="addBlockBtn" data-i18n="addSectionHere">Add a section to this page</button>
+      <button class="btn btn--sm" type="button" id="addPageBtn" data-i18n="addPage">Add a page</button>
+    </h2>
+    <div class="pane__body">
+      <ul class="tree" id="pageTree"></ul>
+      <p class="empty" id="outlineEmpty" hidden data-i18n="pageNone">No pages yet.</p>
+      <div class="foot" data-i18n="privacyNote">Nothing leaves this browser.</div>
+    </div>
+  </section>
+
+  <!-- ====================== 2. PREVIEW (the real page) ======================= -->
+  <section class="pane pane--canvas" id="canvas" aria-labelledby="canvasBar">
+    <h2 class="canvas__bar" id="canvasBar">
+      <span class="sr" data-i18n="previewTitle">The real generated page</span>
+      <div class="devs" role="group" aria-label="Preview size">
+        <button class="btn btn--sm" type="button" data-w="1280" aria-pressed="true" data-i18n="deviceDesktop">Desktop</button>
+        <button class="btn btn--sm" type="button" data-w="820" aria-pressed="false" data-i18n="deviceTablet">Tablet</button>
+        <button class="btn btn--sm" type="button" data-w="390" aria-pressed="false" data-i18n="devicePhone">Phone</button>
+      </div>
+      <label class="sr" for="previewPage" data-i18n="selectPage">Select a page</label>
+      <select id="previewPage"></select>
+      <label class="sr" for="previewLang" id="previewLangLabel" data-i18n="langLabelSite">Site language shown</label>
+      <select id="previewLang"></select>
+      <span class="spacer"></span>
+      <button class="btn btn--sm" type="button" id="reloadBtn" data-i18n="refresh">Refresh</button>
+      <button class="btn btn--sm" type="button" id="openTabBtn" data-i18n="openInTab">Open in a new tab</button>
+    </h2>
+    <div class="stage">
+      <div class="stage__inner" id="stage">
+        <div class="frame-shell" id="frameShell">
+          <iframe id="frame" title="Preview of the generated page" sandbox="allow-scripts allow-forms"></iframe>
+        </div>
+      </div>
+    </div>
+    <p class="status preview__note" id="previewNote"></p>
+  </section>
+
+  <!-- ============================== 3. INSPECTOR ============================= -->
+  <aside class="pane pane--inspect" id="inspect" aria-labelledby="inspectHead">
+    <h2 class="pane__head" id="inspectHead">
+      <span data-i18n="panelInspector">Content</span>
+      <span class="spacer"></span>
+      <span class="status" id="blockKind"></span>
+    </h2>
+    <div class="pane__body">
+      <div id="blockForm" class="insp"></div>
+
+      <details class="insp__section" id="designPanel" open>
+        <summary data-i18n="panelDesign">Design</summary>
+        <div class="insp__fields" id="designFields"></div>
+      </details>
+
+      <details class="insp__section" id="seoPanel">
+        <summary data-i18n="panelSeo">SEO &amp; settings</summary>
+        <div class="insp__fields" id="seoFields"></div>
+      </details>
+
+      <details class="insp__section" id="auditPanel">
+        <summary data-i18n="panelAudit">Quality report</summary>
+        <div class="insp__fields" id="auditList"></div>
+      </details>
+
+      <details class="insp__section" id="exportPanel" open>
+        <summary data-i18n="panelExport">Export</summary>
+        <div class="insp__fields" id="exportFields"></div>
+      </details>
+    </div>
+  </aside>
+</main><!-- /main -->
+
+</form><!-- /editorForm -->
+
+<!-- ============================== template dialog ============================= -->
+<dialog id="tplDlg" aria-labelledby="tplDlgTitle">
+  <div class="dlg__head">
+    <h2 id="tplDlgTitle" data-i18n="tplPick">Start from a template</h2>
+    <button class="btn btn--sm" type="button" id="tplClose" data-i18n-title="close" title="Close">&#10005;</button>
+  </div>
+  <div class="dlg__body">
+    <div class="tplgrid" id="tplGrid"></div>
+    <p class="hint" data-i18n="resetConfirm">Starting a new project replaces the open one.</p>
+  </div>
+</dialog>
+
+<!-- ============================ section picker ============================== -->
+<dialog id="blockPickDlg" aria-labelledby="blockPickTitle">
+  <div class="dlg__head">
+    <h2 id="blockPickTitle" data-i18n="blocksTitle">Sections on this page</h2>
+    <button class="btn btn--sm" type="button" id="blockPickClose" data-i18n-title="close" title="Close">&#10005;</button>
+  </div>
+  <div class="dlg__body">
+    <div class="tplgrid" id="blockPickGrid"></div>
+  </div>
+</dialog>
+
+<div class="status live" id="live" role="status" aria-live="polite"></div>
+
+<script type="module" src="js/ui.js"></script>
+</body>
+</html>

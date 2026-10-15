@@ -1,0 +1,2721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Fabrique — offline static site generator</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0c0d10; --panel:#131519; --panel2:#191c22; --line:#272b33;
+    --text:#eceef2; --muted:#969cab; --accent:#7ee3a0; --accent-ink:#08120b;
+    --bad:#ff8f8f; --ok:#7ee3a0;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  /* Toutes les métriques ci-dessous sont en em/rem, jamais en px : c'est ce qui
+     permet au sélecteur de taille d'agrandir police ETestyle d'un coup sans que
+     les boutons se serrent. 1rem = 16px par défaut, voir #uiScale. */
+  .wrap{width:min(1780px,calc(100% - 2rem));margin-inline:auto}
+  header.top{padding:1rem 0 .9rem;border-bottom:1px solid var(--line);
+           display:grid;gap:.4rem 2.25rem;grid-template-columns:minmax(0,auto) minmax(0,1fr);align-items:center}
+  header.top > div:first-child h1{margin-top:.25rem}
+  @media(max-width:820px){header.top{grid-template-columns:1fr}}
+  .kicker{font-size:.7rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+  h1{margin:.25rem 0 0;font-size:clamp(1.35rem,2vw,1.85rem);letter-spacing:-.03em;font-weight:800}
+  header.top p{margin:0;max-width:none;color:var(--muted);line-height:1.5;font-size:.82rem}
+  .privacy{display:inline-block;margin-top:.5rem;padding:.2em .8em;border:1px solid var(--line);border-radius:99px;color:var(--muted);font-size:.7rem}
+  main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:1.25rem;padding:1.25rem 0 4rem;align-items:start}
+  fieldset{border:0;border-top:1px solid var(--line);margin:0 0 .5rem;padding:1.25rem 0 .25rem;min-width:0}
+  legend{padding:0 .5rem 0 0;font-weight:750;font-size:.95rem}
+  .hint{margin:-.4em 0 .9em;color:var(--muted);font-size:.8rem;line-height:1.5}
+  /* min(11em,100%) : sans le min(), trois champs à 11em de plancher imposent
+     543px et le formulaire déborde en largeur sur un téléphone de 420px.
+     100% = une colonne dès que la place manque. */
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(11em,100%),1fr));gap:.75rem}
+  .f{display:block;margin:.75rem 0}
+  .f>span{display:block;margin-bottom:.35em;font-size:.78rem;font-weight:650;color:#c8cede;letter-spacing:.01em}
+  input,textarea,select{
+    width:100%;padding:.7em .8em;border:1px solid var(--line);border-radius:7px;
+    background:#0a0c10;color:var(--text);font:inherit;font-size:.88rem;outline:none;
+  }
+  textarea{min-height:5.2em;resize:vertical;line-height:1.55}
+  input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px
+  }
+  input[type=color]{padding:.2em;height:2.6em;cursor:pointer}
+  .ck{display:flex;gap:.55em;align-items:flex-start;margin:.9em 0;color:var(--muted);font-size:.83rem;line-height:1.45}
+  .ck input{width:auto;margin-top:2px;accent-color:var(--accent)}
+  .item{border:1px solid var(--line);border-radius:10px;padding:.9em;margin:.7em 0;background:var(--panel)}
+  .item .head{display:flex;justify-content:space-between;align-items:center;gap:.6em;margin-bottom:.4em}
+  .item .head b{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .mini{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:6px;
+        padding:.4em .8em;font:inherit;font-size:.74rem;cursor:pointer}
+  .mini:hover{color:var(--text);border-color:#3a404c}
+  .mini[disabled]{opacity:.45;cursor:default}
+  .mini.add{color:var(--accent);border-color:#2b4436}
+  .swatch{display:flex;align-items:center;gap:.55em;margin-top:.45em;font-size:.74rem;color:var(--muted)}
+  .swatch b{font-weight:800}
+  .bar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%);
+       padding:1.2em 0 1.6em;margin-top:.4em;z-index:5}
+  /* 2e moyen de récupérer le site : plein largeur sous le ZIP */
+  .mini.wide{display:block;width:100%;margin-top:.5em;padding:.8em;font-size:.8rem;text-align:center}
+  button.primary{
+    width:100%;border:0;border-radius:8px;padding:1em 1.3em;cursor:pointer;
+    background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:800;font-size:.92rem;
+  }
+  button.primary:hover{filter:brightness(1.07)}
+  button.primary[disabled]{opacity:.5;cursor:progress}
+  #status{margin-top:.7em;text-align:center;font-size:.82rem;color:var(--muted);min-height:1.2em}
+  aside{position:sticky;top:1rem;display:flex;flex-direction:column;gap:.9rem}
+  .bar-top{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:0 .12rem;flex-wrap:wrap}
+  .bar-top b{font-size:.82rem;letter-spacing:.02em}
+  .bar-top .devs{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+  .devs{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+  .devs button{font-size:.72rem;padding:.35em .8em}
+  .devs button[aria-pressed="true"]{color:var(--accent);border-color:#2b4436}
+  /* [hidden] doit gagner : plusieurs règles ci-dessous fixent display */
+  [hidden]{display:none!important}
+  /* barre de périmètre : quels fichiers sont en cours de remplissage */
+  .scope{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.5rem 0 0;
+         padding:.6rem .9rem;border:1px solid #2b4436;border-radius:10px;background:rgba(126,227,160,.07)}
+  .scope span{font-size:.78rem;color:var(--accent);overflow-wrap:anywhere}
+  /* panneau code : remplace le formulaire */
+  .code{margin:.6rem 0 0;display:flex;flex-direction:column;gap:.5rem}
+  .code textarea{width:100%;min-height:min(62vh,760px);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+                  font-size:.76rem;line-height:1.5;white-space:pre;overflow:auto;tab-size:2;resize:vertical}
+  .code .edited{color:var(--accent);font-weight:700}
+  .code .tab{color:var(--accent);border-color:#2b4436}
+  .frame-box{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:10px;
+             background:#fff;height:clamp(340px,calc(100vh - 300px),1500px);width:100%}
+  @media(max-width:1080px){.frame-box{height:min(70vh,760px)}}
+  .frame-box:fullscreen{border:0;border-radius:0;height:100%;background:#fff}
+  /* Sur grand écran l'aperçu doit rester visible jusqu'en bas du formulaire.
+     Sans plafond, le panneau d'audit fait dépasser la colonne de la hauteur du
+     viewport, le sticky décroche, et l'aperçu finit hors de l'écran : c'est
+     exactement le défaut signalé. La colonne se verrouille donc sur la fenêtre,
+     le cadre prend la place restante, et l'audit défile dans son coin. */
+  @media(min-width:1081px){
+    /* height, PAS max-height : avec un max-height la colonne reste à la taille du
+       contenu, donc aucun espace libre et flex-grow ne distribue rien — le cadre
+       restait collé à son min-height. */
+    aside{height:calc(100vh - 2rem);height:calc(100dvh - 2rem)}
+    /* l'aperçu est prioritaire : le cadre prend la place restante, et le panneau
+       d'audit se contente d'un tiers — c'est lui qui défile, pas la page */
+    .frame-box{flex:1 1 auto;height:auto;min-height:16rem}
+    /* en dvh, pas en % : le pourcentage se résout contre une hauteur de parent
+       qui est "auto" plafonnée, donc il retombe à none et le panneau ré-expande */
+    .panel{flex:0 1 auto;flex-shrink:4;min-height:0;overflow:auto;max-height:min(34dvh,30rem)}
+  }
+  /* Deux barres de navigation : les sections du formulaire à gauche, les pages
+     générées dans l'aperçu à droite. Collantes, donc toujours atteignables. */
+  .navbar{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:.6rem;
+          padding:.45rem .15rem;background:var(--bg);border-bottom:1px solid var(--line)}
+  .navbar>span{flex:0 0 auto;font-size:.82rem;letter-spacing:.02em}
+  .navlinks{display:flex;gap:.4rem;align-items:center;overflow-x:auto;flex:1 1 auto;
+            min-width:0;scrollbar-width:thin;padding-bottom:2px}
+  .navlinks .mini{flex:0 0 auto;white-space:nowrap;font-size:.72rem;padding:.35em .8em}
+  .navlinks .mini[aria-current="true"]{color:var(--accent);border-color:#2b4436}
+  #frame{position:absolute;top:0;left:50%;border:0;display:block;transform-origin:top left;background:#fff}
+  body.fs aside{position:fixed;inset:0;z-index:60;background:var(--bg);padding:.9em;
+                grid-template-rows:auto 1fr auto;overflow:auto}
+  body.fs aside .panel{display:none}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1.1em}
+  .panel h2{font-size:.85rem;margin:0 0 .7em;letter-spacing:.02em}
+  #audit{list-style:none;margin:0;padding:0;font-size:.8rem}
+  #audit li{display:flex;gap:.55em;padding:.45em 0;border-bottom:1px solid #1e2129;line-height:1.45}
+  #audit li:last-child{border:0}
+  #audit .mark{flex:none;width:1.1em;font-weight:900}
+  #audit .ok .mark{color:var(--ok)}
+  #audit .no .mark{color:var(--bad)}
+  #audit .no{color:#e3b7b7}
+  #audit .ok{color:var(--muted)}
+  #audit li[data-focus]{cursor:pointer;border-radius:5px;padding-inline:.4em;margin-inline:-.4em}
+  #audit li[data-focus]:hover,#audit li[data-focus]:focus-visible{background:#1c2027;outline:none}
+  #audit li.no[data-focus] .mark{color:var(--bad)}
+  .note{color:var(--muted);font-size:.76rem;line-height:1.55;margin:.7em 0 0}
+  .thumbs{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem}
+  .thumbs figure{margin:0;width:6rem}
+  .thumbs img{width:100%;height:4rem;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+  .thumbs figcaption{font-size:.68rem;color:var(--muted);margin-top:.3em;overflow-wrap:anywhere}
+  .thumbs .delta{color:var(--accent);font-weight:700}
+  /* minmax(0,1fr) et non 1fr : un 1fr nu vaut minmax(auto,1fr), donc la colonne
+     refuse de descendre sous la largeur min-content du formulaire et la page
+     déborde en largeur sur téléphone. */
+  @media(max-width:1080px){main{grid-template-columns:minmax(0,1fr)}aside{position:static}}
+  body[data-mode="simple"] fieldset[data-adv]{display:none}
+  .layers{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.3rem;
+          padding:.85em 1em;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  .layers span{font-size:.8rem;color:var(--muted);flex:1 1 14em;min-width:0}
+  /* sélecteur de langue : même gabarit visuel que .mini (mêmes bordure, rayon, corps) */
+  #uiLang{font:inherit;font-size:.74rem;width:auto;max-width:8.5rem;margin:0;
+          padding:.4em .5em;border:1px solid var(--line);border-radius:6px;
+          background:#0a0c10;color:var(--muted);cursor:pointer}
+  #uiLang:hover{color:var(--text);border-color:#3a404c}
+  /* même gabarit que #uiLang : deux réglages d'affichage côte à côte */
+  #uiScale{font:inherit;font-size:.74rem;width:auto;max-width:8.5rem;margin:0;
+           padding:.4em .5em;border:1px solid var(--line);border-radius:6px;
+           background:#0a0c10;color:var(--muted);cursor:pointer}
+  #uiScale:hover{color:var(--text);border-color:#3a404c}
+  /* Entering the generator: a brief, purely decorative movement.
+     Everything sits inside `no-preference`: under reduced-motion no rule applies,
+     so content is visible and static from the first frame.
+     No overlay, nothing to dismiss, nothing blocking, no JavaScript. */
+  @media (prefers-reduced-motion:no-preference){
+    header.top{animation:enter .3s ease-out both}
+    #form{animation:enter .3s ease-out .05s both}
+    aside{animation:enter .35s ease-out .1s both}
+    @keyframes enter{from{opacity:0;translate:0 8px}}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="top">
+  <div>
+    <div class="kicker" data-i18n="kicker">Fabrique · static site generator</div>
+    <h1 data-i18n="h1">Generate your site. Nothing else.</h1>
+  </div>
+  <div>
+    <p data-i18n="intro">One file, zero dependencies, zero network requests. You fill in the fields, you watch the real site in the preview, you download a folder ready to publish. No data ever leaves your browser: no tracker, no analytics, nothing sent to a server.</p>
+    <span class="privacy" data-i18n="privacy">No cookies · no CDN · no remote fonts · only your display settings are stored, on this device</span>
+  </div>
+</header>
+
+<main>
+<form id="form" autocomplete="off" novalidate data-i18n-title="lblForm" aria-label="Site settings">
+
+  <div class="layers">
+    <select id="uiLang" aria-label="Interface language">
+      <option value="en">English</option>
+      <option value="fr">Français</option>
+    </select>
+    <select id="uiScale" aria-label="Interface text size">
+      <option value="1">Text 100%</option>
+      <option value="1.15">Text 115%</option>
+      <option value="1.3">Text 130%</option>
+      <option value="1.5">Text 150%</option>
+    </select>
+    <button type="button" class="mini add" id="modeBtn" aria-pressed="false">Show advanced options</button>
+    <button type="button" class="mini" id="saveBtn" data-i18n="save">Save project</button>
+    <button type="button" class="mini" id="loadBtn" data-i18n="load">Import</button>
+    <button type="button" class="mini" id="resetBtn" data-i18n="reset">Reset</button>
+    <input type="file" id="loadFile" accept="application/json,.json" hidden data-i18n-title="lblLoadFile" aria-label="Project file to import">
+    <span id="projStatus" role="status"></span>
+  </div>
+
+  <div class="layers" style="margin-top:8px">
+    <div class="devs" role="group" data-i18n-title="lblView" aria-label="Left panel">
+      <button type="button" class="mini" id="viewForm" aria-pressed="true" data-i18n="viewForm">Form</button>
+      <button type="button" class="mini" id="viewCode" aria-pressed="false" data-i18n="viewCode">Code</button>
+    </div>
+    <span data-i18n="viewHint">Pick a page in the preview to narrow the form to it. Pick several to edit them side by side.</span>
+  </div>
+
+  <div class="scope" id="scopeBar" hidden>
+    <span id="scopeText"></span>
+    <button type="button" class="mini" id="scopeClear" data-i18n="scopeClear">Show all fields</button>
+  </div>
+
+  <nav class="navbar" id="formNav" data-i18n-title="lblSections" aria-label="Form sections">
+    <div class="navlinks" id="sectionTabs"></div>
+  </nav>
+
+  <fieldset data-fs="identity">
+    <legend data-i18n="fsIdentity">Identity</legend>
+    <div class="row">
+      <label class="f"><span data-i18n="lblSiteName">Site name</span><input id="siteName" value="Studio Lumen" maxlength="70"></label>
+      <label class="f"><span data-i18n="lblSlug">Exported folder name</span><input id="slug" value="studio-lumen" maxlength="48"></label>
+      <label class="f"><span data-i18n="lblLang">Site language</span><input id="lang" value="en" maxlength="5"></label>
+    </div>
+    <label class="f"><span data-i18n="lblTagline">Tagline (one line, shown under the title)</span><input id="tagline" value="Quiet interfaces for products that matter." maxlength="160"></label>
+    <div class="row">
+      <label class="f"><span data-i18n="lblMetaDesc">Meta description (search results)</span><input id="metaDesc" value="Independent interface studio. Design, build and maintenance for digital products that are genuinely useful." maxlength="200"></label>
+      <label class="f"><span data-i18n="lblBaseUrl">Canonical URL</span><input id="baseUrl" value="https://example.com" maxlength="200"></label>
+    </div>
+  </fieldset>
+
+  <fieldset data-fs="design">
+    <legend data-i18n="fsDesign">Design</legend>
+    <p class="hint" data-i18n="hintDesign">Contrast is checked automatically against the WCAG AA threshold. No drop shadows, no decorative gradients, no cards, no emoji.</p>
+    <div class="row">
+      <label class="f"><span data-i18n="lblPalette">Colour set</span>
+        <select id="palette">
+          <option value="blue" data-i18n="palBlue">Professional blue</option>
+          <option value="green" data-i18n="palGreen">Natural green</option>
+          <option value="violet" data-i18n="palViolet">Creative violet</option>
+          <option value="terra" data-i18n="palTerra">Warm terracotta</option>
+          <option value="dark" data-i18n="palDark">Dark</option>
+          <option value="custom" data-i18n="palCustom">Custom</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label class="f"><span data-i18n="lblPaper">Background</span><input id="colorPaper" type="color" value="#ffffff"></label>
+      <label class="f"><span data-i18n="lblSurface">Surface</span><input id="colorSurface" type="color" value="#ffffff"></label>
+    </div>
+    <div class="row">
+      <label class="f"><span data-i18n="lblInk">Text</span><input id="colorInk" type="color" value="#14171c"></label>
+      <label class="f"><span data-i18n="lblAccent">Primary</span><input id="colorAccent" type="color" value="#1d4ed8"></label>
+      <label class="f"><span data-i18n="lblAlt">Accent</span><input id="colorAlt" type="color" value="#f59e0b"></label>
+    </div>
+    <p class="hint" style="margin:6px 0 0" data-i18n="hintAlt">The accent is for decoration only — the eyebrow chip and other details. It is never used for small text: the pale sets are unreadable as text on a light background.</p>
+    <div class="swatch" id="contrast" aria-live="polite"></div>
+    <label class="f" style="margin-top:14px"><span><span data-i18n="lblRadius">Corner rounding</span> — <b id="radiusVal" style="color:var(--accent)">7px</b></span>
+      <input id="radius" type="range" min="0" max="24" step="1" value="7"></label>
+    <div class="row">
+      <label class="f"><span data-i18n="lblTextScale">Base text size</span>
+        <select id="textScale">
+          <option value="0.9" data-i18n="ts90">Compact</option>
+          <option value="1" data-i18n="ts100" selected>Default</option>
+          <option value="1.15" data-i18n="ts115">Large</option>
+          <option value="1.3" data-i18n="ts130">Extra large</option>
+        </select>
+      </label>
+    </div>
+    <p class="hint" style="margin:6px 0 0" data-i18n="hintTextScale">Text size scales the whole type scale of the generated site, headings included. Line length stays optimal.</p>
+  </fieldset>
+
+  <fieldset data-adv data-fs="finishing">
+    <legend data-i18n="fsFinishing">Finishing</legend>
+    <p class="hint" data-i18n="hintFinishing">To adjust the rendering. These settings are already correct by default.</p>
+    <div class="row">
+      <label class="f"><span data-i18n="lblTone">Typography</span>
+        <select id="tone">
+          <option value="sans" data-i18n="toneSans">Modern — sans-serif</option>
+          <option value="serif" data-i18n="toneSerif">Classic — serif</option>
+          <option value="mono" data-i18n="toneMono">Technical — monospace</option>
+        </select>
+      </label>
+      <label class="f"><span data-i18n="lblScheme">Theme</span>
+        <select id="scheme">
+          <option value="auto" data-i18n="schemeAuto">Auto (follows the system)</option>
+          <option value="light" data-i18n="schemeLight">Light</option>
+          <option value="dark" data-i18n="schemeDark">Dark</option>
+        </select>
+      </label>
+    </div>
+    <label class="f"><span data-i18n="lblCustomCss">Custom CSS</span>
+      <textarea id="customCss" rows="4" placeholder=".hero { padding-top: 8rem; }"></textarea></label>
+    <p class="hint" style="margin:0" data-i18n="hintCustomCss">Appended to the end of <code>css/style.css</code>. Remote <code>@import</code> and <code>url()</code> are stripped: this site makes no request to any third party. Use <code>!important</code> to override the generated rules.</p>
+  </fieldset>
+
+  <fieldset data-fs="home">
+    <legend data-i18n="fsHome">Home page</legend>
+    <label class="f"><span data-i18n="lblHeroTitle">Main title</span><input id="heroTitle" value="We build interfaces that don't shout" maxlength="120"></label>
+    <label class="f"><span data-i18n="lblHeroLead">Intro paragraph</span><textarea id="heroLead">Three pages, one stylesheet, zero libraries. What you see in the preview is exactly what goes into the ZIP.</textarea></label>
+    <div class="row">
+      <label class="f"><span data-i18n="lblCtaLabel">Button label (a single call to action)</span><input id="ctaLabel" value="Write to the studio" maxlength="40"></label>
+      <label class="f"><span data-i18n="lblCtaHref">Button destination</span><input id="ctaHref" value="contact.html" maxlength="200"></label>
+    </div>
+    <div id="sections"></div>
+    <div class="row" style="margin:10px 0 6px;align-items:end">
+      <label class="f" style="margin:0"><span data-i18n="lblBlockTarget">Insert into</span>
+        <select id="blockTarget"></select>
+      </label>
+      <label class="f" style="margin:0;flex:1"><span data-i18n="lblBlockSel">Block to insert</span>
+        <select id="blockSel">
+          <option value="" data-i18n="optNone">— pick a block —</option>
+          <option value="faq" data-i18n="optFaq">Frequently asked questions</option>
+          <option value="services" data-i18n="optServices">What you do</option>
+          <option value="etapes" data-i18n="optEtapes">Method in steps</option>
+          <option value="coords" data-i18n="optCoords">Contact details</option>
+        </select>
+      </label>
+      <button type="button" class="mini" id="blockAdd" data-i18n="blockAdd" style="justify-self:start">Insert</button>
+    </div>
+    <button type="button" class="mini add" data-add="sections" data-i18n="addSection">+ Add a section</button>
+    <p class="note" data-i18n="noteSections">Sections: a title and some text. Minimal Markdown accepted — `## Title`, `- list`, `**bold**`, `[link](url)`.</p>
+  </fieldset>
+
+  <fieldset data-fs="pages">
+    <legend data-i18n="fsPages">Pages</legend>
+    <div id="pages" tabindex="-1"></div>
+    <p class="note" id="pagesEmpty" data-i18n="pagesEmpty" hidden>No pages yet. The site works with the home page alone, but it needs at least one page to be reachable.</p>
+    <button type="button" class="mini add" data-add="pages" data-i18n="addPage">+ Add a page</button>
+    <p class="note" data-i18n="notePages">Tick "Show the contact form" on <b>one</b> page: that is where the form is inserted, and it is the site's only point of contact. The legal pages (privacy, terms) are generated separately and cannot be edited here.</p>
+  </fieldset>
+
+  <fieldset data-adv data-fs="images">
+    <legend data-i18n="fsImages">Images</legend>
+    <p class="hint" data-i18n="hintImages">Recompressed locally in your browser (WebP, resized to max 1600&nbsp;px wide). Before/after weight is shown. The share image and the favicon are generated from your site name.</p>
+    <div id="images" tabindex="-1"></div>
+    <button type="button" class="mini add" data-add="images" data-i18n="addImage">+ Add an image</button>
+    <div class="thumbs" id="thumbs"></div>
+  </fieldset>
+
+  <fieldset data-fs="contact">
+    <legend data-i18n="fsContact">Contact</legend>
+    <div class="row">
+      <label class="f"><span data-i18n="lblEmail">Email address</span><input id="contactEmail" type="email" value="contact@example.com"></label>
+      <label class="f"><span data-i18n="lblFormTarget">Where the form goes</span>
+        <select id="formTarget">
+          <option value="mailto" data-i18n="optMailto">No server — mailto link</option>
+          <option value="netlify" data-i18n="optNetlify">Netlify Forms (static host)</option>
+          <option value="api" data-i18n="optApi">The Elysia API in api/</option>
+        </select>
+      </label>
+    </div>
+    <p class="note" data-i18n="noteContact">The anti-spam field is an invisible honeypot plus a 3&nbsp;s minimum delay. No CAPTCHA, no third-party service, therefore no script loaded from anywhere else.</p>
+  </fieldset>
+
+  <fieldset data-adv data-fs="legal">
+    <legend data-i18n="fsLegal">Legal pages</legend>
+    <p class="hint" data-i18n="hintLegal">These two pages are generated automatically, with no template to fill in. Leave these fields blank and the site name and contact address are used instead. Fill them with your real information before publishing.</p>
+    <div class="row">
+      <label class="f"><span data-i18n="lblCompany">Legal entity</span><input id="company" data-i18n-ph="phCompany" maxlength="120"></label>
+      <label class="f"><span data-i18n="lblDpo">DPO / GDPR contact</span><input id="dpoEmail" type="email" data-i18n-ph="phDpo"></label>
+      <label class="f"><span data-i18n="lblJurisdiction">Jurisdiction</span><input id="jurisdiction" value="France" maxlength="60"></label>
+    </div>
+  </fieldset>
+
+  <fieldset data-adv data-fs="settings">
+    <legend data-i18n="fsSettings">Settings</legend>
+    <div class="row">
+      <label class="f"><span data-i18n="lblAnalytics">Audience measurement</span>
+        <select id="analytics">
+          <option value="none" data-i18n="optNoneRec">None (recommended)</option>
+          <option value="plausible" data-i18n="optPlausible">Self-hosted Plausible</option>
+          <option value="umami" data-i18n="optUmami">Self-hosted Umami</option>
+        </select>
+      </label>
+      <label class="f"><span data-i18n="lblAnalyticsDomain">Tool domain (without https://)</span><input id="analyticsDomain" value="" maxlength="120" placeholder="stats.example.com"></label>
+    </div>
+    <p class="note" data-i18n="noteSettings">No Google Analytics, no remote Matomo, no tracking pixel: those tools send your IP to a third party. Self-hosted Plausible and Umami count without cookies and without sending anything to a company. A consent banner is generated only if you enable one.</p>
+    <label class="ck"><input id="noindex" type="checkbox"><span data-i18n="lblNoindex">Ask for de-indexing (robots.txt with <code>Disallow: /</code> and a <code>noindex</code> tag) — for a page still under construction.</span></label>
+    <label class="ck"><input id="withApi" type="checkbox"><span data-i18n="lblWithApi">Include the <code>api/</code> folder (Elysia + Bun, needs <code>bun install</code> to start — otherwise any static URL is enough).</span></label>
+  </fieldset>
+
+  <div class="code" id="codePanel" hidden>
+  <div class="bar-top">
+    <div class="devs" id="codeTabs"></div>
+    <button type="button" class="mini" id="codeDiscard" data-i18n="codeDiscard">Discard hand edits</button>
+  </div>
+  <textarea id="codeEdit" spellcheck="false" autocomplete="off" autocapitalize="off"
+    aria-label="Source of the selected file"></textarea>
+  <p class="note" id="codeNote"></p>
+</div>
+
+  <div class="bar">
+    <button type="button" class="primary" id="download" data-i18n="download">Download the site (.zip)</button>
+    <button type="button" class="mini wide" id="saveFolder" hidden data-i18n="saveFolder">Save into a folder</button>
+    <div id="status" role="status" aria-live="polite"></div>
+  </div>
+</form>
+
+<aside>
+  <nav class="navbar" data-i18n-title="lblPages" aria-label="Generated pages">
+    <span data-i18n="previewTitle">Preview — the real site</span>
+    <div class="navlinks" id="devs"></div>
+  </nav>
+  <div class="frame-box" id="frameBox">
+    <iframe id="frame" data-i18n-title="frameTitle" title="Preview of the generated site" sandbox="allow-same-origin allow-scripts allow-forms"></iframe>
+  </div>
+  <div class="devs">
+    <button type="button" class="mini" id="fsBtn">Full screen</button>
+    <button type="button" class="mini" id="reloadBtn" data-i18n="refresh">Refresh</button>
+  </div>
+
+  <div class="panel">
+    <h2 data-i18n="panelTitle">Pre-export checks</h2>
+    <ul id="audit"></ul>
+    <p class="note" data-i18n="panelNote">These checks run on the files actually produced, not on an intention.</p>
+  </div>
+</aside>
+</main>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const enc = new TextEncoder();
+
+/* ---------- state of the dynamic lists ---------- */
+const state = {
+  sections: [
+    { title: "What I do", body: "## Design\n- Art direction and mockups.\n- HTML and CSS integration, no framework.\n\n## Maintenance\nFixes, accessibility fixes, content work. Nothing else." }
+  ],
+  pages: [
+    { title: "About", slug: "about", body: "Independent studio, six people, no middleman. We work on small digital products built to last.\n\n## Method\n1. Listen\n2. Write\n3. Draw\n4. Ship", metaTitle: "", metaDesc: "" },
+    { title: "Contact", slug: "contact", body: "Describe your project in a few lines. Reply within two working days.", metaTitle: "", metaDesc: "", contact: true }
+  ],
+  images: []
+};
+
+/* ---------- i18n : English by default, French available ----------
+   One tuple per key: [English, French]. Tuples rather than two objects so the
+   key name is written once and a missing translation is visible at a glance.
+
+   Language and interface text size ARE persisted, in localStorage. They are device
+   preferences, not project content, so they never enter the .json and Reset leaves
+   them alone. Nothing is transmitted: the header now says exactly what is stored. */
+const T = {
+  docTitle: ["Fabrique — offline static site generator", "Fabrique — générateur de sites statiques hors ligne"],
+  kicker: ["Fabrique · static site generator", "Fabrique · générateur statique"],
+  h1: ["Generate your site. Nothing else.", "Génère ton site. Rien d'autre."],
+  intro: ["One file, zero dependencies, zero network requests. You fill in the fields, you watch the real site in the preview, you download a folder ready to publish. No data ever leaves your browser: no tracker, no analytics, nothing sent to a server.",
+          "Un fichier, zéro dépendance, zéro requête réseau. Tu remplis les champs, tu regardes le vrai site dans l'aperçu, tu télécharges un dossier prêt à mettre en ligne. Aucune donnée ne quitte ton navigateur : ni traceur, ni analytics, ni envoi vers un serveur."],
+  privacy: ["No cookies · no CDN · no remote fonts · only your display settings are stored, on this device",
+          "Zéro cookie · zéro CDN · zéro police distante · seuls vos réglages d'affichage sont stockés, sur cet appareil"],
+  lblUiLang: ["Interface language", "Langue de l'interface"],
+  lblForm: ["Site settings", "Réglages du site"],
+  lblLoadFile: ["Project file to import", "Fichier de projet à importer"],
+  lblUiScale: ["Interface text size", "Taille du texte de l'interface"],
+  scale100: ["Text 100%", "Texte 100 %"],
+  scale115: ["Text 115%", "Texte 115 %"],
+  scale130: ["Text 130%", "Texte 130 %"],
+  scale150: ["Text 150%", "Texte 150 %"],
+
+  modeSimple: ["Show advanced options", "Afficher les options avancées"],
+  modeFull: ["Hide advanced options", "Masquer les options avancées"],
+  save: ["Save project", "Sauvegarder le projet"],
+  load: ["Import", "Importer"],
+  reset: ["Reset", "Réinitialiser"],
+  modeHint: ["Simple mode: identity, colors, text, pages, contact. Advanced options add images, typography, legal pages and measurement settings.",
+             "Mode simple : identité, couleurs, textes, pages, contact. Les options avancées ajoutent images, typographie, pages légales et réglages de mesure."],
+
+  fsIdentity: ["Identity", "Identité"],
+  lblSiteName: ["Site name", "Nom du site"],
+  lblSlug: ["Exported folder name", "Nom du dossier exporté"],
+  lblLang: ["Site language", "Langue du site"],
+  lblTagline: ["Tagline (one line, shown under the title)", "Accroche (une ligne, affichée sous le titre)"],
+  lblMetaDesc: ["Meta description (search results)", "Meta description (accents de recherche)"],
+  lblBaseUrl: ["Canonical URL", "URL canonique"],
+
+  fsDesign: ["Design", "Design"],
+  hintDesign: ["Contrast is checked automatically against the WCAG AA threshold. No drop shadows, no decorative gradients, no cards, no emoji.",
+               "Contrastes vérifiés automatiquement contre le seuil WCAG AA. Aucune ombre portée, aucun dégradé décoratif, aucune carte, aucun emoji."],
+  lblPaper: ["Background", "Fond"],
+  lblSurface: ["Surface", "Surface"],
+  lblPalette: ["Colour set", "Jeu de couleurs"],
+  lblAlt: ["Accent", "Accent"],
+  hintAlt: ["The accent is for decoration only — the eyebrow chip and other details. It is never used for small text: the pale sets are unreadable as text on a light background.",
+            "L'accent sert uniquement à la décoration — la pastille du sur-titre et divers détails. Jamais pour du petit texte : les nuances claires sont illisibles comme texte sur fond clair."],
+  palBlue: ["Professional blue", "Bleu professionnel"],
+  palGreen: ["Natural green", "Vert naturel"],
+  palViolet: ["Creative violet", "Violet créatif"],
+  palTerra: ["Warm terracotta", "Terracotta chaleureux"],
+  palDark: ["Dark", "Mode sombre"],
+  palCustom: ["Custom", "Personnalisé"],
+  lblInk: ["Text", "Texte"],
+  lblAccent: ["Primary", "Primaire"],
+  lblRadius: ["Corner rounding", "Arrondi des angles"],
+  lblTextScale: ["Base text size", "Taille du texte de base"],
+  ts90: ["Compact", "Compact"],
+  ts100: ["Default", "Par défaut"],
+  ts115: ["Large", "Grande"],
+  ts130: ["Extra large", "Très grande"],
+  hintTextScale: ["Text size scales the whole type scale of the generated site, headings included. Line length stays optimal.",
+                  "La taille du texte met à l'échelle toute la hiérarchie typographique du site généré, titres compris. La longueur de ligne reste optimale."],
+
+  fsFinishing: ["Finishing", "Finitions"],
+  hintFinishing: ["To adjust the rendering. These settings are already correct by default.",
+                  "Pour ajuster le rendu. Ces réglages sont déjà corrects par défaut."],
+  lblTone: ["Typography", "Typographie"],
+  toneSans: ["Modern — sans-serif", "Moderne — sans-serif"],
+  toneSerif: ["Classic — serif", "Classique — serif"],
+  toneMono: ["Technical — monospace", "Technique — monospace"],
+  lblScheme: ["Theme", "Thème"],
+  schemeAuto: ["Auto (follows the system)", "Auto (suit le système)"],
+  schemeLight: ["Light", "Clair"],
+  schemeDark: ["Dark", "Sombre"],
+  lblCustomCss: ["Custom CSS", "CSS personnalisé"],
+  hintCustomCss: ["Appended to the end of <code>css/style.css</code>. Remote <code>@import</code> and <code>url()</code> are stripped: this site makes no request to any third party. Use <code>!important</code> to override the generated rules.",
+                  "Ajouté à la fin de <code>css/style.css</code>. Les <code>@import</code> et les <code>url()</code> distants sont retirés : ce site ne fait aucune requête vers un tiers. Pense à <code>!important</code> pour passer devant les règles générées."],
+
+  fsHome: ["Home page", "Page d'accueil"],
+  lblHeroTitle: ["Main title", "Titre principal"],
+  lblHeroLead: ["Intro paragraph", "Chapeau"],
+  lblCtaLabel: ["Button label (a single call to action)", "Libellé du bouton (un seul appel à l'action)"],
+  lblCtaHref: ["Button destination", "Destination du bouton"],
+  lblBlockTarget: ["Insert into", "Insérer dans"],
+  lblBlockSel: ["Block to insert", "Bloc à insérer"],
+  blockNewSection: ["— a new section —", "— une nouvelle section —"],
+  optNone: ["— pick a block —", "— choisir un bloc —"],
+  optFaq: ["Frequently asked questions", "Questions fréquentes"],
+  optServices: ["What you do", "Ce que vous faites"],
+  optEtapes: ["Method in steps", "Méthode en étapes"],
+  optCoords: ["Contact details", "Coordonnées"],
+  blockAdd: ["Insert", "Insérer"],
+  addSection: ["+ Add a section", "+ Ajouter une section"],
+  noteSections: ["Sections: a title and some text. Minimal Markdown accepted — `## Title`, `- list`, `**bold**`, `[link](url)`.",
+                 "Sections : un titre et du texte. Markdown minimal accepté — `## Titre`, `- liste`, `**gras**`, `[lien](url)`."],
+
+  fsPages: ["Pages", "Pages"],
+  addPage: ["+ Add a page", "+ Ajouter une page"],
+  pagesEmpty: ["No pages yet. The site works with the home page alone, but it needs at least one page to be reachable.",
+               "Aucune page pour l'instant. Le site fonctionne avec la seule page d'accueil, mais il lui faut au moins une page accessible."],
+  notePages: ["Tick \"Show the contact form\" on <b>one</b> page: that is where the form is inserted, and it is the site's only point of contact. The legal pages (privacy, terms) are generated separately and cannot be edited here.",
+              "Coche « Afficher le formulaire de contact » sur <b>une seule</b> page : c'est là qu'il est inséré, et c'est la seule porte d'entrée du site. Les pages légales (confidentialité, CGU) sont générées séparément et ne sont pas modifiables ici."],
+
+  fsImages: ["Images", "Images"],
+  hintImages: ["Recompressed locally in your browser (WebP, resized to max 1600&nbsp;px wide). Before/after weight is shown. The share image and the favicon are generated from your site name.",
+               "Recompressées localement dans le navigateur (WebP, redimensionnement max 1600&nbsp;px de large). Le poids avant/après est affiché. L'image de partage et le favicon sont générés à partir de ton nom."],
+  addImage: ["+ Add an image", "+ Ajouter une image"],
+
+  fsContact: ["Contact", "Contact"],
+  lblEmail: ["Email address", "Adresse e-mail"],
+  lblFormTarget: ["Where the form goes", "Où part le formulaire"],
+  optMailto: ["No server — mailto link", "Aucun serveur — lien mailto"],
+  optNetlify: ["Netlify Forms (static host)", "Netlify Forms (hébergeur statique)"],
+  optApi: ["The Elysia API in api/", "L'API Elysia du dossier api/"],
+  noteContact: ["The anti-spam field is an invisible honeypot plus a 3&nbsp;s minimum delay. No CAPTCHA, no third-party service, therefore no script loaded from anywhere else.",
+                "Le champ anti-spam est un pot-de-miel invisible + un délai minimum de 3&nbsp;s. Aucun CAPTCHA, aucun service tiers, donc aucun script chargé depuis ailleurs."],
+
+  fsLegal: ["Legal pages", "Pages légales"],
+  hintLegal: ["These two pages are generated automatically, with no template to fill in. Leave these fields blank and the site name and contact address are used instead. Fill them with your real information before publishing.",
+              "Ces deux pages sont générées automatiquement, sans gabarit à remplir. Si tu laisses ces champs vides, le nom du site et l'adresse de contact seront repris. Complète-les avec tes informations réelles avant publication."],
+  lblCompany: ["Legal entity", "Raison sociale"],
+  phCompany: ["Default: the site name", "Par défaut : le nom du site"],
+  lblDpo: ["DPO / GDPR contact", "Contact DPO / RGPD"],
+  phDpo: ["Default: the contact address", "Par défaut : l'adresse de contact"],
+  lblJurisdiction: ["Jurisdiction", "Juridiction"],
+
+  fsSettings: ["Settings", "Réglages"],
+  lblAnalytics: ["Audience measurement", "Mesure d'audience"],
+  optNoneRec: ["None (recommended)", "Aucune (recommandé)"],
+  optPlausible: ["Self-hosted Plausible", "Plausible auto-hébergé"],
+  optUmami: ["Self-hosted Umami", "Umami auto-hébergé"],
+  lblAnalyticsDomain: ["Tool domain (without https://)", "Domaine de l'outil (sans https://)"],
+  noteSettings: ["No Google Analytics, no remote Matomo, no tracking pixel: those tools send your IP to a third party. Self-hosted Plausible and Umami count without cookies and without sending anything to a company. A consent banner is generated only if you enable one.",
+                 "Ni Google Analytics, ni Matomo distant, ni pixel : ces outils transmettent ton IP à un tiers. Plausible et Umami auto-hébergés comptent sans cookie et sans requête vers une société. Une bannière de consentement est générée uniquement si tu en actives un."],
+  lblNoindex: ["Ask for de-indexing (robots.txt with <code>Disallow: /</code> and a <code>noindex</code> tag) — for a page still under construction.",
+               "Demander la désindexation (robots.txt en <code>Disallow: /</code> et balise <code>noindex</code>) — pour une page en cours de construction."],
+  lblWithApi: ["Include the <code>api/</code> folder (Elysia + Bun, needs <code>bun install</code> to start — otherwise any static URL is enough).",
+               "Ajouter le dossier <code>api/</code> (Elysia + Bun, nécessite <code>bun install</code> pour démarrer — sinon n'importe quelle URL statique suffit)."],
+
+  viewForm: ["Form", "Formulaire"],
+  viewCode: ["Code", "Code"],
+  lblView: ["Left panel", "Panneau de gauche"],
+  viewHint: ["Pick a page in the preview to narrow the form to it. Pick several to edit them side by side.",
+             "Choisis une page dans l'aperçu pour n'afficher que ses champs. Choisis-en plusieurs pour les éditer côte à côte."],
+  lblPages: ["Generated pages", "Pages générées"],
+  lblSections: ["Form sections", "Sections du formulaire"],
+  scopeClear: ["Show all fields", "Afficher tous les champs"],
+  scopeOn: ["Filling in", "Champs de"],
+  scopeNote: ["only these pages. Site name and colors always stay: they affect every page.",
+              "uniquement. Le nom du site et les couleurs restent toujours visibles : ils agissent sur toutes les pages."],
+  codeDiscard: ["Discard edits to this file", "Abandonner les retouches de ce fichier"],
+  codeNoteEdited: ["Hand-edited: this file now ships exactly as written here. The form fields still change the other files. Reset clears it.",
+                   "Retouché à la main : ce fichier partira exactement tel qu'écrit ici. Les champs du formulaire continuent de piloter les autres fichiers. Réinitialiser efface la retouche."],
+  codeNoteClean: ["Editing the generated source. It ships as written. The pre-export checks still run on it.",
+                  "Édition du source généré : il part tel qu'écrit. Les contrôles avant export s'appliquent toujours."],
+  codeStatusEdited: ["Hand edit: ", "Retouche manuelle : "],
+
+  download: ["Download the site (.zip)", "Télécharger le site (.zip)"],
+  saveFolder: ["Save into a folder", "Écrire dans un dossier"],
+  previewTitle: ["Preview — the real site", "Aperçu — le vrai site"],
+  frameTitle: ["Preview of the generated site", "Aperçu du site généré"],
+  fullscreen: ["Full screen", "Plein écran"],
+  exitFullscreen: ["Exit full screen", "Quitter le plein écran"],
+  refresh: ["Refresh", "Rafraîchir"],
+  panelTitle: ["Pre-export checks", "Contrôles avant export"],
+  panelNote: ["These checks run on the files actually produced, not on an intention.",
+              "Ces contrôles portent sur les fichiers réellement produits, pas sur une intention."],
+
+  /* dynamic lists */
+  itemUntitled: ["Untitled", "Sans titre"],
+  itemMoveUp: ["Move up", "Monter"],
+  itemMoveDown: ["Move down", "Descendre"],
+  itemDelete: ["Delete", "Supprimer"],
+  itemTitle: ["Title", "Titre"],
+  itemFile: ["File", "Fichier"],
+  itemMetaTitle: ["Meta title (optional)", "Meta title (facultatif)"],
+  itemMetaDesc: ["Meta description (optional)", "Meta description (facultatif)"],
+  itemText: ["Text", "Texte"],
+  itemShowForm: ["Show the contact form on this page", "Afficher le formulaire de contact sur cette page"],
+  thumbEmpty: ["Empty slot", "Emplacement vide"],
+  hintNoFile: ["No file chosen: this slot is skipped on export.", "Aucun fichier choisi : cet emplacement est ignoré à l'export."],
+  thumbFile: ["Image file", "Fichier image"],
+  thumbAlt: ["Alt text (required — screen readers read it out)", "Texte alternatif (obligatoire — c'est lu par les lecteurs d'écran)"],
+  thumbAltPh: ["Describe what the image shows", "Décris ce que montre l'image"],
+  unitKB: ["KB", "Ko"],
+
+  /* status + confirmations */
+  statusDefaulted: ["Options reset to their default values.", "Options remises aux valeurs par défaut."],
+  statusSaved: ["Project saved as ", "Projet sauvegardé dans "],
+  statusLoaded: ["Project loaded: ", "Projet chargé : "],
+  statusRefused: ["Import refused, nothing was changed: ", "Import refusé, rien n'a été modifié : "],
+  statusBlock: ["Block inserted: replace the sample text with your real information.",
+                "Bloc inséré : remplace le texte d'exemple par tes informations réelles."],
+  imgOk: ["Image added and compressed: ", "Image ajoutée et compressée : "],
+  imgFail: ["Image refused (unreadable, empty, or an unsupported format): ",
+            "Image refusée (illisible, vide, ou format non pris en charge) : "],
+  statusGen: ["Generating…", "Génération…"],
+  statusFail: ["Export failed: ", "Échec de l'export : "],
+  errBadImage: ["unreadable image (invalid base64 data)", "image illisible (données base64 invalides)"],
+  errNotProject: ["this is not a Fabrique project", "ce n'est pas un projet Fabrique"],
+  errTooBig: ["file too large (25 MB maximum)", "fichier trop volumineux (25 Mo maximum)"],
+  dlFiles: [" files", " fichiers"],
+  dlIssues: [". ", ". "],
+  dlFix: [" point(s) to fix, listed under \"Pre-export checks\".", " point(s) à corriger, listés dans « Contrôles avant export »."],
+  dlPass: [", every check passes.", ", tous les contrôles passent."],
+  confirmReset: ["Reset every field, section, page and image to its default value?\n\nYour current work will be lost. Save it first with \"Save project\".",
+                 "Remettre tous les champs, sections, pages et images aux valeurs par défaut ?\n\nTon travail en cours sera perdu. Sauvegarde-le d'abord avec « Sauvegarder le projet »."],
+  confirmDelete: ["Delete \"%s\"?\n\nThis cannot be undone.", "Supprimer « %s » ?\n\nC'est définitif."],
+  roAccent: ["accent %s:1", "accent %s:1"],
+  roInk: ["text %s:1", "texte %s:1"],
+  roThreshold: ["— AA threshold: 4.5:1", "— seuil AA : 4,5:1"],
+
+  /* pre-export checks */
+  audThirdOk: ["No request to a third-party domain", "Zéro requête vers un domaine tiers"],
+  audThirdKo: ["Undeclared third-party domain: ", "Domaine tiers non déclaré : "],
+  audAltOk: ["%s image(s), all with alt text", "%s image(s), toutes avec un texte alternatif"],
+  audAltKo: ["%s image(s) without an alt attribute", "%s image(s) sans attribut alt"],
+  audSlotOk: ["Every image slot has a file", "Tous les emplacements image ont un fichier"],
+  audSlotKo: ["%s image slot(s) with no file: skipped on export. Choose a file or delete the slot.",
+              "%s emplacement(s) image sans fichier : ignoré à l'export. Choisis un fichier ou supprime l'emplacement."],
+  audAltTextOk: ["Alt texts filled in", "Textes alternatifs renseignés"],
+  audAltTextKo: ["%s empty or too short alt text(s)", "%s texte(s) alternatif(s) vide(s) ou trop court(s)"],
+  audDescOk: ["Meta description on all %s pages", "Meta description sur les %s pages"],
+  audDescKo: ["Missing or too short meta description: ", "Meta description manquante ou trop courte : "],
+  audTitleOk: ["Meta title on all pages", "Meta title sur toutes les pages"],
+  audTitleKo: ["Title too short: ", "Titre trop court : "],
+  audRobots: ["robots.txt and sitemap.xml generated", "robots.txt et sitemap.xml générés"],
+  audAssets: ["404 page, favicon and share image present", "Page 404, favicon et image de partage présents"],
+  audLegal: ["Privacy and terms pages present", "Pages RGPD et CGU présentes"],
+  audAccent: ["Accent/background contrast %s:1 (AA requires 4.5:1)", "Contraste accent/fond %s:1 (AA exige 4,5:1)"],
+  audInk: ["Text/background contrast %s:1", "Contraste texte/fond %s:1"],
+  audDarkAccent: ["Dark mode accent/background contrast %s:1", "Contraste accent/fond en mode sombre %s:1"],
+  audDarkInk: ["Dark mode text/background contrast %s:1", "Contraste texte/fond en mode sombre %s:1"],
+  audSurface: ["Code text on surface contrast %s:1", "Contraste du texte de code sur la surface %s:1"],
+  audChip: ["Eyebrow chip text contrast %s:1", "Contraste du texte de la pastille %s:1"],
+  audDarkChip: ["Dark eyebrow chip text contrast %s:1", "Contraste de la pastille en mode sombre %s:1"],
+  audDarkSurface: ["Dark code text on surface contrast %s:1", "Contraste du texte de code sur la surface sombre %s:1"],
+  audBracketsOk: ["No template left to fill in", "Aucun gabarit à personnaliser"],
+  audBracketsKo: ["To replace before publishing: ", "À remplacer avant publication : "],
+  audDeadOk: ["No broken internal link", "Aucun lien interne cassé"],
+  audDeadKo: ["Broken link: ", "Lien cassé : "],
+  audExtOk: ["No link to another site", "Aucun lien vers un autre site"],
+  audExtKo: ["External link: ", "Lien externe : "],
+  audFormOk: ["Contact form on %s.html", "Formulaire de contact sur %s.html"],
+  audFormKo: ["No page carries the contact form: the site will have no form at all",
+              "Aucune page ne porte le formulaire de contact : le site n'aura aucun formulaire"],
+  audHeadOk: ["Heading hierarchy is continuous across all %s pages", "Hiérarchie de titres continue sur les %s pages"],
+  audHeadStart: ["%s starts at h%s", "%s commence en h%s"],
+  audNoHead: ["%s has no heading at all", "%s n'a aucun titre"],
+  audHeadSkip: ["%s: h%s followed by h%s", "%s: h%s suivi de h%s"],
+  audNestKo: ["Block tag nested inside a content tag", "Balise de bloc imbriquée dans une balise de contenu"],
+  audNestOk: ["No block tag nested inside a content tag", "Aucune balise de bloc imbriquée"],
+  audDimOk: ["All images declare width and height (no layout shift)",
+             "Toutes les images déclarent width et height (aucun saut de mise en page)"],
+  audDimKo: ["%s image(s) without declared dimensions", "%s image(s) sans dimensions déclarées"],
+  audTargetOk: ["Navigation touch targets >= 24px", "Zones tactiles de navigation >= 24px"],
+  audTargetKo: ["Touch targets too small", "Zones tactiles trop petites"],
+  audSecurity: ["Forced HTTPS + CSP + HSTS provided", "HTTPS forcé + CSP + HSTS fournis"],
+  audCssNone: ["No custom CSS", "Aucun CSS personnalisé"],
+  audCssOk: ["Custom CSS applied (%s characters)", "CSS personnalisé appliqué (%s caractères)"],
+  audCssKo: ["%s remote @import/url() rule(s) removed from the custom CSS",
+             "%s règle(s) @import/url() distant retirée(s) du CSS personnalisé"]
+};
+
+let LANG = "en";
+const t = (k) => (T[k] ? T[k][LANG === "fr" ? 1 : 0] : k);
+/* same, filling %s placeholders left to right */
+const tf = (k, ...a) => { let i = 0; return t(k).replace(/%s/g, () => String(a[i++])); };
+
+/* Static copy only. Input VALUES and the sample content are deliberately left
+   alone: switching language must never overwrite what the user typed. */
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.title = t("docTitle");
+  $("uiLang").setAttribute("aria-label", t("lblUiLang"));
+  applyScale();
+  for (const el of document.querySelectorAll("[data-i18n]")) el.innerHTML = t(el.dataset.i18n);
+  for (const el of document.querySelectorAll("[data-i18n-ph]")) el.placeholder = t(el.dataset.i18nPh);
+  for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = t(el.dataset.i18nTitle);
+  for (const el of document.querySelectorAll("[aria-label][data-i18n-title]")) el.setAttribute("aria-label", t(el.dataset.i18nTitle));
+  /* these two carry state, so their label is derived rather than translated */
+  $("modeBtn").textContent = document.body.dataset.mode === "full" ? t("modeFull") : t("modeSimple");
+  $("fsBtn").textContent = document.body.classList.contains("fs") ? t("exitFullscreen") : t("fullscreen");
+  $("projStatus").textContent = t("modeHint");
+  renderList("sections"); renderList("pages"); renderThumbs();
+  renderSections();   // les libellés viennent des <legend>, donc il faut retrraduire
+  refresh();
+}
+
+/* ---------- taille du texte de l'interface ----------
+   On change la racine : toutes les métriques sont en em/rem, donc police,
+   espacements et cibles tactiles grandissent ENSEMBLE. C'est ce qui évite
+   d'avoir un texte plus gros dans des boutons restés à la même taille.
+   Ne touche PAS le site généré : sa feuille de style est écrite séparément,
+   en pixels et en rem propres. Export identique quelle que soit la taille. */
+/* ---------- palettes ----------
+   Cinq jeux complets. Le « texte principal » est calculé pour 4,5:1 et le
+   « primaire » aussi : vérifié dans audit(), pas seulement supposé ici.
+   L'ACCENT est volontairement pâle : il ne sert qu'à la décoration (pastille du
+   sur-titre), jamais à du texte — clair sur clair, il serait illisible. */
+const PALETTES = {
+  blue:   { bg: "#f4f7fb", surface: "#ffffff", ink: "#14213d", accent: "#1d4ed8", alt: "#f59e0b" },
+  green:  { bg: "#f2f8f6", surface: "#ffffff", ink: "#102a27", accent: "#0f766e", alt: "#a7f3d0" },
+  violet: { bg: "#f7f5fc", surface: "#ffffff", ink: "#251a3d", accent: "#6d28d9", alt: "#f0abfc" },
+  terra:  { bg: "#fff8f1", surface: "#ffffff", ink: "#2b211c", accent: "#9a3412", alt: "#fbbf24" },
+  dark:   { bg: "#0b1220", surface: "#111827", ink: "#f8fafc", accent: "#60a5fa", alt: "#34d399" }
+};
+const COLOR_IDS = ["colorPaper", "colorSurface", "colorInk", "colorAccent", "colorAlt"];
+
+function applyPalette(key) {
+  const p = PALETTES[key];
+  if (!p) return;
+  $("colorPaper").value = p.bg;
+  $("colorSurface").value = p.surface;
+  $("colorInk").value = p.ink;
+  $("colorAccent").value = p.accent;
+  $("colorAlt").value = p.alt;
+  refresh();
+}
+/* le sélecteur suit les champs : une retouche manuelle rebascule sur « Custom »,
+   et un projet importé avec les couleurs d'une palette la ré-affiche correctement */
+function syncPalette() {
+  const cur = COLOR_IDS.map((id) => $(id).value.toLowerCase());
+  const hit = Object.keys(PALETTES).find((k) =>
+    ["bg", "surface", "ink", "accent", "alt"].every((f, i) => PALETTES[k][f] === cur[i]));
+  $("palette").value = hit || "custom";
+}
+for (const id of COLOR_IDS) $(id).addEventListener("input", () => { syncPalette(); refresh(); });
+$("palette").addEventListener("change", (e) => applyPalette(e.target.value));
+
+/* ---------- i18n : langue + taille du texte ----------
+   Deux réglages d'APPAREIL, pas du projet : ils n'entrent donc ni dans le .json
+   ni dans INITIAL, et « Réinitialiser » ne les touche pas. Rien ne sort du
+   navigateur. try/catch : en navigation privée l'accès peut lever. */
+const UIPREF = "fabrique.ui";
+const SCALES = ["1", "1.15", "1.3", "1.5"];
+let prefs = {};
+try { prefs = JSON.parse(localStorage.getItem(UIPREF) || "{}") || {}; } catch (e) { prefs = {}; }
+const savePrefs = () => {
+  try { localStorage.setItem(UIPREF, JSON.stringify({ lang: LANG, scale: $("uiScale").value })); } catch (e) {}
+};
+
+function applyScale() {
+  const v = SCALES.includes($("uiScale").value) ? $("uiScale").value : "1";
+  document.documentElement.style.fontSize = 16 * parseFloat(v) + "px";
+  $("uiScale").setAttribute("aria-label", t("lblUiScale"));
+  for (const o of $("uiScale").options) o.textContent = t("scale" + Math.round(parseFloat(o.value) * 100));
+  requestAnimationFrame(applyFit);
+}
+$("uiScale").addEventListener("change", () => { applyScale(); savePrefs(); });
+
+$("uiLang").addEventListener("change", (e) => {
+  LANG = e.target.value === "fr" ? "fr" : "en";
+  applyLang();
+  savePrefs();
+});
+
+/* ---------- utilities ---------- */
+const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const slugify = (v) => String(v || "my-site")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "my-site";
+
+const val = (id) => $(id).value.trim();
+const hex = (id, fb) => (/^#[0-9a-fA-F]{6}$/.test($(id).value) ? $(id).value : fb);
+
+function contrast(hexA, hexB) {
+  const L = (h) => {
+    const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+      .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  };
+  const a = L(hexA), b = L(hexB);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+/* Part d'accent utilisée pour la pastille du sur-titre — doit rester égal au
+   `color-mix()` de .eyebrow, sinon l'audit mesure une couleur qui n'existe pas. */
+const CHIP_MIX = 0.26;
+/* color-mix(in srgb, A p%, B) = p % de A + le reste de B.
+   ATTENTION : ce n'est PAS la sémantique de mix() ci-dessus, qui interpole
+   A vers B. Mesurer un tint avec mix() testerait une autre couleur. */
+function blend(a, b, p) {
+  const P = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const A = P(a), B = P(b);
+  return "#" + A.map((v, i) => Math.round(v * p + B[i] * (1 - p)).toString(16).padStart(2, "0")).join("");
+}
+
+/* Minimal Markdown.
+   MANDATORY: every line is escaped BEFORE any transformation, otherwise HTML
+   pasted by the user travels untouched all the way into the exported site (stored
+   XSS) and executes in the preview. inline therefore works on already-escaped text. */
+const safeHref = (u) => (/^(https?:\/\/|mailto:|tel:|\/|#)/i.test(u.trim()) ? u.trim() : null);
+const sansExt = (n) => n.replace(/\.[^.]+$/, "");
+/* Inline transformations, applied to ALREADY-escaped text.
+   Isolated here so mdInline() can use them without a block wrapper. */
+const inlineMd = (t) => t
+    // image syntax: rendered only if the asset exists, otherwise left as is.
+    // Without this case, ![alt](file) swallowed the URL silently or produced a ghost "!"+link link.
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, src) => {
+      const u = src.trim();
+      // rewrite to the real file name: the ZIP contains assets/<name>.webp
+      const hit = state.images.find((im) => im.bytes && (im.name === u || sansExt(im.name) === sansExt(u)));
+      if (hit) return '<img src="assets/' + hit.name + '" alt="' + (alt || "") + '" width="' + (hit.w || 0) +
+        '" height="' + (hit.h || 0) + '" loading="lazy" decoding="async">';
+      if (/^https?:\/\//i.test(u)) return '<img src="' + u + '" alt="' + alt + '" loading="lazy" decoding="async">';
+      return m;
+    })
+    // (?<!!) : do not turn an unresolved image into a link
+    .replace(/(?<!!)\[([^\]]+)\]\(([^)\s]+)\)/g, (m, txt, href) => {
+      const u = safeHref(href);
+      const ext = /^https?:/i.test(u || "");
+      return u ? '<a href="' + u + '"' + (ext ? ' rel="noopener"' : "") + '>' + txt + "</a>" : txt;
+    })
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|\W)\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+
+/* md() produces BLOCKS. mdInline() produces none: use it where the output
+   is already inside a content tag (<h1>), otherwise we emit <h1><p>..</p></h1>. */
+function mdInline(src) {
+  return inlineMd(esc(String(src || "").replace(/\s+/g, " ").trim()));
+}
+
+/* base = level of the heading that precedes the content (1 = the page already has an <h1>).
+   Levels are calibrated on that base: no h1 -> h3 skip. */
+function md(src, base = 1) {
+  const out = [];
+  let lastLevel = base;         // level of the most recent heading: never more than +1 apart
+  let kind = null;              // 'ul' | 'ol' while a list is open
+  let items = [];
+  const flush = () => { if (kind) { out.push("<" + kind + ">" + items.join("") + "</" + kind + ">"); kind = null; items = []; } };
+  for (const raw of String(src || "").split(/\r?\n/)) {
+    const l = esc(raw.trim()); if (!l) { flush(); continue; }
+    let m;
+    if ((m = l.match(/^(#{1,3})\s+(.*)$/))) {
+      flush();
+      // never more than one step from the previous heading: an h1 followed by an h3
+      // loses screen reader users and search engines
+      const level = Math.max(2, Math.min(6, Math.min(base + (m[1].length === 3 ? 2 : 1), lastLevel + 1)));
+      lastLevel = level;
+      out.push("<h" + level + ">" + inlineMd(m[2]) + "</h" + level + ">");
+    } else if ((m = l.match(/^>\s*(.*)$/))) { flush(); out.push("<blockquote>" + inlineMd(m[1]) + "</blockquote>"); }
+    else if ((m = l.match(/^[-*+]\s+(.*)$/))) {
+      if (kind !== "ul") { flush(); kind = "ul"; }
+      items.push("<li>" + inlineMd(m[1]) + "</li>");
+    } else if ((m = l.match(/^\d+[.)]\s+(.*)$/))) {
+      if (kind !== "ol") { flush(); kind = "ol"; }
+      items.push("<li>" + inlineMd(m[1]) + "</li>");
+    } else { flush(); out.push("<p>" + inlineMd(l) + "</p>"); }
+  }
+  flush(); return out.join("\n");
+}
+
+/* ---------- dynamic lists ---------- */
+function renderList(kind) {
+  const target = kind === "sections" ? $("sections") : kind === "pages" ? $("pages") : $("images");
+  if (kind === "images") { renderThumbs(); return; }
+  target.innerHTML = state[kind].map((item, i) => `
+    <div class="item">
+      <div class="head"><b>${esc(item.title || t("itemUntitled"))}</b>
+        <span style="display:flex;gap:6px">
+        ${i > 0 ? `<button type="button" class="mini" data-move="${kind}" data-i="${i}" data-d="-1" aria-label="${esc(t("itemMoveUp"))}">↑</button>` : ""}
+        ${i < state[kind].length - 1 ? `<button type="button" class="mini" data-move="${kind}" data-i="${i}" data-d="1" aria-label="${esc(t("itemMoveDown"))}">↓</button>` : ""}
+        <button type="button" class="mini" data-del="${kind}" data-i="${i}">${esc(t("itemDelete"))}</button></span></div>
+      <div class="row">
+        <label class="f"><span>${esc(t("itemTitle"))}</span><input data-kind="${kind}" data-i="${i}" data-k="title" value="${esc(item.title)}"></label>
+        ${kind === "pages" ? `<label class="f"><span>${esc(t("itemFile"))}</span><input data-kind="${kind}" data-i="${i}" data-k="slug" value="${esc(item.slug || slugify(item.title))}"></label>` : ""}
+      </div>
+      ${kind === "pages" ? `<div class="row">
+        <label class="f"><span>${esc(t("itemMetaTitle"))}</span><input data-kind="${kind}" data-i="${i}" data-k="metaTitle" value="${esc(item.metaTitle || "")}"></label>
+        <label class="f"><span>${esc(t("itemMetaDesc"))}</span><input data-kind="${kind}" data-i="${i}" data-k="metaDesc" value="${esc(item.metaDesc || "")}"></label>
+      </div>` : ""}
+      <label class="f"><span>${esc(t("itemText"))}</span><textarea data-kind="${kind}" data-i="${i}" data-k="body">${esc(item.body)}</textarea></label>
+      ${kind === "pages" ? `<label class="ck"><input type="checkbox" data-kind="pages" data-i="${i}" data-k="contact" ${item.contact ? "checked" : ""}><span>${esc(t("itemShowForm"))}</span></label>` : ""}
+    </div>`).join("");
+  if (kind === "sections") renderBlockTargets();
+}
+
+/* Le mode simple masque les options avancées par CSS (display:none), PAS via
+   l'attribut hidden : tester l'attribut seul affichait des onglets vers des
+   sections invisibles, et le scroll-spy comptait des sections de hauteur nulle.
+   On juge donc sur le rendu réel. */
+const fsShown = (fs) => !fs.hidden && fs.offsetParent !== null;
+
+/* ---------- navigation : les sections du formulaire ----------
+   Les libellés sont lus dans les <legend>, donc déjà traduits : pas de clé i18n
+   à maintenir en double. */
+function renderSections() {
+  $("sectionTabs").innerHTML = [...document.querySelectorAll("fieldset[data-fs]")]
+    .map((fs) => `<button type="button" class="mini" data-fs="${fs.dataset.fs}" aria-current="false">` +
+      `${esc(fs.querySelector("legend").textContent)}</button>`).join("");
+  syncSectionNav();
+}
+/* applyScope() est le seul qui décide de la visibilité d'un fieldset : la barre
+   le lit, elle ne redécide rien. Une barre vide (vue Code) se cache. */
+function syncSectionNav() {
+  for (const b of $("sectionTabs").children) {
+    const fs = document.querySelector(`fieldset[data-fs="${b.dataset.fs}"]`);
+    b.hidden = !fs || !fsShown(fs);
+  }
+  $("formNav").hidden = !$("sectionTabs").querySelector("button:not([hidden])");
+}
+$("sectionTabs").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-fs]");
+  const fs = b && document.querySelector(`fieldset[data-fs="${b.dataset.fs}"]`);
+  if (!fs || !fsShown(fs)) return;
+  /* block:center, pas start : une section proche du bas ne peut pas atteindre le
+     haut de la page (le défilement est déjà au maximum), et "start" la deposit
+     hors du bandeau que le scroll-spy observe — le marqueur afficherait alors la
+     section précédente. Centrer met la section visée exactement là où le spy regarde. */
+  fs.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  /* le focus suit la section, sinon le clavier reste sur le bouton et un Tab
+     repart d'ici au lieu du premier champ de la section atteinte */
+  const first = fs.querySelector("input,select,textarea,button");
+  if (first) first.focus({ preventScroll: true });
+  markCurrentSection();
+});
+/* Section réellement affichée : la dernière dont le haut passe la ligne de visée.
+   Un IntersectionObserver dépend d'un bandeau de marge qu'il faut réajuster chaque
+   fois que la mise en page bouge — ici la règle est explicite et sans surprise. */
+function markCurrentSection() {
+  const line = innerHeight * 0.4;
+  const shown = [...document.querySelectorAll("fieldset[data-fs]")].filter(fsShown);
+  const cur = shown.filter((fs) => fs.getBoundingClientRect().top <= line).pop() || shown[0];
+  for (const b of $("sectionTabs").children) b.setAttribute("aria-current", String(!!cur && b.dataset.fs === cur.dataset.fs));
+}
+let spyQueued = false;
+addEventListener("scroll", () => {
+  if (spyQueued) return;
+  spyQueued = true;                     // un seul calcul par image, pas par événement
+  requestAnimationFrame(() => { spyQueued = false; markCurrentSection(); });
+}, { passive: true });
+
+function renderThumbs() {
+  const host = $("images");
+  host.innerHTML = state.images.map((im, i) => `
+    <div class="item">
+      <div class="head"><b>${im.bytes ? esc(im.name) : esc(t("thumbEmpty"))}</b>
+        <button type="button" class="mini" data-del="images" data-i="${i}">${esc(t("itemDelete"))}</button></div>
+      ${im.bytes ? "" : `<p class="hint" style="margin:0 0 8px;color:var(--accent)">${esc(t("hintNoFile"))}</p>`}
+      <label class="f"><span>${esc(t("thumbFile"))}</span>
+        <input type="file" accept="image/*" data-img="${i}"></label>
+      <label class="f"><span>${esc(t("thumbAlt"))}</span>
+        <input data-kind="images" data-i="${i}" data-k="alt" value="${esc(im.alt)}" placeholder="${esc(t("thumbAltPh"))}"></label>
+    </div>`).join("");
+  $("thumbs").innerHTML = state.images.map((im) => im.dataUri ? `
+    <figure><img src="${im.dataUri}" alt="">
+      <figcaption><span class="delta">${(im.bytes / 1024).toFixed(0)} ${esc(t("unitKB"))}</span> · ${im.w}×${im.h}
+      ${im.saved > 0.01 ? " (−" + Math.round(im.saved * 100) + " %)" : ""}</figcaption></figure>` : "").join("");
+}
+
+document.addEventListener("input", (e) => {
+  const t = e.target;
+  if (t.dataset.kind && t.dataset.i != null) {
+    const k = t.dataset.k;
+    state[t.dataset.kind][+t.dataset.i][k] = t.type === "checkbox" ? t.checked : t.value;
+    // file slug: write into the sibling field, NEVER via renderList().
+    // Re-rendering the list would replace the input being typed into with a fresh
+    // node and send focus to <body>: impossible to type more than one character.
+    if (k === "title" && t.dataset.kind === "pages") {
+      const sl = t.closest(".item").querySelector('[data-k="slug"]');
+      if (sl) sl.value = state.pages[+t.dataset.i].slug = slugify(t.value);
+    }
+    // only one page carries the form: ticking here unticks the others, unticking
+    // it removes the form from the site. Again without re-rendering: here it would
+    // be the focus of a click that vanished.
+    if (k === "contact") {
+      const i = +t.dataset.i, on = t.checked;
+      state.pages.forEach((p, j) => p.contact = on && j === i);
+      for (const cb of $("pages").querySelectorAll('[data-k="contact"]')) cb.checked = on && cb.dataset.i === String(i);
+    }
+    refresh();
+  } else if (t.id && t.id !== "status") refresh();
+});
+
+/* ---------- saving / restoring the project ----------
+   No localStorage for project data, and no server: a .json file the user keeps
+   wherever they want. (Only the interface language and text size are stored
+   locally — see UIPREF — and those never enter this file.)
+   The imported file is untrusted input -> key allow-list, forced types,
+   capped lengths, capped file size. */
+const PROJ_FIELDS = ["siteName", "tagline", "slug", "lang", "metaDesc", "baseUrl", "colorPaper", "colorInk",
+  "colorAccent", "radius", "tone", "scheme", "textScale", "colorSurface", "colorAlt", "heroTitle", "heroLead", "ctaLabel", "ctaHref", "contactEmail",
+  "formTarget", "company", "dpoEmail", "jurisdiction", "analytics", "analyticsDomain", "customCss"];
+const PROJ_CHECKS = ["noindex", "withApi"];
+const CAP = 40000;   // max length per text field
+
+/* Snapshot of the starting state, read from the DOM on load.
+   Single source of truth for "Reset": the HTML defaults and the reset button
+   cannot drift apart. */
+const INITIAL = (() => ({
+  fields: PROJ_FIELDS.concat(PROJ_CHECKS).reduce((o, id) => {
+    o[id] = $(id).type === "checkbox" ? $(id).checked : $(id).value; return o;
+  }, {}),
+  sections: JSON.parse(JSON.stringify(state.sections)),
+  pages: JSON.parse(JSON.stringify(state.pages))
+}))();
+
+function applyInitial() {
+  for (const id of PROJ_CHECKS) $(id).checked = INITIAL.fields[id];
+  for (const id of PROJ_FIELDS) $(id).value = INITIAL.fields[id];
+  state.sections = JSON.parse(JSON.stringify(INITIAL.sections));
+  state.pages = JSON.parse(JSON.stringify(INITIAL.pages));
+  state.images = [];
+  overrides = {};              // hand edits are part of the project: reset drops them
+  renderList("sections"); renderList("pages"); renderThumbs();
+  document.body.dataset.mode = "simple";
+  setView("form");
+  $("modeBtn").textContent = document.body.dataset.mode === "full" ? t("modeFull") : t("modeSimple");
+  $("modeBtn").setAttribute("aria-pressed", "false");
+  refresh();
+  $("projStatus").textContent = t("statusDefaulted");
+}
+
+$("resetBtn").addEventListener("click", () => {
+  if (confirm(t("confirmReset"))) {
+    applyInitial();
+  }
+});
+
+const packImages = () => state.images.map((i) => ({
+  alt: (i.alt || "").slice(0, CAP), name: i.name || "", w: i.w || 0, h: i.h || 0,
+  b64: i.bytes ? b64(i.bytes) : ""
+}));
+const unpackImages = (arr) => (Array.isArray(arr) ? arr.slice(0, 30).map((i) => {
+  // Uint8Array.from, not new Uint8Array(binary): a string is coerced to a
+  // length, not iterated — new Uint8Array("abc") gives an empty array.
+  let bytes = null;
+  try { if (i.b64) bytes = Uint8Array.from(atob(String(i.b64)), (c) => c.charCodeAt(0)); } catch (e) { bytes = null; }
+  if (!bytes || !bytes.length) throw new Error(t("errBadImage"));
+  // the name must keep .webp: without the extension a static server will not send the right MIME type
+  const raw = String(i.name || "image");
+  const name = slugify(raw.replace(/\.[^.]+$/, "")) + ".webp";
+  return { alt: String(i.alt || "").slice(0, CAP), name, w: +i.w || 0, h: +i.h || 0,
+           bytes, size: bytes.length, orig: bytes.length, saved: 0,
+           dataUri: "data:image/webp;base64," + i.b64 };
+}) : []);
+
+$("saveBtn").addEventListener("click", () => {
+  const fields = {};
+  for (const id of PROJ_FIELDS) fields[id] = val(id);
+  for (const id of PROJ_CHECKS) fields[id] = $(id).checked;
+  const doc = { fabrique: 1, fields, sections: state.sections, pages: state.pages, images: packImages() };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = (slugify(val("slug")) || "projet") + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  $("projStatus").textContent = t("statusSaved") + a.download;
+});
+
+/* Sanitisation: EVERYTHING is validated before a single write to the form,
+   otherwise a malformed file leaves the generator half-loaded. */
+function sanitizeProject(doc) {
+  if (!doc || doc.fabrique !== 1) throw new Error(t("errNotProject"));
+  const str = (v) => (typeof v === "string" ? v.slice(0, CAP) : null);
+  const fields = {};
+  for (const id of PROJ_FIELDS) {
+    const v = str(doc.fields?.[id]);
+    if (v === null) continue;
+    // a <select> must not receive an unknown value: it would silently go blank
+    if ($(id).tagName === "SELECT" && ![...$(id).options].some((o) => o.value === v)) continue;
+    fields[id] = v;
+  }
+  const checks = {};
+  for (const id of PROJ_CHECKS) if (typeof doc.fields?.[id] === "boolean") checks[id] = doc.fields[id];
+
+  const lists = (arr, keys) => {
+    if (!Array.isArray(arr)) return [];
+    return arr.slice(0, 60).map((o) => {
+      const r = {};
+      for (const k of keys) { const v = str(o?.[k]); if (v !== null) r[k] = v; }
+      if (typeof o?.contact === "boolean") r.contact = o.contact;
+      return r;
+    });
+  };
+  const sections = lists(doc.sections, ["title", "body"]);
+  const pages = lists(doc.pages, ["title", "slug", "body", "metaTitle", "metaDesc"]);
+
+  const images = unpackImages(doc.images);   // throws on invalid base64: before any write
+  return { fields, checks, sections, pages, images };
+}
+
+$("loadBtn").addEventListener("click", () => $("loadFile").click());
+$("loadFile").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    if (file.size > 25e6) throw new Error(t("errTooBig"));
+    const clean = sanitizeProject(JSON.parse(await file.text()));
+    for (const id in clean.fields) $(id).value = clean.fields[id];
+    for (const id in clean.checks) $(id).checked = clean.checks[id];
+    state.sections = clean.sections;
+    state.pages = clean.pages;
+    state.images = clean.images;
+    renderList("sections"); renderList("pages"); renderThumbs(); refresh();
+    $("projStatus").textContent = t("statusLoaded") + state.pages.length + " page(s), " + state.sections.length + " section(s), " + state.images.length + " image(s).";
+  } catch (err) {
+    $("projStatus").textContent = t("statusRefused") + err.message;
+  }
+});
+
+$("modeBtn").addEventListener("click", () => {
+  const full = document.body.dataset.mode !== "full";
+  document.body.dataset.mode = full ? "full" : "simple";
+  $("modeBtn").textContent = full ? t("modeFull") : t("modeSimple");
+  $("modeBtn").setAttribute("aria-pressed", String(full));
+  // le mode simple masque des fieldsets par CSS : la barre doit le voir aussitôt
+  syncSectionNav();
+  requestAnimationFrame(applyFit);
+});
+
+/* Structure blocks. No "testimonial" block: pre-filling customer reviews
+   fabricates proof — that is item 23 of your own "anti-vibecoded" list.
+   Here we help structure, not invent content. */
+const BLOCKS = {
+  faq: "## Frequently asked questions\n\n**Your most common question?**\nAnswer in two sentences. The reader wants an answer, not an argument.\n\n**Another question?**\nAnswer.\n\n**And a last one?**\nAnswer.",
+  services: "## Services\n\n**Service 1**\nWhat you deliver, for whom, and in how long.\n\n**Service 2**\nOne clear line per service.\n\n**Service 3**\nSame.",
+  etapes: "## Method\n\n1. First conversation\nWhat happens and what you get out of it.\n\n2. Design\nWhat you produce.\n\n3. Delivery\nWhat is delivered, and when.",
+  coords: "## Contact details\n\n- Address: your full address\n- Phone: your number\n- Opening hours: days and hours\n- Getting here: nearest station or parking"
+};
+
+/* Which section a block lands in. Rebuilt whenever the section list is rebuilt
+   (add / delete / move / reset / insert) — never while typing a title, or the
+   select would steal the caret on every keystroke. */
+function renderBlockTargets(select) {
+  const sel = $("blockTarget"), keep = sel.value;
+  sel.innerHTML = state.sections.length
+    ? state.sections.map((s, i) => `<option value="${i}">${esc(s.title || t("itemUntitled"))}</option>`).join("")
+    : `<option value="-1">${esc(t("blockNewSection"))}</option>`;
+  sel.value = (keep && [...sel.options].some((o) => o.value === keep)) ? keep : String(state.sections.length - 1);
+  if (select != null) sel.value = String(select);
+}
+
+$("blockAdd").addEventListener("click", () => {
+  const key = $("blockSel").value;
+  if (!BLOCKS[key]) return;
+  let i = +$("blockTarget").value;
+  if (i < 0 || i >= state.sections.length) {
+    state.sections.push({ title: t("itemUntitled"), body: "" });
+    i = state.sections.length - 1;
+  }
+  const cible = state.sections[i];
+  cible.body = (cible.body.trim() ? cible.body.trim() + "\n\n" : "") + BLOCKS[key];
+  renderList("sections");
+  renderBlockTargets(i);          // stay on the section we just filled
+  refresh();
+  $("projStatus").textContent = t("statusBlock");
+});
+
+document.addEventListener("click", (e) => {
+  const add = e.target.closest("[data-add]");
+  if (add) {
+    const kind = add.dataset.add;
+    if (kind === "sections") state.sections.push({ title: t("itemUntitled"), body: "" });
+    if (kind === "pages") state.pages.push({ title: t("itemUntitled"), slug: "new-page", body: "", metaTitle: "", metaDesc: "" });
+    if (kind === "images") state.images.push({ alt: "" });   // empty slot: no file, no alt yet
+    renderList(kind); refresh();
+    return;
+  }
+  const mv = e.target.closest("[data-move]");
+  if (mv) {
+    const arr = state[mv.dataset.move], i = +mv.dataset.i, j = i + Number(mv.dataset.d);
+    if (j >= 0 && j < arr.length) { [arr[i], arr[j]] = [arr[j], arr[i]]; renderList(mv.dataset.move); refresh(); }
+    return;
+  }
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    const arr = state[del.dataset.del], item = arr[+del.dataset.i];
+    // confirmation only when there is content: an empty slot loses nothing
+    if (item && (item.body || "").trim() &&
+        !confirm(tf("confirmDelete", item.title || item.name || (LANG === "fr" ? "cet élément" : "this item")))) return;
+    arr.splice(+del.dataset.i, 1); renderList(del.dataset.del); refresh();
+  }
+});
+
+/* ---------- images : compression locale, hors ligne ---------- */
+document.addEventListener("change", async (e) => {
+  const slot = e.target;          // PAS `t` : ici `t` est le traducteur global
+  if (slot.dataset.img == null) return;
+  const i = +slot.dataset.img;
+  const file = slot.files && slot.files[0];
+  if (!file) return;
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  /* Un fichier corrompu, vide, ou d'un format que le navigateur ne sait pas
+     décoder NE DOIT PAS exploser : decode() échoue, on s'arrête là et on le dit.
+     Avant, l'erreur était avalée puis drawImage levait à son tour, en async :
+     exception non rattrapée, console rouge, et surtout aucune réaction à l'écran
+     — l'emplacement restait vide en silence. */
+  try {
+    await img.decode();
+    if (!img.naturalWidth) throw new Error("decoded to a 0x0 image");
+    const scale = Math.min(1, 1600 / img.width);
+    const w = Math.max(1, Math.round(img.width * scale));
+    const h = Math.max(1, Math.round(img.height * scale));
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    c.getContext("2d").drawImage(img, 0, 0, w, h);
+    const blob = await new Promise((r) => c.toBlob(r, "image/webp", 0.82));
+    if (!blob) throw new Error("canvas produced no blob");
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    state.images[i] = {
+      ...state.images[i],
+      name: slugify(file.name.replace(/\.[^.]+$/, "")) + ".webp",
+      alt: state.images[i] ? state.images[i].alt : "",
+      w, h, bytes, size: bytes.length, orig: file.size,
+      saved: file.size ? 1 - bytes.length / file.size : 0,
+      dataUri: "data:image/webp;base64," + b64(bytes)
+    };
+    // une image minuscule peut gonfler en WebP : n'annonce un gain que s'il est réel
+    const gain = Math.max(0, Math.round((1 - bytes.length / (file.size || 1)) * 100));
+    $("projStatus").textContent = t("imgOk") + file.name + (gain > 0 ? " — " + gain + "%." : ".");
+  } catch (err) {
+    console.warn("Fabrique — image refusée :", file.name, err);
+    // on garde l'emplacement vide et on autorise de rechoisir le même fichier
+    state.images[i] = { alt: (state.images[i] || {}).alt || "" };
+    slot.value = "";
+    $("projStatus").textContent = t("imgFail") + file.name;
+  } finally {
+    URL.revokeObjectURL(img.src);
+    renderThumbs(); refresh();
+  }
+});
+
+function b64(u8) {
+  let s = ""; const CH = 0x8000;
+  for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+  return btoa(s);
+}
+
+/* ---------- bitmapCanvas: PNG with no dependency ---------- */
+function png(w, h, draw) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const x = c.getContext("2d");
+  x.fillStyle = "#14171c"; x.fillRect(0, 0, w, h);
+  x.fillStyle = "#ffffff"; x.font = "700 " + Math.round(h * 0.11) + "px Georgia, serif";
+  x.textBaseline = "top";
+  x.fillText(val("siteName").slice(0, 26), Math.round(w * 0.08), Math.round(h * 0.42));
+  x.fillStyle = hex("colorAccent", "#1d4ed8");
+  x.fillRect(Math.round(w * 0.08), Math.round(h * 0.33), Math.round(w * 0.07), Math.max(3, Math.round(h * 0.008)));
+  x.font = "400 " + Math.round(h * 0.05) + "px sans-serif";
+  x.fillStyle = "#9aa3b2";
+  x.fillText(val("tagline").slice(0, 70), Math.round(w * 0.08), Math.round(h * 0.58));
+  draw && draw(x, w, h);
+  return new Promise((r) => c.toBlob((b) => b.arrayBuffer().then((ab) => r(new Uint8Array(ab))), "image/png"));
+}
+
+/* ---------- feuille de style du site généré ---------- */
+/* Dark mode is DERIVED from the colours the user picked, not hardcoded: keeping
+   the hue is what makes the two modes read as the same brand. Mixing toward
+   black/white is enough — no HSL maths, no dependency.
+   ponytail: fixed mix ratios. Perceived lightness would need a real colour
+   space; if a user hits an edge case, the audit row below tells them. */
+const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const hexOf = (c) => "#" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
+const mix = (a, b, k) => { const A = rgbOf(a), B = rgbOf(b); return hexOf(A.map((v, i) => v + (B[i] - v) * k)); };
+
+function darkPalette() {
+  const p = currentPalette();
+  const bg = mix(p.bg, "#000000", 0.9);
+  return {
+    bg,
+    ink: mix(p.ink, "#ffffff", 0.88),
+    accent: mix(p.accent, "#ffffff", 0.45),
+    // la surface sombre est un LÉGER releve du fond, pas une version assombrie du
+    // blanc : 55 % vers le noir donnait #737373 et 3,7:1 pour le texte de code
+    surface: mix(bg, p.surface, 0.1),
+    line: mix(bg, "#ffffff", 0.16),
+    // l'accent pâle reste pâle : en mode sombre c'est justement là qu'il sert
+    alt: p.alt
+  };
+}
+/* source unique des 5 couleurs : champs, palette et audit lisent tous ici */
+function currentPalette() {
+  const h = (id, fb) => hex(id, fb);
+  return {
+    bg: h("colorPaper", "#ffffff"), surface: h("colorSurface", "#ffffff"),
+    ink: h("colorInk", "#14171c"), accent: h("colorAccent", "#1d4ed8"),
+    alt: h("colorAlt", "#f59e0b")
+  };
+}
+
+function siteCSS() {
+  const p = currentPalette();
+  const paper = p.bg, ink = p.ink, accent = p.accent;
+  const radius = Math.max(0, Math.min(24, Number($("radius") ? $("radius").value : 7) || 0));
+  /* --scale multiplies every rem-based size, headings included: scaling only the
+     body would leave headings at their old size and break the hierarchy.
+     Measured in rem so the site still follows the reader's browser font size. */
+  const scale = Math.min(1.3, Math.max(0.9, parseFloat(val("textScale")) || 1));
+  const fam = { sans: 'ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif',
+                serif: 'ui-serif,Georgia,"Times New Roman",serif',
+                mono: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace' }[val("tone")] || "";
+  const dark = darkPalette();
+  const light = { bg: paper, ink, accent, surface: p.surface, alt: p.alt, line: mix(paper, "#000000", 0.12) };
+  const block = (name, pal, muted) => {
+    if (val("scheme") === "light") return "";
+    if (val("scheme") === "dark") return ':root[data-scheme="dark"]{' + name(pal, muted) + '}';
+    return '@media(prefers-color-scheme:dark){:root:not([data-scheme="light"]){' + name(pal, muted) + "}}";
+  };
+  // --muted travels with the palette: the 66% variant belongs to dark only, and
+  // keeping it in one place means the forced-dark theme gets it too.
+  const v = (pal, muted) => `--bg:${pal.bg};--fg:${pal.ink};--accent:${pal.accent};--line:${pal.line};--r:${radius}px;` +
+    `--surface:${pal.surface};--alt:${pal.alt};` +
+    (muted ? "--muted:color-mix(in srgb,var(--fg) 66%,var(--bg));" : "");
+  return `/* Generated stylesheet. No @import, no remote fonts. */
+:root{${v(light)}
+  --sans:${fam};
+  --scale:${scale};
+  --muted:color-mix(in srgb,var(--fg) 62%,var(--bg));
+  --measure:68ch;--gap:clamp(1.25rem,4vw,2.5rem);--pad:clamp(1.1rem,5vw,3rem);
+}
+${block(v, dark, true)}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);
+  font-size:calc(clamp(1rem,.96rem + .2vw,1.12rem) * var(--scale));line-height:1.65;
+  font-synthesis-weight:none;text-rendering:optimizeLegibility}
+img,picture,svg{max-width:100%;height:auto;display:block}
+h1,h2,h3{line-height:1.12;letter-spacing:-.02em;text-wrap:balance;margin:0 0 .6em}
+h1{font-size:calc(clamp(2rem,1.2rem + 3.6vw,3.6rem) * var(--scale));font-weight:800}
+h2{font-size:calc(clamp(1.4rem,1.1rem + 1.3vw,2rem) * var(--scale));font-weight:750;margin-top:2.2em}
+h3{font-size:calc(1.15rem * var(--scale));font-weight:700}
+p,ul,ol,blockquote{max-width:var(--measure)}
+a{color:var(--accent);text-underline-offset:.18em;text-decoration-thickness:from-font}
+a:hover{text-decoration-thickness:2px}
+code{font-family:ui-monospace,monospace;font-size:.9em;background:var(--surface);padding:.15em .35em;border-radius:calc(var(--r) * .5)}
+blockquote{margin:1.6em 0;padding-left:1.1em;border-left:3px solid var(--alt);color:var(--muted)}
+hr{border:0;border-top:1px solid var(--line);margin:3rem 0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:calc(var(--r) * .3)}
+.skip{position:absolute;left:-9999px;top:0;background:var(--fg);color:var(--bg);padding:.7em 1.1em;z-index:99}
+.skip:focus{left:.5rem;top:.5rem}
+.wrap{width:min(76rem,calc(100% - 2*var(--pad)));margin-inline:auto}
+.site-head{border-bottom:1px solid var(--line)}
+.site-head .wrap{display:flex;flex-wrap:wrap;gap:1rem;align-items:baseline;justify-content:space-between;padding-block:1.1rem}
+.brand{font-weight:800;letter-spacing:-.02em;color:var(--fg);text-decoration:none;font-size:1.05rem}
+.site-nav{display:flex;flex-wrap:wrap;gap:.4rem 1.4rem}
+/* vertical padding: touch target >= 24px (WCAG 2.2 AA, Target Size Minimum) */
+.site-nav a{color:var(--muted);text-decoration:none;font-size:.92rem;display:inline-block;padding:.6rem 0}
+.site-nav a[aria-current=page]{color:var(--fg);box-shadow:inset 0 -2px 0 var(--accent)}
+main{padding-block:clamp(2.5rem,7vw,5.5rem) var(--gap)}
+.eyebrow{display:inline-block;color:var(--fg);font-size:.78rem;font-weight:800;letter-spacing:.1em;
+  text-transform:uppercase;margin:0 0 .8rem;padding:.2em .6em;border-radius:calc(var(--r) * .6);
+  /* --alt en TEINTE, jamais en couleur de texte : les nuances claires sont
+     illisibles comme texte sur fond clair. Le texte reste --fg, donc lisible. */
+  background:color-mix(in srgb,var(--alt) 26%,var(--bg))}
+.lead{font-size:clamp(1.05rem,1rem + .5vw,1.3rem);color:var(--muted);max-width:58ch}
+.lead>p:first-child{margin-top:0}
+.lead h2,.lead h3{margin-top:.6em}
+.btn{display:inline-block;margin-top:1.6rem;padding:.85em 1.5em;border-radius:var(--r);
+  background:var(--accent);color:var(--bg);font-weight:750;text-decoration:none;border:1px solid transparent}
+.btn:hover{filter:brightness(1.08)}
+.section{padding-top:2.6rem;margin-top:2.6rem;border-top:1px solid var(--line)}
+figure{margin:2.4rem 0;max-width:100%}
+figcaption{font-size:.85rem;color:var(--muted);margin-top:.6rem}
+.prose p{text-wrap:pretty}
+.prose ul,.prose ol{padding-left:1.3em}
+.prose li{margin:.35em 0}
+.form{max-width:34rem}
+.form p{margin:0 0 1.2rem}
+.form label{display:block;font-weight:650;font-size:.9rem;margin-bottom:.35rem}
+.form input,.form textarea{width:100%;padding:.7rem .8rem;font:inherit;color:var(--fg);
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--r)}
+.form input:focus-visible,.form textarea:focus-visible{border-color:var(--accent)}
+.form .err{display:block;color:var(--accent);font-size:.82rem;margin-top:.3rem;min-height:0}
+.form input:user-invalid{border-color:var(--accent)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.banner{position:fixed;inset:auto 0 0 0;background:var(--fg);color:var(--bg);
+  padding:.9rem var(--pad);display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between;
+  font-size:.86rem;z-index:50}
+.banner a{color:var(--bg)}
+.banner button{font:inherit;font-weight:750;border:1px solid var(--bg);background:transparent;
+  color:var(--bg);border-radius:var(--r);padding:.45em 1em;cursor:pointer}
+.site-foot{border-top:1px solid var(--line);padding-block:2rem 3rem;font-size:.88rem;color:var(--muted)}
+.site-foot .wrap{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between}
+.site-foot ul{display:flex;flex-wrap:wrap;gap:.2rem 1.2rem;list-style:none;margin:0;padding:0}
+.site-foot a{display:inline-block;padding:.55rem 0}
+.notfound h1{font-size:calc(clamp(4rem,20vw,10rem) * var(--scale));line-height:.9;letter-spacing:-.05em;margin:0}
+@media print{.site-head,.site-foot,.banner,.btn{display:none}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+`;
+}
+
+/* ---------- page template ---------- */
+function head(o, cfg) {
+  const title = o.metaTitle || (o.title === cfg.name ? cfg.name + " — " + cfg.tagline : o.title + " · " + cfg.name);
+  const desc = o.metaDesc || cfg.metaDesc;
+  const url = cfg.base + o.path;
+  const robots = cfg.noindex ? '<meta name="robots" content="noindex,nofollow">' : '<meta name="robots" content="index,follow">';
+  const nav = cfg.pages.filter((p) => p.slug).map((p) => {
+    const path = p.slug + ".html";
+    return `<a href="${path}"${path === o.path ? ' aria-current="page"' : ""}>${esc(p.title)}</a>`;
+  }).join("");
+  /* footer built from the pages ACTUALLY produced: a link to contact.html when no
+     page carries the form goes into the ZIP and 404s once the site is online. */
+  const contact = cfg.pages.find((p) => p.contact);
+  return `<!doctype html>
+<html lang="${esc(cfg.lang)}"${cfg.scheme === "dark" ? ' data-scheme="dark"' : cfg.scheme === "light" ? ' data-scheme="light"' : ""}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">
+${robots}
+<link rel="canonical" href="${esc(url)}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="${esc(cfg.name)}">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc)}">
+<meta property="og:url" content="${esc(url)}">
+<meta property="og:image" content="${esc(cfg.base)}og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="sitemap" type="application/xml" href="sitemap.xml">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="${esc(cfg.paper)}">
+<script type="application/ld+json">${esc(JSON.stringify({
+    "@context": "https://schema.org", "@type": "WebSite", name: cfg.name,
+    description: cfg.metaDesc, url: cfg.base, inLanguage: cfg.lang
+  }))}<\/script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html">${esc(cfg.name)}</a>
+    <nav class="site-nav" aria-label="Main navigation">${nav}</nav>
+  </div>
+</header>
+<main id="main"><div class="wrap">
+${o.body}
+</div></main>
+<footer class="site-foot">
+  <div class="wrap">
+    <p style="margin:0">© ${new Date().getFullYear()} ${esc(cfg.company)}. All rights reserved.</p>
+    <ul><li><a href="privacy.html">Privacy</a></li><li><a href="terms.html">Terms</a></li>${contact ? `<li><a href="${esc(contact.slug)}.html">Contact</a></li>` : ""}</ul>
+  </div>
+</footer>
+${cfg.analytics === "none" ? "" : `
+<div class="banner" data-consent hidden>
+  <p style="margin:0;flex:1;min-width:16rem">Cookie-free audience measurement, hosted on <strong>${esc(cfg.analyticsDomain)}</strong>. Declined by default.</p>
+  <button type="button" data-accept>Accept</button>
+</div>
+<script src="js/consent.js" defer><\/script>`}
+${cfg.analytics !== "none" ? '<script src="js/analytics.js" defer><\/script>' : ""}
+<script src="js/main.js" defer><\/script>
+</body>
+</html>`;
+}
+
+/* ---------- pages ---------- */
+function contactBlock(cfg) {
+  const target = cfg.formTarget;
+  const attrs = target === "netlify"
+    ? ' name="contact" method="POST" data-netlify="true" netlify-honeypot="website"'
+    : target === "api"
+      ? ' name="contact" method="POST" action="/api/contact"'
+      : ' method="POST" action="#" data-mailto="' + esc(cfg.email) + '"';
+  return `<section class="section">
+  <h2>Write to us</h2>
+  <form class="form"${attrs} novalidate>
+    <p class="hp" aria-hidden="true"><label>Do not fill in this field<input name="website" tabindex="-1" autocomplete="off"></label></p>
+    <p><label for="f-name">Name</label>
+      <input id="f-name" name="name" type="text" required autocomplete="name" aria-describedby="e-name"><span class="err" id="e-name" aria-live="polite"></span></p>
+    <p><label for="f-mail">Email address</label>
+      <input id="f-mail" name="email" type="email" required autocomplete="email" aria-describedby="e-mail"><span class="err" id="e-mail" aria-live="polite"></span></p>
+    <p><label for="f-msg">Message</label>
+      <textarea id="f-msg" name="message" rows="6" required minlength="10" aria-describedby="e-msg"></textarea><span class="err" id="e-msg" aria-live="polite"></span></p>
+    <p><button class="btn" type="submit">Send the message</button></p>
+    <p class="note" style="font-size:.85rem;color:var(--muted)">Marked fields are required. This form contains neither a CAPTCHA nor a tracker.</p>
+  </form>
+</section>`;
+}
+
+function build() {
+  const name = val("siteName") || "My site";
+  const tagline = val("tagline");
+  const slug = slugify(val("slug"));
+  const pal = currentPalette();
+  const analytics = val("analytics");
+  const cfg = {
+    name, tagline, slug, paper: pal.bg,
+    lang: (val("lang") || "en").replace(/[^a-zA-Z-]/g, "").slice(0, 5) || "en",
+    metaDesc: val("metaDesc") || tagline || name,
+    base: (val("baseUrl") || "https://example.com").replace(/\/+$/, "") + "/",
+    company: val("company") || name,
+    dpoEmail: val("dpoEmail") || val("contactEmail"),
+    email: val("contactEmail"),
+    formTarget: val("formTarget"),
+    noindex: $("noindex").checked,
+    scheme: val("scheme"),
+    analytics, analyticsDomain: val("analyticsDomain"),
+    withApi: $("withApi").checked,
+    accent: pal.accent,
+    ink: pal.ink,
+    cta: /^(https?:\/\/|mailto:|tel:|\/|#|[a-z0-9_-]+\.html$)/i.test(val("ctaHref")) ? val("ctaHref") : "contact.html",
+    pages: null
+  };
+
+  /* user pages, unique and safe slugs.
+     index.html and 404.html are written by the loop below, but privacy.html and
+     terms.html are written AFTER: without this reservation, a "privacy" page gets
+     silently overwritten by the legal template and its content vanishes from the ZIP. */
+  const used = new Set(["index.html", "404.html", "privacy.html", "terms.html"]);
+  const pages = [{ title: "Home", slug: "", body: "", isHome: true }]
+    .concat(state.pages.map((p, i) => ({
+      title: p.title || "Page " + (i + 1),
+      slug: slugify(p.slug || p.title),
+      body: p.body, metaTitle: p.metaTitle, metaDesc: p.metaDesc, contact: !!p.contact
+    })));
+  for (const p of pages) {
+    if (p.slug) {
+      let s = p.slug, n = 2;
+      while (used.has(s + ".html")) s = p.slug + "-" + n++;
+      used.add(s + ".html"); p.slug = s;
+    }
+  }
+
+  /* the contact page: the one carrying the flag, or nothing at all */
+  const contactPage = pages.find((p) => p.contact) || null;
+
+  /* navigation: rebuilt page by page in head() so aria-current can be set */
+  cfg.pages = pages;
+  const files = {};
+  const css = siteCSS();
+
+  /* An image slot with no file chosen is skipped: shipping it would break the whole
+     ZIP, and a placeholder would publish a fake image on the site. */
+  const images = state.images.filter((im) => im.bytes && im.bytes.length);
+
+  for (const p of pages) {
+    let body;
+    const fig = images.length ? images.map((im, i) =>
+      `<figure><img src="assets/${esc(im.name)}" alt="${esc(im.alt)}" width="${im.w}" height="${im.h}" loading="${i ? "lazy" : "eager"}" decoding="async">` +
+      (im.alt ? `<figcaption>${esc(im.alt)}</figcaption>` : "") + "</figure>").join("\n") : "";
+
+    if (p.isHome) {
+      body = `<section>
+  <p class="eyebrow">${esc(tagline)}</p>
+  <h1>${mdInline(val("heroTitle"))}</h1>
+  <div class="lead">${md(val("heroLead"), 1)}</div>
+  <a class="btn" href="${esc(cfg.cta)}">${esc(val("ctaLabel"))}</a>
+  ${fig}
+</section>
+${state.sections.map((s) => `<section class="section">
+  <h2>${esc(s.title || "")}</h2>
+  <div class="prose">${md(s.body, 2)}</div>
+</section>`).join("\n")}
+${contactPage ? `<section class="section">
+  <h2>${esc(contactPage.title)}</h2>
+  <div class="prose">${md(contactPage.body, 2)}</div>
+  <a class="btn" href="${esc(contactPage.slug)}.html">${esc(val("ctaLabel"))}</a>
+</section>` : ""}`;
+    } else {
+      body = `<section><h1>${esc(p.title)}</h1><div class="prose">${md(p.body, 1)}</div></section>` +
+        (p.contact ? contactBlock(cfg) : "");
+    }
+
+    const path = p.isHome ? "index.html" : p.slug + ".html";
+    files[path] = head({ title: p.title, path, body, metaTitle: p.metaTitle, metaDesc: p.metaDesc }, cfg);
+  }
+
+  /* 404 */
+  files["404.html"] = head({
+    title: "Page not found", path: "404.html",
+    metaTitle: "Page not found", metaDesc: "This page does not exist or has been moved.",
+    body: `<section class="notfound"><h1>404</h1><h2>This page does not exist</h2>
+  <p class="lead">The link may be outdated, or the address may contain a typo.</p>
+  <a class="btn" href="index.html">Back to the home page</a></section>`
+  }, cfg);
+
+  /* legal pages — at the root, so every relative path stays valid */
+  const today = new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+  const legal = (h, slug, txt) => head({ title: h, path: slug + ".html", body: `<section><h1>${h}</h1><div class="prose">${md(txt)}</div></section>` }, cfg);
+  files["privacy.html"] = legal("Privacy policy", "privacy", [
+    "Last updated: " + today,
+    "Data controller: **" + cfg.company + "**",
+    "Contact: " + cfg.dpoEmail,
+    "## Data collected",
+    "This site contains no advertising tracker, no pixel and no third-party analytics. The only processing, if any, is the one described below.",
+    cfg.analytics !== "none" ? "- Anonymous audience measurement data, cookie-free, hosted on " + cfg.analyticsDomain + ", after explicit consent." : "- No audience data is collected.",
+    cfg.formTarget !== "mailto" ? "- Data sent through the form (name, email address, message), kept only for as long as needed to reply and then deleted." : "- No data is transmitted by this site: the form opens your email client.",
+    "## Purposes and legal basis",
+    "Processing necessary to reply to a request (GDPR article 6.1.b) for the form. Anonymous audience measurement on consent (article 6.1.a) where applicable.",
+    "## Retention periods",
+    "Messages: 3 months. No audience data is kept beyond 13 months.",
+    "## Your rights",
+    "Access, rectification, erasure, objection, portability, post-mortem instructions. Write to " + cfg.email + ". You may lodge a complaint with your national supervisory authority.",
+    "## Processors and transfers",
+    "No transfer outside the European Union. " + (cfg.analytics !== "none" ? "The self-hosted measurement tool " + cfg.analyticsDomain + " is the only processor." : "No processor."),
+    "## Security",
+    "TLS encryption across the whole site, security headers provided (_headers, .htaccess), no request to any undeclared third-party domain.",
+    "## Cookies",
+    cfg.analytics === "none" ? "This site sets no cookies." : "No advertising cookies. Only the consent state is stored in localStorage, on your device, with no transmission."
+  ].join("\n\n"));
+
+  files["terms.html"] = legal("Terms of use", "terms", [
+    "Last updated: " + today,
+    "Publisher: **" + cfg.company + "** — " + cfg.email,
+    "## Purpose",
+    "These terms of use govern access to the " + cfg.name + " site. Any navigation constitutes full acceptance.",
+    "## Intellectual property",
+    "All elements of the site (texts, images, source code, visual identity) are protected. Any reproduction or reuse without prior written permission is forbidden.",
+    "## Liability",
+    "The site is provided \"as is\". The publisher strives to ensure its accuracy but cannot guarantee the absence of errors or continuous availability. Its liability cannot be engaged for the consequences of an interruption or inaccurate information.",
+    "## Personal data",
+    "See the [privacy policy](privacy.html).",
+    "## Applicable law",
+    "These terms are governed by the law applicable in " + val("jurisdiction") + ". Failing an amicable resolution, the competent courts shall have sole jurisdiction.",
+    "## Changes",
+    "The publisher may amend these terms at any time. The applicable version is the one available on this page at the date of your visit."
+  ].join("\n\n"));
+
+  /* assets */
+  files["css/style.css"] = css;
+  files["favicon.svg"] = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<rect width="64" height="64" rx="12" fill="${cfg.accent}"/>
+<text x="32" y="42" font-family="Georgia,serif" font-size="30" font-weight="700" fill="#ffffff" text-anchor="middle">${esc(name.slice(0, 2).toUpperCase())}</text>
+</svg>
+`;
+  for (const im of images) files["assets/" + im.name] = im.bytes;
+
+  /* robots + sitemap */
+  files["robots.txt"] = cfg.noindex
+    ? "User-agent: *\nDisallow: /\n"
+    : "User-agent: *\nAllow: /\n\nSitemap: " + cfg.base + "sitemap.xml\n";
+  const urls = ["", "404"].concat(pages.filter((p) => p.slug).map((p) => p.slug))
+    .map((s) => `<url><loc>${esc(cfg.base + (s === "404" ? "404" : s ? s + ".html" : ""))}</loc></url>`).join("");
+  files["sitemap.xml"] = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}\n</urlset>\n`;
+
+  files["site.webmanifest"] = JSON.stringify({
+    name: cfg.name, short_name: cfg.name, start_url: "./", display: "minimal-ui",
+    background_color: cfg.paper, theme_color: cfg.paper,
+    icons: [{ src: "apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
+  }, null, 2) + "\n";
+
+  /* JavaScript: validation, honeypot, consent. No external script. */
+  files["js/main.js"] = `/* Progressive validation + anti-spam. No CDN, no dependency. */
+(function () {
+  var f = document.querySelector("form.form");
+  if (f) {
+    var t0 = Date.now();
+    f.addEventListener("submit", function (e) {
+      var bad = null;
+      Array.prototype.forEach.call(f.querySelectorAll("input,textarea"), function (el) {
+        var err = document.getElementById("e-" + el.id.slice(2));
+        if (!err) return;
+        var ok = el.checkValidity();
+        err.textContent = ok ? "" : (el.validity.valueMissing ? "This field is required." : "Invalid format.");
+        if (!ok && !bad) bad = el;
+      });
+      if (f.elements.website && f.elements.website.value) { e.preventDefault(); return; } // honeypot
+      if (Date.now() - t0 < 3000) { e.preventDefault(); if (bad) bad.focus(); return; }    // too fast
+      if (bad) { e.preventDefault(); bad.focus(); return; }
+      var t = f.dataset.mailto;
+      if (t) {
+        e.preventDefault();
+        var d = new FormData(f);
+        location.href = "mailto:" + t + "?subject=" + encodeURIComponent(d.get("name") || "") +
+          "&body=" + encodeURIComponent(d.get("message") || "") + "\\n\\n" + (d.get("email") || "");
+      }
+    });
+  }
+})();
+`;
+  if (analytics !== "none") {
+    files["js/consent.js"] = `/* Stores the refusal/acceptance locally. No cookie, nothing sent before consent. */
+(function(){
+  var b=document.querySelector("[data-consent]"); if(!b)return;
+  var s=null; try{s=localStorage.getItem("stats")}catch(e){}
+  if(s==="yes"){b.hidden=false}else{b.remove()}
+  b.querySelector("[data-accept]").addEventListener("click",function(){
+    try{localStorage.setItem("stats","yes")}catch(e){}
+    b.hidden=false;
+  });
+})();
+`;
+    const host = (cfg.analyticsDomain || "stats.example.com").replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    files["js/analytics.js"] = analytics === "plausible"
+      ? `/* Self-hosted Plausible. Loaded only after consent. */
+window.addEventListener("load",function(){
+  if(localStorage.getItem("stats")!=="yes")return;
+  var s=document.createElement("script");s.defer=true;s.src="https://${host}/js/script.js";
+  s.setAttribute("data-domain",location.hostname);document.head.appendChild(s);
+});
+`
+      : `/* Self-hosted Umami. Loaded only after consent. */
+window.addEventListener("load",function(){
+  if(localStorage.getItem("stats")!=="yes")return;
+  var s=document.createElement("script");s.defer=true;s.src="https://${host}/script.js";
+  s.setAttribute("data-website-id","${esc(name)}");s.setAttribute("data-domains",location.hostname);
+  document.head.appendChild(s);
+});
+`;
+  }
+
+  /* security and cache headers, ready for Netlify / Cloudflare Pages */
+  const csp = ["default-src 'self'", "img-src 'self' data:", "style-src 'self'", "script-src 'self'" + (analytics !== "none" ? " https://" + cfg.analyticsDomain.replace(/^https?:\/\//, "") : ""),
+    "font-src 'self'", "connect-src 'self'" + (analytics !== "none" ? " https://" + cfg.analyticsDomain.replace(/^https?:\/\//, "") : ""),
+    "form-action 'self'", "frame-ancestors 'none'", "base-uri 'self'", "object-src 'none'"].join("; ");
+  files["_headers"] = `/*
+  Content-Security-Policy: ${csp}
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), interest-cohort=()
+  X-Frame-Options: DENY
+
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
+/img/*
+  Cache-Control: public, max-age=31536000, immutable
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+`;
+  files[".htaccess"] = `# Apache — HTTPS required, compression, cache.
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "DENY"
+  Header always set Permissions-Policy "geolocation=(), camera=(), microphone=()"
+  Header always set Content-Security-Policy "${csp}"
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml application/json application/xml
+</IfModule>
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+</IfModule>
+ErrorDocument 404 /404.html
+`;
+
+  /* link checker, zero dependency, offline by default */
+  files["tools/check-links.mjs"] = `// Checks that every link and every src points to a file that exists.
+// ponytail: local links only; --remote enables HTTP requests (slow, requires network).
+import { readdir, readFile, stat } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const REMOTE = process.argv.includes("--remote");
+const html = [];
+const walk = async (d) => {
+  for (const e of await readdir(d, { withFileTypes: true })) {
+    const p = join(d, e.name);
+    if (e.isDirectory()) { if (e.name !== "node_modules") await walk(p); }
+    else if (e.name.endsWith(".html")) html.push(p);
+  }
+};
+await walk(ROOT);
+
+const attr = /(?:href|src)="([^"]+)"/g;
+
+let broken = 0, external = new Set(), origin = "";
+for (const file of html) {
+  const src = await readFile(file, "utf8");
+  origin ||= (src.match(/rel="canonical" href="(https?:\\/\\/[^/"]+)/) || [])[1] || "";
+  for (const [, url] of src.matchAll(attr)) {
+    if (/^(https?:)?[\\/]/.test(url)) { if (origin && !url.startsWith(origin)) external.add(url); continue; }
+    if (/^(mailto:|tel:|#|data:)/.test(url)) continue;
+    const clean = url.split("#")[0].split("?")[0];
+    if (!clean) continue;
+    const target = resolve(dirname(file), clean.endsWith("/") ? clean + "index.html" : clean);
+    const ok = await stat(target).then((s) => s.isFile() || s.isDirectory()).catch(() => false);
+    if (!ok) { console.log("DEAD LINK " + file.replace(ROOT, ".") + " -> " + url); broken++; }
+  }
+}
+console.log((broken ? "\\n" + broken + " dead link(s)." : "No dead links.") + "\\n" + html.length + " page(s) analysed.");
+if (external.size) console.log("Third-party domains referenced: " + [...external].join(", "));
+if (REMOTE) console.log("--remote: HTTP checking of third-party domains is not implemented, remove it if the site must stay 100% offline.");
+process.exit(broken ? 1 : 0);
+`;
+
+  /* one terminal instead of two: serves the site and proxies /api/* to Elysia */
+  files["dev.mjs"] = [
+    "// node dev.mjs   ->   http://localhost:8000",
+    "// Serves the static site and proxies /api/* to the Elysia API (run `bun run dev` in api/).",
+    "// Zero dependency. Stop with Ctrl+C.",
+    "import { createServer } from \"node:http\";",
+    "import { readFile, stat } from \"node:fs/promises\";",
+    "import { extname, join, isAbsolute, relative, resolve } from \"node:path\";",
+    "import { fileURLToPath } from \"node:url\";",
+    "",
+    "const ROOT = resolve(fileURLToPath(new URL(\".\", import.meta.url)));",
+    "const API = process.env.API_URL || \"http://127.0.0.1:3000\";",
+    "const PORT = Number(process.env.PORT || 8000);",
+    "const MIME = { \".html\": \"text/html; charset=utf-8\", \".css\": \"text/css; charset=utf-8\",",
+    "  \".js\": \"text/javascript; charset=utf-8\", \".json\": \"application/json; charset=utf-8\",",
+    "  \".svg\": \"image/svg+xml\", \".png\": \"image/png\", \".webp\": \"image/webp\", \".xml\": \"application/xml\",",
+    "  \".txt\": \"text/plain; charset=utf-8\", \".webmanifest\": \"application/manifest+json\" };",
+    "",
+    "const send = (res, code, type, body) => { res.writeHead(code, { \"content-type\": type }); res.end(body); };",
+    "const readBody = (req) => new Promise((ok, no) => { let b = \"\";",
+    "  req.on(\"data\", (c) => { b += c; }); req.on(\"end\", () => ok(b)); req.on(\"error\", no); });",
+    "",
+    "createServer(async (req, res) => {",
+    "  const url = new URL(req.url, \"http://localhost\");",
+    "",
+    "  if (url.pathname.startsWith(\"/api/\")) {",
+    "    try {",
+    "      const body = req.method === \"GET\" || req.method === \"HEAD\" ? undefined : await readBody(req);",
+    "      const r = await fetch(API + req.url, { method: req.method, headers: { \"content-type\": \"application/json\" }, body });",
+    "      send(res, r.status, \"application/json; charset=utf-8\", await r.text());",
+    "    } catch {",
+    "      send(res, 502, \"application/json; charset=utf-8\",",
+    "        JSON.stringify({ error: \"Elysia API not running. Run `bun install && bun run dev` in api/.\" }));",
+    "    }",
+    "    return;",
+    "  }",
+    "",
+    "  // resolves the path then checks it stays under ROOT: no directory traversal",
+    "  // relative() rather than startsWith: the separator changes depending on the OS.",
+    "  let p = resolve(join(ROOT, decodeURIComponent(url.pathname)));",
+    "  const rel = relative(ROOT, p);",
+    "  if (rel.startsWith(\"..\") || isAbsolute(rel)) return send(res, 403, \"text/plain; charset=utf-8\", \"403\");",
+    "  let file = await stat(p).then((s) => (s.isDirectory() ? join(p, \"index.html\") : p)).catch(() => null);",
+    "  if (!file) file = join(ROOT, \"404.html\");",
+    "  const buf = await readFile(file).catch(() => null);",
+    "  if (!buf) return send(res, 404, \"text/plain; charset=utf-8\", \"404\");",
+    "  send(res, file.endsWith(\"404.html\") ? 404 : 200, MIME[extname(file)] || \"application/octet-stream\", buf);",
+    "}).listen(PORT, () => console.log(\"http://localhost:\" + PORT));",
+    "",
+    "process.on(\"SIGINT\", () => process.exit(0));"
+  ].join("\n") + "\n";
+
+  files[".gitignore"] = [
+    "node_modules/",
+    ".env",
+    ".env.*",
+    "*.log",
+    ".DS_Store",
+    "Thumbs.db",
+    "",
+    "# if you move to Hugo later:",
+    "public/",
+    "resources/_gen/"
+  ].join("\n") + "\n";
+
+  /* optional API — served by the server, never by the front end */
+  if (cfg.withApi) {
+    files["api/package.json"] = JSON.stringify({
+      name: slug + "-api", version: "1.0.0", private: true, type: "module",
+      scripts: { dev: "bun --watch src/index.ts", start: "bun src/index.ts" },
+      dependencies: { elysia: "^1.2.0" }, devDependencies: { "@types/bun": "latest" }
+    }, null, 2) + "\n";
+    files["api/src/index.ts"] = [
+      "import { Elysia, t } from \"elysia\"",
+      "",
+      "// This API runs server-side. The front end receives NO secret:",
+      "// private values stay in environment variables, never in the bundle.",
+      "const site = {",
+      "  name: " + JSON.stringify(name) + ",",
+      "  tagline: " + JSON.stringify(tagline) + ",",
+      "  accent: " + JSON.stringify(cfg.accent),
+      "};",
+      "",
+      "const submissions: unknown[] = [];",
+      "const hits = new Map<string, number>();",
+      "",
+      "const app = new Elysia()",
+      "  .get(\"/health\", () => ({ ok: true }))",
+      "  .get(\"/api/site\", () => site)",
+      "  .post(\"/api/contact\", ({ request, body }) => {",
+      "    const ip = request.headers.get(\"x-forwarded-for\") ?? \"local\";",
+      "    const now = Date.now();",
+      "    // ponytail: in-memory per-IP limit; move to a shared store if you run several instances.",
+      "    if (now - (hits.get(ip) ?? 0) < 60_000) {",
+      "      return new Response(JSON.stringify({ error: \"Too many attempts, try again in a minute.\" }), { status: 429 });",
+      "    }",
+      "    hits.set(ip, now);",
+      "    if ((body as { website?: string }).website) return { ok: true }; // honeypot",
+      "    submissions.push(body);",
+      "    return { ok: true };",
+      "  }, {",
+      "    body: t.Object({",
+      "      name: t.String({ minLength: 1, maxLength: 120 }),",
+      "      email: t.String({ format: \"email\", maxLength: 200 }),",
+      "      message: t.String({ minLength: 10, maxLength: 4000 }),",
+      "      website: t.Optional(t.String())",
+      "    })",
+      "  })",
+      "  .listen(3000);",
+      "",
+      "console.log(`API on http://localhost:${app.server?.port}`);"
+    ].join("\n") + "\n";
+    files["api/README.md"] = [
+      "# API (optional)",
+      "",
+      "The static site works **without** this folder. It is only useful if you ticked",
+      "\"Include the api/ folder\" and you want to receive the form messages.",
+      "",
+      "```sh",
+      "bun install",
+      "bun run dev",
+      "```",
+      "",
+      "Then point the form at `/api/contact` (option *Where the form goes*).",
+      "",
+      "## Security rule",
+      "",
+      "The API lives **outside the front end**. No secret is compiled into the static site:",
+      "anything that must stay private (email send key, token, database) is read",
+      "from `process.env` here, never from a public file.",
+      "",
+      "## In production",
+      "",
+      "Place the API behind the same domain as the site (`/api/*`) to avoid CORS,",
+      "and serve the static folder with the provided headers (`_headers` / `.htaccess`)."
+    ].join("\n") + "\n";
+  }
+
+  /* Custom CSS: appended to css/style.css, NOT in an inline <style> —
+     an inline tag would fail style-src 'self' and weaken the site's CSP.
+     Guard: @import and non-data url() are stripped, otherwise the field would
+     reintroduce a remote tracker — exactly what this project promises to avoid. */
+  const cssPerso = val("customCss").trim();
+  let cssNote = "";
+  if (cssPerso) {
+    const nettoye = cssPerso
+      .replace(/@import[^;]*;/gi, "")
+      .replace(/url\(\s*(['"]?)(?!data:)[^)]*\1\s*\)/gi, "none")
+      .trim();
+    cssNote = nettoye;
+    files["css/style.css"] += "\n/* --- Custom CSS ---\n" + nettoye + "\n";
+  }
+
+  /* README of the exported project */
+  files["README.md"] = [
+    "# " + name, "",
+    tagline, "",
+    "Static site: " + Object.keys(files).length + " files, no dependency, no request to any third party.", "",
+    "## View the site", "", "```sh",
+    "python -m http.server 8000     # or: npx serve .",
+    "```", "",
+    "Open http://localhost:8000. Double-clicking `index.html` works too,",
+    "but some browsers restrict JavaScript on `file://`: prefer a small local server.",
+    cfg.withApi ? "\nOr, if you enabled the API:\n\n```sh\nbun install && bun run dev   # in api/\nnode dev.mjs                 # at the root, one single terminal\n```" : "",
+
+    "## Change the design in one line", "",
+    "Every color is a CSS variable at the top of `css/style.css`. Edit the `:root{...}` line:",
+    "", "```css", ":root{ --bg:" + currentPalette().bg + "; --fg:" + cfg.ink + "; --accent:" + cfg.accent +
+    "; --surface:" + currentPalette().surface + "; --alt:" + currentPalette().alt + "; --line:" + mix(cfg.paper, "#000000", 0.12) + "; }", "```", "",
+    "Dark mode is defined right after, in the same file. Nothing else to touch.",
+    "Fonts are system stacks: no remote font, therefore no request to any third party.",
+    cssNote ? "\nA **Custom CSS** block was appended to the end of this file, under the `/* --- Custom CSS --- */` marker." : "",
+
+    "## Structure", "", "```text",
+    "index.html          home page", "about.html / your-pages.html",
+    "contact.html        contact form", "privacy.html · terms.html · 404.html",
+    "css/style.css       complete design, variables at the top",
+    "js/main.js          form validation and anti-spam",
+    "robots.txt · sitemap.xml · site.webmanifest · favicon.svg · og.png",
+    cfg.withApi ? "api/                Elysia server (optional)\ndev.mjs              serves the site and proxies /api/*" : "",
+    "tools/check-links.mjs   link checker, zero dependency", "```", "",
+
+    "## Three uses depending on your level", "",
+    "| You are… | You do | You get |",
+    "| --- | --- | --- |",
+    "| Beginner | you fill in the fields in the generator and download | a complete site, SEO and accessibility already handled, nothing to install |",
+    "| Intermediate | you adjust `css/style.css` and the texts in the HTML | the same site, to your taste |",
+    "| Advanced | you version it with Git, you wire up `/api/`, you add pages | a static site plus an API, or you migrate to your own generator |", "",
+    "None of these steps requires installing anything.",
+
+    "## Put it online", "",
+    "The folder already is the site. Drag its contents onto Netlify, Cloudflare Pages, GitHub Pages",
+    "or any static host.", "",
+    "| Host | What to do |",
+    "| --- | --- |",
+    "| Netlify / Cloudflare Pages | nothing, `_headers` is read automatically |",
+    "| Apache | nothing, `.htaccess` is read if `AllowOverride All` is set |",
+    "| Nginx | copy `nginx.conf` into the site, then `nginx -t`, then reload Nginx |",
+    "| GitHub Pages | push the folder to `gh-pages`, enable *Enforce HTTPS* in the settings |",
+    "",
+    "**HTTPS**: every static host offers it for free. For a custom domain, enable the HTTPS",
+    "option then the permanent redirect.", "",
+    "## Check", "", "```sh",
+    "node tools/check-links.mjs",
+    "```", "",
+    "## Already in place", "",
+    "- Forced HTTPS and HSTS, strict CSP, `nosniff`, `Referrer-Policy`, anti-clickjacking",
+    "- Favicon, 1200×630 Open Graph share image, `site.webmanifest`",
+    "- `sitemap.xml` and `robots.txt`",
+    "- Custom 404 page",
+    "- Required alt text on every image, declared dimensions, `loading=\"lazy\"`",
+    "- Dark mode, `prefers-reduced-motion`, keyboard navigation, skip link, ARIA landmarks",
+    "- Validated form, honeypot + timing anti-spam, no CAPTCHA",
+    "- Image compression to WebP done at generation time",
+    "- Audience measurement: " + (analytics === "none" ? "none" : "optional, cookie-free, after consent"), "",
+    "## Still to do before publishing", "",
+    "- [ ] Review the privacy and terms pages (`privacy.html`, `terms.html`): they are generated from the generator's \"Legal pages\" fields",
+    "- [ ] Fill in the real legal entity and postal address",
+    "- [ ] Check the contact email address",
+    "- [ ] Complete the form setup if you are not using `mailto:`"
+  ].join("\n") + "\n";
+
+  files["nginx.conf"] = [
+    "server {",
+    "  listen 80;",
+    "  server_name " + cfg.base.replace(/^https?:\/\//, "").replace(/\/$/, "") + ";",
+    "  return 301 https://$host$request_uri;",
+    "}",
+    "server {",
+    "  listen 443 ssl http2;",
+    "  server_name " + cfg.base.replace(/^https?:\/\//, "").replace(/\/$/, "") + ";",
+    "  root /var/www/" + slug + ";",
+    "  index index.html;",
+    "  error_page 404 /404.html;",
+    "  add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\" always;",
+    "  add_header X-Content-Type-Options nosniff always;",
+    "  add_header Referrer-Policy strict-origin-when-cross-origin always;",
+    "  add_header X-Frame-Options DENY always;",
+    "  add_header Content-Security-Policy \"" + csp + "\" always;",
+    "  location ~* \\.(css|js|svg|webp|png|woff2)$ { expires 1y; add_header Cache-Control \"public, immutable\"; }",
+    "}"
+  ].join("\n") + "\n";
+
+  /* Hand-edited source wins, applied LAST so the pre-export checks run on exactly
+   what ships rather than on the version the form would have produced. */
+  for (const [p, src] of Object.entries(overrides)) if (p in files) files[p] = src;
+
+  return { cfg, files, pages, images, deferred: ["og.png", "apple-touch-icon.png"] };
+}
+
+/* ---------- preview: the real HTML, navigable ---------- */
+const frame = $("frame");
+const frameBox = $("frameBox");
+const SITE_W = 1280;   // render width: the site is seen as on a desktop screen
+let show = null;
+let page = "index.html";   // page currently shown in the preview
+
+/* ---------- scope: which files the left form fills ----------
+   Empty = the whole form. Otherwise only the ticked pages are editable.
+   identity + design stay visible always: the site name and the colours affect
+   EVERY generated page, hiding them would imply otherwise. */
+let scope = new Set();
+const ALWAYS = ["identity", "design"];
+const pageOf = (path) => built && built.pages.find((p) => (p.isHome ? "index.html" : p.slug + ".html") === path);
+
+function applyScope() {
+  const on = scope.size > 0;
+  const shown = new Set(ALWAYS);
+  if (on) {
+    for (const p of scope) {
+      if (p === "index.html") shown.add("home");
+      else if (p === "privacy.html" || p === "terms.html") shown.add("legal");
+      else if ((pageOf(p) || {}).contact) shown.add("contact");
+    }
+    shown.add("pages");   // the page list is filtered item by item just below
+  }
+  for (const fs of document.querySelectorAll("fieldset[data-fs]")) fs.hidden = view === "code" || (on && !shown.has(fs.dataset.fs));
+  syncSectionNav();
+  // the list is rebuilt on every renderList(), so the filter is re-applied here
+  for (const item of document.querySelectorAll("#pages .item")) item.hidden = on && !scope.has(item.dataset.path || "");
+
+  $("scopeBar").hidden = !on;
+  if (on) $("scopeText").textContent = t("scopeOn") + " " + [...scope].join(", ") + " — " + t("scopeNote");
+}
+
+/* ---------- code view: the form is replaced by the real source ----------
+   Hand edits are VOLATILE: never saved, never imported. A project file is
+   untrusted input, and arbitrary HTML would execute inside the preview. */
+let view = "form";            // "form" | "code"
+let codeFile = "index.html";  // active tab in the code panel
+let overrides = {};           // path -> hand-edited source
+const FILES_EDITABLE = () => [page, "css/style.css"];
+
+function showPreview(built) {
+  const css = built.files["css/style.css"];
+  const assets = {};
+  for (const im of state.images) if (im.dataUri) assets["assets/" + im.name] = im.dataUri;
+
+  frame.onload = () => {
+    let d; try { d = frame.contentDocument; } catch (e) { return; }
+    if (!d) return;
+    d.addEventListener("click", (e) => {
+      const a = e.target.closest("a");
+      if (!a) return;
+      const href = (a.getAttribute("href") || "").split("#")[0];
+      if (!href || !href.endsWith(".html")) return;
+      e.preventDefault();
+      if (built.files[href]) show(href);
+    }, true);
+    applyFit();
+    /* the iframe is a fresh document after each srcdoc: re-apply the ring */
+    highlight(view === "code" ? null : document.activeElement);
+  };
+
+  return (path) => {
+    page = path;
+    $("devs").innerHTML = Object.keys(built.files).filter((f) => f.endsWith(".html"))
+      .map((f) => `<button type="button" class="mini" data-page="${f}" aria-pressed="${scope.has(f)}">${f}</button>`).join("");
+    frame.srcdoc = built.files[path]
+      .replace('<link rel="stylesheet" href="css/style.css">', () => "<style>" + css + HL_CSS + "</style>")
+      .replace(/(src|href)="(assets\/[^"]+)"/g, (m, a, p) => (assets[p] ? a + '="' + assets[p] + '"' : m))
+      // srcdoc has no base: inline the JS so the real code actually runs,
+      // and drop analytics.js — it is the only script that leaves the site.
+      // Replacement functions are mandatory: a string would make the inserted code's $ be interpreted.
+      .replace(/<script src="js\/main\.js" defer><\/script>/, () => "<script>\n" + built.files["js/main.js"] + "\n<\/script>")
+      .replace(/<script src="js\/consent\.js" defer><\/script>/, () => "<script>\n" + (built.files["js/consent.js"] || "") + "\n<\/script>")
+      .replace(/<script src="js\/analytics\.js" defer><\/script>/, () => "<!-- js/analytics.js removed: the preview calls no third-party domain -->");
+  };
+}
+
+/* Always "fit to page": the iframe is rendered at full content height then scaled
+   down, so the whole page is visible at once and there is no inner scrollbar.
+   ponytail: two-step measurement on documentElement.scrollHeight; if a font
+   arrives later, the Refresh button re-runs the measurement. */
+function applyFit() {
+  let d; try { d = frame.contentDocument; } catch (e) { return; }
+  if (!d || !d.body) return;
+  frameBox.style.height = "";   // back to the CSS height, otherwise we re-read the one we wrote last time
+  frame.style.transform = "";
+  const avail = frameBox.clientHeight;
+  // at least the width of a desktop screen, to see the real layout;
+  // widened in full screen, capped to stay under a large screen's width.
+  const w = Math.max(SITE_W, Math.min(frameBox.clientWidth, 1600));
+  frame.style.position = "absolute";
+  frame.style.left = "50%";
+  frame.style.width = w + "px";
+  frame.style.height = "600px";
+  const h = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight, 400);
+  frame.style.height = h + "px";
+  const k = Math.min(frameBox.clientWidth / w, avail / h, 1);
+  frame.style.transform = "scale(" + k + ") translateX(-50%)";
+  frameBox.style.height = Math.round(h * k) + "px";
+}
+
+$("fsBtn").addEventListener("click", () => {
+  document.body.classList.toggle("fs");
+  $("fsBtn").textContent = document.body.classList.contains("fs") ? t("exitFullscreen") : t("fullscreen");
+  requestAnimationFrame(applyFit);
+});
+$("reloadBtn").addEventListener("click", () => applyFit());
+addEventListener("resize", applyFit);
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-page]");
+  // click = show that page in the preview AND toggle it in the scope.
+  // One action, multi-select: no modifier keys, no second control.
+  if (b && show) {
+    const f = b.dataset.page;
+    if (scope.has(f)) scope.delete(f); else scope.add(f);
+    codeFile = f.endsWith(".html") ? f : codeFile;
+    show(f); applyScope(); paint();
+  }
+});
+$("scopeClear").addEventListener("click", () => {
+  scope.clear(); applyScope(); paint();
+});
+
+/* ---------- audit ---------- */
+function audit(built) {
+  const res = [];
+  const { cfg, files, images, pages } = built;
+  const css = String(files["css/style.css"]);
+  const exists = (p) => p in files || built.deferred.includes(p);
+  const htmls = Object.keys(files).filter((f) => f.endsWith(".html"));
+  // each check can target a field: clicking it takes you there (3rd argument)
+  const add = (ok, label, focus) => res.push({ ok, label, focus });
+  const all = Object.entries(files).filter(([k, v]) => k.endsWith(".html") || k.endsWith(".css"))
+    .map(([, v]) => String(v)).join("\n");
+
+  const external = [...all.matchAll(/https?:\/\/[^\s"'<>)]+/g)]
+    .map((m) => m[0]).filter((u) => u.startsWith(cfg.base) === false && !u.includes("schema.org") && !u.includes("sitemaps.org"));
+  const allowed = cfg.analytics === "none" ? [] : [cfg.analyticsDomain];
+  const rogue = external.filter((u) => !allowed.some((d) => d && u.includes(d)));
+  add(rogue.length === 0, rogue.length === 0
+    ? t("audThirdOk")
+    : t("audThirdKo") + rogue[0].slice(0, 60));
+
+  const noAlt = [...all.matchAll(/<img\b(?![^>]*\balt=)/g)].length;
+  add(noAlt === 0, noAlt === 0 ? tf("audAltOk", images.length) : tf("audAltKo", noAlt), "images");
+
+  const sansFichier = state.images.length - images.length;
+  add(sansFichier === 0, sansFichier === 0
+    ? t("audSlotOk")
+    : tf("audSlotKo", sansFichier), "images");
+
+  const badAlt = images.filter((im) => !im.alt || im.alt.trim().length < 3);
+  add(badAlt.length === 0, badAlt.length === 0 ? t("audAltTextOk") : tf("audAltTextKo", badAlt.length), "images");
+
+  const noDesc = htmls.filter((h) => !/<meta name="description" content="[^"]{20,}"/.test(files[h]));
+  add(noDesc.length === 0, noDesc.length === 0 ? tf("audDescOk", htmls.length) : t("audDescKo") + noDesc.join(", "), "metaDesc");
+
+  const noTitle = htmls.filter((h) => !/<title>[^<]{8,}<\/title>/.test(files[h]));
+  add(noTitle.length === 0, noTitle.length === 0 ? t("audTitleOk") : t("audTitleKo") + noTitle.join(", "), "siteName");
+
+  add(!!files["robots.txt"] && !!files["sitemap.xml"], t("audRobots"), "baseUrl");
+  add(exists("404.html") && exists("favicon.svg") && exists("og.png"), t("audAssets"));
+  add(exists("privacy.html") && exists("terms.html"), t("audLegal"), "company");
+
+  const p = currentPalette();
+  const br = contrast(p.accent, p.bg), ib = contrast(p.ink, p.bg);
+  add(br >= 4.5, tf("audAccent", br.toFixed(2)), "colorAccent");
+  add(ib >= 4.5, tf("audInk", ib.toFixed(2)), "colorInk");
+
+  /* deux combinaisons RÉELLEMENT utilisées, pas théoriques :
+     le texte de code sur sa surface, et le sur-titre (texte --fg sur la teinte
+     de l'accent) — c'est exactement là qu'un accent pâle casserait l'accessibilité. */
+  const cs = contrast(p.ink, p.surface);
+  add(cs >= 4.5, tf("audSurface", cs.toFixed(2)), "colorSurface");
+  const ce = contrast(p.ink, blend(p.alt, p.bg, CHIP_MIX));
+  add(ce >= 4.5, tf("audChip", ce.toFixed(2)), "colorAlt");
+
+  /* dark mode now derives from the same colours, so its contrast is a real risk:
+     checked whenever dark mode can actually appear */
+  if (val("scheme") !== "light") {
+    const d = darkPalette();
+    const da = contrast(d.accent, d.bg), di = contrast(d.ink, d.bg);
+    add(da >= 4.5, tf("audDarkAccent", da.toFixed(2)), "colorAccent");
+    add(di >= 4.5, tf("audDarkInk", di.toFixed(2)), "colorInk");
+    /* la teinte du sur-titre existe aussi en mode sombre : elle dérive d'un accent
+       plus vif sur fond noir, c'est là que le texte blanc se faitattraper */
+    const dce = contrast(d.ink, blend(d.alt, d.bg, CHIP_MIX));
+    add(dce >= 4.5, tf("audDarkChip", dce.toFixed(2)), "colorAlt");
+    /* le texte de code sur la surface sombre : l'écart le plus facile à rater,
+       parce qu'aucune des deux couleurs n'est celle choisie par l'utilisateur */
+    const dcs = contrast(d.ink, d.surface);
+    add(dcs >= 4.5, tf("audDarkSurface", dcs.toFixed(2)), "colorSurface");
+  }
+
+  const brackets = [...new Set(["privacy.html", "terms.html"]
+    .map((p) => String(files[p]).replace(/<[^>]*>/g, " "))
+    .join(" ").match(/\[[^\[\]]{2,60}\]/g) || [])];
+  add(brackets.length === 0, brackets.length === 0 ? t("audBracketsOk") : t("audBracketsKo") + brackets.join(" "), "company");
+
+  const dead = [];
+  const externalDead = [];
+  for (const h of htmls) {
+    for (const m of String(files[h]).matchAll(/(?:href|src)="([^"]+)"/g)) {
+      const u = m[1];
+      if (/^(\/\/|data:|#)/.test(u)) continue;
+      if (/^https?:/i.test(u)) {
+        if (!u.startsWith(cfg.base)) externalDead.push(h + " → " + u.slice(0, 60));
+        continue;
+      }
+      if (/^(mailto:|tel:)/.test(u)) continue;
+      const c = u.split("#")[0].split("?")[0];
+      if (!c) continue;
+      if (!(exists(c) || exists(c.replace(/\/$/, "") + "/index.html"))) dead.push(h + " → " + u);
+    }
+  }
+  add(dead.length === 0, dead.length === 0 ? t("audDeadOk") : t("audDeadKo") + dead[0], "ctaHref");
+  add(externalDead.length === 0, externalDead.length === 0 ? t("audExtOk") : t("audExtKo") + externalDead[0], "baseUrl");
+
+  /* with the "Contact" link removed when no page carries the form, we have to say
+     why: otherwise the ZIP goes out with no form and the user never notices. */
+  const contactPage = pages.find((p) => p.contact);
+  add(!!contactPage, contactPage ? tf("audFormOk", contactPage.slug) : t("audFormKo"), "pages");
+
+  /* heading hierarchy: a skip (h1 -> h3) loses screen reader users and search engines */
+  let saut = "";
+  for (const h of htmls) {
+    const hs = [...String(files[h]).matchAll(/<h([1-6])\b/g)].map((m) => +m[1]);
+    // no heading at all is itself a defect (and hs[0] would be undefined)
+    if (!hs.length) saut = tf("audNoHead", h);
+    else if (hs[0] !== 1) saut = tf("audHeadStart", h, hs[0]);
+    for (let i = 1; i < hs.length && !saut; i++) if (hs[i] > hs[i - 1] + 1) saut = tf("audHeadSkip", h, hs[i - 1], hs[i]);
+  }
+  add(!saut, saut || tf("audHeadOk", htmls.length));
+
+  const imbrique = /<(h[1-6]|p)\b[^>]*>\s*<(p|h[1-6])\b/i.test(all);
+  add(!imbrique, imbrique ? t("audNestKo") : t("audNestOk"));
+
+  const sansDim = [...all.matchAll(/<img\b(?![^>]*\bwidth=)[^>]*>/g)].length;
+  add(sansDim === 0, sansDim === 0 ? t("audDimOk") : tf("audDimKo", sansDim), "images");
+
+  const navCible = /\.site-nav a\{[^}]*padding/.test(css) && /\.site-foot a\{[^}]*padding/.test(css);
+  add(navCible, navCible ? t("audTargetOk") : t("audTargetKo"));
+
+  add(files["_headers"] && files[".htaccess"], t("audSecurity"));
+
+  const perso = val("customCss");
+  if (!perso) add(true, t("audCssNone"));
+  else {
+    const retire = (perso.match(/@import[^;]*;/gi) || []).length
+      + (perso.match(/url\(\s*(['"]?)(?!data:)[^)]*\1\s*\)/gi) || []).length;
+    add(retire === 0, retire === 0
+      ? tf("audCssOk", perso.length)
+      : tf("audCssKo", retire), "customCss");
+  }
+
+  $("audit").innerHTML = res.map((r) =>
+    `<li class="${r.ok ? "ok" : "no"}"${r.focus ? ` data-focus="${r.focus}" tabindex="0" role="button"` : ""}>` +
+    `<span class="mark">${r.ok ? "✓" : "!"}</span><span>${esc(r.label)}</span></li>`).join("");
+  return res;
+}
+
+/* A failing check leads to its field: we reveal the section if needed, then focus.
+   Simple mode hides some fieldsets, otherwise focus would land nowhere. */
+function focusField(id) {
+  let el = $(id);
+  if (!el) return;
+  if (el.offsetParent === null) {
+    document.body.dataset.mode = "full";
+    $("modeBtn").textContent = t("modeFull");
+    $("modeBtn").setAttribute("aria-pressed", "true");
+  }
+  el.scrollIntoView({ block: "center", behavior: "smooth" });
+  el.focus({ preventScroll: true });
+}
+document.addEventListener("click", (e) => {
+  const li = e.target.closest("#audit li[data-focus]");
+  if (li) focusField(li.dataset.focus);
+});
+$("audit").addEventListener("keydown", (e) => {
+  const li = e.target.closest("#audit li[data-focus]");
+  if (li && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); focusField(li.dataset.focus); }
+});
+
+/* ---------- indicateur d'édition dans l'aperçu ----------
+   Sélecteurs PRÉVIEW-UNIQUEMENT : rien n'est ajouté au HTML exporté, on cible
+   les classes que le générateur produit lui-même. */
+const HL_CSS = ".f-target{outline:2px solid #7ee3a0;outline-offset:4px;border-radius:2px;background:color-mix(in srgb,#7ee3a0 14%,transparent)}";
+const TARGETS = {
+  siteName: ".brand", tagline: ".eyebrow", heroTitle: "main h1", heroLead: ".lead",
+  ctaLabel: "main .btn", contactEmail: "form.form",
+  company: ".site-foot p", jurisdiction: ".site-foot p", dpoEmail: ".site-foot p",
+  colorAccent: "main .btn, .eyebrow, .site-nav a", radius: ".btn",
+  colorPaper: "body", colorInk: "body", lang: "body", baseUrl: "body",
+  metaDesc: "body", customCss: "body", jurisdictionHint: "body"
+};
+function targetFor(el) {
+  if (!el || !el.closest || !el.closest("#form")) return null;
+  if (el.dataset.kind === "pages") return el.closest(".item").dataset.path === page ? "main h1, main .prose" : null;
+  if (el.dataset.kind === "sections") return ".section";
+  if (el.dataset.kind === "images") return "main figure";
+  return TARGETS[el.id] || null;
+}
+function highlight(el) {
+  let d; try { d = frame.contentDocument; } catch (e) { return; }
+  if (!d || !d.body) return;
+  for (const n of d.querySelectorAll(".f-target")) n.classList.remove("f-target");
+  const sel = targetFor(el);
+  if (!sel) return;
+  const hits = d.querySelectorAll(sel);
+  for (const n of hits) n.classList.add("f-target");
+  /* the ring is useless if it lands off-screen: bring it into the frame */
+  if (hits.length) {
+    const n = hits[0], r = n.getBoundingClientRect();
+    const box = frameBox.getBoundingClientRect(), k = parseFloat(frame.style.transform.match(/scale\(([\d.]+)/)?.[1] || 1);
+    if (r.top < 0 || r.bottom > box.height / k) {
+      const doc = d.documentElement, cur = doc.scrollTop || d.body.scrollTop || 0;
+      d.defaultView.scrollTo({ top: cur + r.top - (box.height / k) / 2, behavior: "smooth" });
+    }
+  }
+}
+document.addEventListener("focusin", (e) => highlight(e.target));
+document.addEventListener("focusout", () => {
+  let d; try { d = frame.contentDocument; } catch (e) { return; }
+  if (d) for (const n of d.querySelectorAll(".f-target")) n.classList.remove("f-target");
+});
+
+/* ---------- code view ---------- */
+const stripRemoteCss = (css) => css
+  .replace(/@import[^;]*;/gi, "")
+  .replace(/url\(\s*(['"]?)(?!data:)[^)]*\1\s*\)/gi, "none");
+
+function setView(v) {
+  view = v === "code" ? "code" : "form";
+  $("viewForm").setAttribute("aria-pressed", String(view === "form"));
+  $("viewCode").setAttribute("aria-pressed", String(view === "code"));
+  // applyScope() owns fieldset visibility: setting hidden here would silently drop
+  // the page scope when coming back from the code view.
+  applyScope();
+  $("codePanel").hidden = view !== "code";
+  renderCode();
+}
+$("viewForm").addEventListener("click", () => setView("form"));
+$("viewCode").addEventListener("click", () => setView("code"));
+
+function renderCode() {
+  if (view !== "code") return;
+  const src = (p) => (p in overrides ? overrides[p] : String((built && built.files[p]) || ""));
+  const files = FILES_EDITABLE().filter((f) => built && f in built.files);
+  if (!files.includes(codeFile)) codeFile = files[0];
+  $("codeTabs").innerHTML = files.map((f) =>
+    `<button type="button" class="mini${f === codeFile ? " tab" : ""}" data-code="${f}">${f}${f in overrides ? " *" : ""}</button>`).join("");
+  const ta = $("codeEdit");
+  const v = src(codeFile);
+  if (ta.value !== v) ta.value = v;            // do not fight the user's cursor
+  $("codeDiscard").disabled = !(codeFile in overrides);
+  $("codeNote").textContent = codeFile in overrides ? t("codeNoteEdited") : t("codeNoteClean");
+}
+$("codeTabs").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-code]");
+  if (!b) return;
+  codeFile = b.dataset.code;
+  // an HTML tab also brings that page up in the preview, otherwise you edit blind
+  if (codeFile.endsWith(".html") && built && codeFile in built.files) { show(codeFile); page = codeFile; }
+  renderCode();
+});
+$("codeEdit").addEventListener("input", () => {
+  if (!built || !(codeFile in built.files)) return;
+  const v = $("codeEdit").value;
+  // same guard as the custom-CSS field: a hand edit must not smuggle a remote tracker back in
+  overrides[codeFile] = codeFile.endsWith(".css") ? stripRemoteCss(v) : v;
+  refresh();
+});
+$("codeDiscard").addEventListener("click", () => {
+  delete overrides[codeFile];
+  refresh();
+});
+
+/* ---------- refresh ---------- */
+let built = null;
+/* A single build per burst of typing. Without this delay, every keystroke rebuilds
+   the whole site, reloads the iframe and sends the preview back to the home page:
+   the user re-reads the page they just opened and the preview flickers. 110 ms is
+   enough to group normal typing; one-off actions (button, import, image) wait just
+   as long — imperceptible, and the preview stays in sync with what it displays. */
+let paintTimer = 0;
+function refresh() {
+  clearTimeout(paintTimer);
+  paintTimer = setTimeout(paint, 110);
+}
+
+function paint() {
+  built = build();
+  /* le sélecteur de palette suit les champs : appelé ici, il reste juste après
+     un reset, un import ou une annulation — donc en un seul point, pas quatre */
+  syncPalette();
+  /* pas `t` ni `c` en locals : un `t` ici masquerait le traducteur t() plus bas */
+  const pal = currentPalette();
+  const cAccent = contrast(pal.accent, pal.bg);
+  const cInk = contrast(pal.ink, pal.bg);
+  /* un ratio ne doit pas signaler la réussite ou l'échec par sa seule couleur :
+     chaque mesure porte son propre glyphe, lisible sans la perception des couleurs */
+  const mark = (ok) => (ok ? ' <span style="color:var(--ok)">✓</span>' : ' <span style="color:var(--bad)">✗</span>');
+  const row = (ok, k, v) => `<b style="color:${ok ? "var(--ok)" : "var(--bad)"}">${tf(k, v)}</b>${mark(ok)}`;
+  $("contrast").innerHTML =
+    row(cAccent >= 4.5, "roAccent", cAccent.toFixed(2)) + " · " +
+    row(cInk >= 4.5, "roInk", cInk.toFixed(2)) + " " + esc(t("roThreshold"));
+  $("radiusVal").textContent = $("radius").value + "px";
+  show = showPreview(built);
+  show(page);
+  /* stamp the REAL file name (slug dedup lives in build()) so a scope tick and a
+     form card always point at the same file, then narrow the form */
+  const items = document.querySelectorAll("#pages .item");
+  built.pages.filter((p) => !p.isHome).forEach((p, i) => {
+    if (items[i]) items[i].dataset.path = p.slug + ".html";
+  });
+  applyScope();
+  $("pagesEmpty").hidden = state.pages.length > 0;
+  renderCode();
+  audit(built);
+}
+
+/* ---------- binary images in the ZIP ---------- */
+function crc32(u8) {
+  let c = 0xffffffff;
+  for (let i = 0; i < u8.length; i++) {
+    c ^= u8[i];
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+/* DEFLATE via the platform's own CompressionStream — no dependency, and it is
+   raw deflate, which is exactly what a ZIP entry wants (method 8).
+   Returns null on an older engine, and the entry then falls back to stored.
+   ponytail: per-entry size check; deflate can grow incompressible data. */
+async function deflateRaw(u8) {
+  if (typeof CompressionStream !== "function") return null;
+  try {
+    const s = new Blob([u8]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+    return new Uint8Array(await new Response(s).arrayBuffer());
+  } catch (e) { return null; }
+}
+
+async function zip(entries) {
+  const locals = [], centrals = [];
+  let offset = 0;
+  const d = new Date();
+  const dt = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const dd = ((Math.max(1980, d.getFullYear()) - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  const mk = (size, fill) => { const b = new Uint8Array(size); fill(new DataView(b.buffer)); return b; };
+  const u16 = (v, o, n) => v.setUint16(o, n, true);
+  const u32 = (v, o, n) => v.setUint32(o, n >>> 0, true);
+
+  for (const [path, content] of entries) {
+    const name = enc.encode(path);
+    const data = typeof content === "string" ? enc.encode(content) : content;
+    const crc = crc32(data);                 // always the CRC of the UNCOMPRESSED bytes
+    const z = await deflateRaw(data);
+    const packed = z && z.length < data.length ? z : data;
+    const method = packed === data ? 0 : 8;
+    const l = mk(30, (v) => {
+      u32(v, 0, 0x04034b50); u16(v, 4, 20); u16(v, 6, 0x0800); u16(v, 8, method);
+      u16(v, 10, dt); u16(v, 12, dd); u32(v, 14, crc);
+      u32(v, 18, packed.length); u32(v, 22, data.length);   // compressed, then uncompressed
+      u16(v, 26, name.length); u16(v, 28, 0);
+    });
+    locals.push(l, name, packed);
+    const c = mk(46, (v) => {
+      u32(v, 0, 0x02014b50); u16(v, 4, 20); u16(v, 6, 20); u16(v, 8, 0x0800); u16(v, 10, method);
+      u16(v, 12, dt); u16(v, 14, dd); u32(v, 16, crc);
+      u32(v, 20, packed.length); u32(v, 24, data.length);
+      u16(v, 28, name.length); u16(v, 30, 0); u16(v, 32, 0); u16(v, 34, 0);
+      u32(v, 38, 0); u32(v, 42, offset);
+    });
+    centrals.push(c, name);
+    offset += l.length + name.length + packed.length;
+  }
+  const size = centrals.reduce((a, b) => a + b.length, 0);
+  const n = entries.length;
+  const end = mk(22, (v) => {
+    u32(v, 0, 0x06054b50); u16(v, 8, n); u16(v, 10, n);
+    u32(v, 12, size); u32(v, 16, offset);
+  });
+  return new Blob([...locals, ...centrals, end], { type: "application/zip" });
+}
+
+/* ---------- export ---------- */
+/* Source unique du contenu exporté : le ZIP et l'écriture dans un dossier
+   passent tous deux par ici, donc ils ne peuvent pas diverger. */
+async function collectFiles() {
+  const b = build();
+  if (!b.files["og.png"]) b.files["og.png"] = await png(1200, 630);
+  if (!b.files["apple-touch-icon.png"]) b.files["apple-touch-icon.png"] = await png(180, 180);
+  return b;
+}
+
+$("download").addEventListener("click", async () => {
+  const btn = $("download"); btn.disabled = true;
+  $("status").textContent = t("statusGen");
+  try {
+    await new Promise((r) => setTimeout(r, 16));
+    const b = await collectFiles();
+
+    const issues = audit(b).filter((r) => !r.ok);
+    const entries = Object.entries(b.files).map(([p, c]) => [b.cfg.slug + "/" + p, c]);
+
+    const url = URL.createObjectURL(await zip(entries));
+    const a = document.createElement("a");
+    a.href = url; a.download = b.cfg.slug + ".zip";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    const n = Object.keys(b.files).length;
+    $("status").textContent = "ZIP " + b.cfg.slug + ".zip — " + n + t("dlFiles") +
+      (issues.length
+        ? t("dlIssues") + issues.length + t("dlFix")
+        : t("dlPass"));
+  } catch (err) {
+    console.error(err);
+    $("status").textContent = t("statusFail") + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* ---------- 2e export : écrire le site décompressé dans un dossier ----------
+   Toujours 100 % local, comme le ZIP : c'est précisément ce qui distingue cet
+   outil d'un hébergeur. Le sélecteur de dossier est appelé EN PREMIER : après
+   un await, l'activation utilisateur peut être perdue et Chrome refuse alors
+   d'ouvrir la boîte de dialogue. */
+if (window.showDirectoryPicker) $("saveFolder").hidden = false;
+$("saveFolder").addEventListener("click", async () => {
+  const btn = $("saveFolder"); btn.disabled = true;
+  try {
+    const dir = await showDirectoryPicker({ mode: "readwrite" });
+    $("status").textContent = t("statusGen");
+    const b = await collectFiles();
+    for (const [p, c] of Object.entries(b.files)) {
+      const parts = p.split("/");
+      let d = dir;                       // api/ et css/ demandent des sous-dossiers
+      for (let i = 0; i < parts.length - 1; i++) d = await d.getDirectoryHandle(parts[i], { create: true });
+      const fh = await d.getFileHandle(parts[parts.length - 1], { create: true });
+      const w = await fh.createWritable();
+      await w.write(c);
+      await w.close();
+    }
+    $("status").textContent = dir.name + "/ — " + Object.keys(b.files).length + t("dlFiles") + t("dlPass");
+  } catch (err) {
+    if (err.name === "AbortError") return;          // l'utilisateur a fermé la boîte
+    console.error(err);
+    $("status").textContent = t("statusFail") + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* ---------- démarrage ---------- */
+/* Le mode simple doit être posé ICI, pas seulement dans applyInitial() : sans cet
+   attribut, body[data-mode="simple"] ne matche rien, les options avancées restent
+   visibles au premier chargement et le bouton « Show advanced options » ment. */
+document.body.dataset.mode = "simple";
+$("uiLang").value = prefs.lang === "fr" ? "fr" : "en";
+$("uiScale").value = SCALES.includes(prefs.scale) ? prefs.scale : "1";
+LANG = $("uiLang").value;
+applyLang();   // appelle applyScale()
+
+/* Self-check: user content must never produce a tag,
+   and a page must never be overwritten by a generated file.
+   No dependency. Run after any change to md() or build(). */
+(function selfCheck() {
+  const P = '<img src=x onerror="alert(1)"><script>alert(2)<\/script>';
+  const out = md("Text " + P + " [x](javascript:alert(3)) [ok](https://example.com/a?b=1&c=2)");
+  const checks = [
+    ["no tag injected", !/<img|<script/i.test(out)],
+    ["payload visibly escaped", out.includes("&lt;img")],
+    ["javascript: scheme refused", !/href="javascript:/i.test(out)],
+    ["https link preserved", out.includes('href="https://example.com/a?b=1&amp;c=2"')],
+    ["link tag built", out.includes("<a href=")]
+  ];
+
+  /* Regression: a "privacy" page is written by the pages loop, then the legal
+     template overwrites privacy.html. The slug must be diverted, not confused. */
+  const p0 = state.pages[0];
+  state.pages[0] = { ...p0, title: "Privacy", slug: "privacy", body: "USER-CONTENT-MARKER" };
+  const b2 = build();
+  state.pages[0] = p0;   // direct restore: p0 was never mutated, so there is no copy
+  checks.push(["\"privacy\" page diverted, not overwritten",
+    String(b2.files["privacy-2.html"] || "").includes("USER-CONTENT-MARKER")]);
+  checks.push(["privacy.html stays the legal template",
+    String(b2.files["privacy.html"]).includes("Privacy policy")]);
+
+  /* The footer must only link contact.html if that page really exists.
+     Both directions are tested: with a form, then without. We only look at the
+     <footer>: the home button follows the "Button destination" field, which the
+     audit already flags as a dead link if it leads nowhere.
+     Flags are copied into a boolean array: saving the objects, re-injecting them
+     and then mutating them would give an aliased backup that saves nothing. */
+  const pied = (b) => String(b.files["index.html"]).split("<footer")[1] || "";
+  checks.push(["\"Contact\" link present when the page exists",
+    /href="contact\.html"/.test(pied(b2)) === b2.pages.some((p) => p.contact)]);
+  const flags = state.pages.map((p) => !!p.contact);
+  for (const p of state.pages) p.contact = false;
+  const b3 = build();
+  state.pages.forEach((p, j) => p.contact = flags[j]);
+  checks.push(["\"Contact\" link absent when the page does not exist",
+    !/href="contact\.html"/.test(pied(b3))]);
+
+  /* i18n: a key missing one of its two languages would show a raw key in the UI,
+     and t() must actually follow LANG rather than being frozen at load. */
+  const sansTrad = Object.keys(T).filter((k) => !T[k][0] || !T[k][1]);
+  checks.push(["every key carries both languages", sansTrad.length === 0]);
+  /* ne PAS supposer que la langue de départ est l'anglais : elle est restaurée
+     depuis localStorage, donc un utilisateur francophone démarre déjà en fr */
+  const L0 = LANG;
+  LANG = L0 === "fr" ? "en" : "fr";
+  const flipped = t("download");
+  LANG = L0;
+  checks.push(["t() follows LANG", flipped !== t("download")]);
+
+  for (const [nom, ok] of checks) if (!ok) console.error("Fabrique — SELF-CHECK FAILED: " + nom);
+  if (checks.every(([, ok]) => ok)) console.info("Fabrique — self-check: " + checks.length + "/" + checks.length);
+  refresh();
+})();
+</script>
+</body>
+</html>

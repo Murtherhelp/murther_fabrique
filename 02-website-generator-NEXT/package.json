@@ -1,0 +1,20 @@
+{
+  "name": "website-generator-next",
+  "version": "1.0.0",
+  "description": "Visual, offline, bilingual (FR/EN) website generator. No dependencies, no build step.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.mjs",
+    "build": "node build.mjs",
+    "test": "node --test test/test.mjs",
+    "test:browser": "node test/browser.mjs",
+    "test:a11y": "node test/a11y.mjs",
+    "test:i18n": "node test/i18n.mjs",
+    "test:export": "node test/export.mjs",
+    "test:single": "node test/single.mjs",
+    "verify": "node test/verify.mjs",
+    "test:all": "npm test && npm run verify"
+  }
+}
