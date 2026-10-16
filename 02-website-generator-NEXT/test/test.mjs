@@ -1263,6 +1263,25 @@ test("site.js never writes a status message of its own", () => {
   assert.ok(SITE_JS.includes('getAttribute("data-sent")'), "the sent message is not read off the page");
 });
 
+test("one broken block never takes the whole page down", () => {
+  // The render loop wraps every block in a try/catch, and that catch is the only
+  // thing between a single bad block and an export with an empty page. Nothing
+  // tested it, so deleting the try would break every site without turning a
+  // single check red.
+  const d = fromTemplate("portfolio");
+  const victim = d.pages[0].blocks.find((b) => b.type === "features");
+  const original = BLOCKS.features.render;
+  BLOCKS.features.render = () => { throw new Error("deliberate failure"); };
+  try {
+    const html = build(d).files["index.html"];
+    assert.ok(/<main/.test(html) && /<h1/.test(html), "the page around the broken block still rendered");
+    assert.ok(/<small>features<\/small>/.test(html), "the broken block shows its own name rather than vanishing");
+    assert.ok(!/deliberate failure/.test(html), "the error message does not leak into the page");
+  } finally {
+    BLOCKS.features.render = original;
+  }
+});
+
 test("tr picks the half the current language reads, and falls back", () => {
   // The editor used to write this selection out by hand eleven times. Getting it
   // wrong blanks a label in one language only, which is the kind of bug nobody
