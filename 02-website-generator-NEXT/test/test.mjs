@@ -1613,3 +1613,30 @@ test("a corner radius of zero survives a save and reopen", () => {
   const missing = normalizeDoc({ format: FORMAT }).doc;
   assert.equal(missing.theme.radius, 8, "an absent radius still falls back to 8");
 });
+
+test("a freshly added block exports the same after a save and reopen", () => {
+  // What a user gets from "add a block" is defaults(). If saving and reopening
+  // changes what that block exports, the block is broken from birth -- and the
+  // first build always looks fine, so nobody notices until they save.
+  //
+  // Compared on the exported bytes, never on the internal JSON: normalising
+  // turns a few defaults into their declared shapes (stats.value becomes
+  // bilingual, a reply count becomes a string, effect and icon fill in with
+  // "none"), all of which render identically. Byte equality is the promise
+  // that actually matters, and comparing objects reported 39 differences where
+  // there were none.
+  let seq = 0;
+  const mkId = () => `f${(seq++).toString(36)}`;
+  const blocks = BLOCK_ORDER.map((type) => makeBlock(type, mkId(), mkId));
+
+  const doc = { ...blankDoc(), pages: [{ ...blankDoc().pages[0], blocks }] };
+  const before = build(doc).files;
+  const opened = normalizeDoc(JSON.parse(JSON.stringify(doc)));
+  assert.deepEqual(opened.warnings, [], `import warned ${opened.warnings.join("; ")}`);
+  const after = build(opened.doc).files;
+
+  assert.deepEqual(Object.keys(after).sort(), Object.keys(before).sort(),
+    "the file list itself changed");
+  const changed = Object.keys(before).filter((f) => before[f] !== after[f]);
+  assert.deepEqual(changed, [], "a saved and reopened project must export the same site");
+});
