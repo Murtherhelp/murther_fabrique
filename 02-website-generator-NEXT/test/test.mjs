@@ -650,9 +650,14 @@ test("printing cannot leave content at the start of an entrance animation", () =
   // might, and the result is a page that prints blank. So the guarantee is in
   // the stylesheet rather than in the browser's goodwill.
   const css = siteCss({ ...blankDoc().theme, motion: "expressive" }, { title: "T", slug: "t", lang: "en" });
-  const at = css.indexOf("@media print");
-  assert.ok(at >= 0, "the stylesheet has no print rules at all");
-  const print = css.slice(at, at + 300);
+const at = css.indexOf("@media print");
+assert.ok(at >= 0, "the stylesheet has no print rules at all");
+// Up to the next @media, not a fixed window. A 300-character slice stopped
+// covering the rule it exists to guard the moment a comment grew, and this
+// file kept reporting a passing guarantee about a rule it no longer read.
+const rest = css.slice(at);
+const next = rest.indexOf("@media", 1);
+const print = next > 0 ? rest.slice(0, next) : rest;
   assert.match(print, /animation:none!important/);
   assert.match(print, /transition:none!important/);
 });

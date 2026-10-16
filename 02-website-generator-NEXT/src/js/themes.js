@@ -524,7 +524,11 @@ textarea{min-height:7rem;resize:vertical}
 .site-foot{border-top:1px solid var(--border);margin-top:3rem;padding-block:2rem;color:var(--muted);font-size:var(--step--1)}
 .site-foot .wrap{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;justify-content:space-between}
 @media print{.site-head,.site-foot,.langpick,.theme-toggle{display:none}
- *{animation:none!important;transition:none!important}}
+/* A closed <details> hides its answer behind the UA's slot: a click on screen,
+   nothing on paper, where the FAQ printed as questions with no answers. */
+details::details-content{content-visibility:visible!important;display:block!important}
+.faq summary::after{content:none}
+*{animation:none!important;transition:none!important}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 ${sanitizeCss(theme.customCss).css}
 `;

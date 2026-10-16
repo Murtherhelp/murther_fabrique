@@ -523,6 +523,15 @@ async function main() {
       ok(`no card grid shows a bullet or the browser's indent (${label})`,
          (r.lists?.stray?.length ?? 1) === 0,
          (r.lists?.stray?.length ?? 0) ? r.lists.stray.slice(0, 3).join(" | ") : "grids are clean");
+      if (r.faq) {
+         // Both directions, not just the one being fixed: forcing the slot open
+         // everywhere would "fix" paper by making the screen useless.
+         const wantOpen = label === "print";
+         ok(`the FAQ answer is ${wantOpen ? "on paper" : "collapsed on screen"} (${label})`,
+            r.faq.slot === (wantOpen ? "visible" : "hidden") &&
+              r.faq.marker === (wantOpen ? "none" : '"+"'),
+            `slot=${r.faq.slot}, glyph=${r.faq.marker}`);
+      }
 
       const ax = r.a11y || {};
       const missingLandmarks = ["header", "nav", "main", "footer"].filter((t) => !(ax.landmarks || []).includes(t));
@@ -772,7 +781,20 @@ await send("Page.navigate", { url: `http://localhost:${PORT}/${folder}/${page}` 
         }
         return { bare, fixed, stray };
       })(),
-            // Landmarks, headings and names on the generated page. The accessibility
+            // A closed <details> hides its answer behind ::details-content. That is right
+      // on screen and wrong on paper, where nothing can be clicked open.
+      faq: (() => {
+        const d = document.querySelector(".faq details");
+        if (!d) return null;
+        let slot = "n/a";
+        try { slot = getComputedStyle(d, "::details-content").contentVisibility; } catch {}
+        return {
+          open: d.open,
+          slot,
+          marker: getComputedStyle(d.querySelector("summary"), "::after").content,
+        };
+      })(),
+// Landmarks, headings and names on the generated page. The accessibility
       // suite drives the EDITOR; nothing until now had checked the artefact the
       // editor produces, which is the half a visitor actually sees.
       a11y: (() => {
