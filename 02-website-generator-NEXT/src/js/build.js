@@ -367,13 +367,19 @@ export const SITE_JS = `/* MURTHER FABRIQUE — theme toggle + static form. */
       var email = String(data.get("email") || "").trim();
       if (email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) {
         var status = form.querySelector("[data-form-status]");
-        if (status) { status.textContent = "${st("formBadEmail", "en").replace(/"/g, '\\"')}"; status.hidden = false; }
+        // Read the message off the page, not from this script. This file is one
+        // constant for the whole export, so anything baked into it is English by
+        // construction: a French visitor submitting a bad address was told
+        // "Please enter a valid email address." The page already knows its own
+        // language and carries the right words. The literal below is a last
+        // resort for a form rendered without the attribute.
+        if (status) { status.textContent = status.getAttribute("data-bad-email") || "${st("formBadEmail", "en").replace(/"/g, '\\"')}"; status.hidden = false; }
         return;
       }
       window.location.href = form.getAttribute("action") + "?subject=" +
         encodeURIComponent(String(data.get("subject") || "")) + "&body=" + encodeURIComponent(body);
       var ok = form.querySelector("[data-form-status]");
-      if (ok) { ok.textContent = "${st("formSent", "en").replace(/"/g, '\\"')}"; ok.hidden = false; }
+      if (ok) { ok.textContent = ok.getAttribute("data-sent") || "${st("formSent", "en").replace(/"/g, '\\"')}"; ok.hidden = false; }
     });
   }
 })();

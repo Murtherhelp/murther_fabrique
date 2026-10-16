@@ -507,7 +507,7 @@ export const BLOCKS = {
     ${b.wantMessage ? field("message", st("formMessage", c.lang), "text", 6) : ""}
     <button class="btn" type="submit">${esc(st("formSend", c.lang))}</button>
     <p><small>${esc(st("formNote", c.lang))}</small></p>
-    <p role="status" aria-live="polite" data-form-status hidden></p>
+    <p role="status" aria-live="polite" data-form-status data-bad-email="${esc(st("formBadEmail", c.lang))}" data-sent="${esc(st("formSent", c.lang))}" hidden></p>
   </form>
 </div></section>`;
     }

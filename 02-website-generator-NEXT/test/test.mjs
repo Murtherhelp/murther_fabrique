@@ -12,11 +12,11 @@ import { readFileSync } from "node:fs";
 
 import { esc, safeHref, md, slugify, contrast, mix, pageHref } from "../src/js/safe.js";
 import { T, t, tf } from "../src/js/i18n.js";
-import { S } from "../src/js/site-strings.js";
+import { S, st } from "../src/js/site-strings.js";
 import { PALETTES, contrastChecks, paletteOf, resolve, sanitizeCss, siteCss } from "../src/js/themes.js";
 import { BLOCKS, BLOCK_ORDER, makeBlock, bi, missing, blockTypeLabel } from "../src/js/blocks.js";
 import { ICON_KEYS, icon } from "../src/js/icons.js";
-import { build, pagePath, docWarnings, FORMAT } from "../src/js/build.js";
+import { build, pagePath, docWarnings, FORMAT, SITE_JS } from "../src/js/build.js";
 import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "../src/js/templates.js";
 import { PRESETS, PRESET_FOR } from "../src/js/presets.js";
 import { blankDoc, normalizeDoc, createHistory, LIMITS } from "../src/js/store.js";
@@ -1222,4 +1222,43 @@ test("two instances of the same template never share a block id", () => {
   const b = fromTemplate("portfolio");
   const ids = (d) => d.pages.flatMap((p) => p.blocks.map((x) => x.id));
   assert.deepEqual(ids(a).filter((id) => ids(b).includes(id)), []);
+});
+
+test("the contact form answers in its own page's language", () => {
+  // site.js is one constant for the whole export, so a message written into it
+  // is English on every page of every site. It used to be: the invalid-address
+  // and sent messages were baked with st(..., "en"), and a French visitor was
+  // told to enter a valid email address in English. The words live on the page
+  // now, where the page knows its own language.
+  const d = doc("portfolio");
+  d.meta.bilingual = true;
+  d.email = "hello@example.test"; // portfolio ships an empty address; without one there is no form
+  const files = build(d).files;
+  const unescapeHtml = (s) => s.replace(/&#39;/g, "'").replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  const forms = Object.entries(files).filter(([n, h]) => /^[^/]+\.html$/.test(n) && /data-form-status/.test(h));
+
+  assert.ok(forms.length > 0, "no exported page carries a contact form at all");
+  const languages = new Set();
+  for (const [name, html] of forms) {
+    const lang = /<html lang="(\w+)"/.exec(html)?.[1];
+    const bad = /data-bad-email="([^"]*)"/.exec(html)?.[1];
+    const sent = /data-sent="([^"]*)"/.exec(html)?.[1];
+    assert.ok(bad && sent, `${name}: the status element carries no message to show`);
+    assert.equal(unescapeHtml(bad), st("formBadEmail", lang), `${name}: invalid-address message is not in ${lang}`);
+    assert.equal(unescapeHtml(sent), st("formSent", lang), `${name}: sent message is not in ${lang}`);
+    languages.add(lang);
+  }
+  assert.deepEqual([...languages].sort(), ["en", "fr"], "the form was only checked in one language");
+});
+
+test("site.js never writes a status message of its own", () => {
+  // The half of the bug the page-side test cannot see: correct strings on the
+  // page are worthless if the shipped script ignores them and uses its own. This
+  // file is one constant for the whole export, so any literal it carries is
+  // English on every page. The message has to be read off the element.
+  assert.ok(!/\.textContent\s*=\s*"/.test(SITE_JS),
+    "site.js still assigns a baked message instead of reading it from the page");
+  assert.ok(SITE_JS.includes('getAttribute("data-bad-email")'), "the invalid-address message is not read off the page");
+  assert.ok(SITE_JS.includes('getAttribute("data-sent")'), "the sent message is not read off the page");
 });
