@@ -135,6 +135,10 @@ if (!EDGE) {
     }
     if (m.method === "Runtime.exceptionThrown")
       consoleErrors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text);
+    // console.error was not collected here, only uncaught exceptions: the
+    // bundle could report a failure in its own words and this suite stayed quiet.
+    if (m.method === "Runtime.consoleAPICalled" && m.params.type === "error")
+      consoleErrors.push(m.params.args.map((a) => a.value ?? a.description ?? "").join(" "));
   };
 
   const { targetId } = await send("Target.createTarget", { url: "about:blank" });

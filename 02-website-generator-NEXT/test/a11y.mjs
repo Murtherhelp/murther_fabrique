@@ -36,6 +36,8 @@ let ws = null;
 let nextId = 1;
 const pending = new Map();
 const results = [];
+// Everything the editor logged or threw while this suite drove it.
+const pageProblems = [];
 let stopped = false;
 
 function stop() {
@@ -149,6 +151,16 @@ async function main() {
       if (m.error) entry.reject(new Error(`${entry.method}: ${m.error.message}`));
       else if (!("result" in m)) entry.reject(new Error(`${entry.method}: no result in reply`));
       else entry.resolve(m.result);
+      return;
+    }
+    // This suite's whole job is to say the editor is sound. It was deaf: a
+    // handler that threw produced a failed accessibility check, which reads as
+    // a finding about the editor rather than about the test. Nothing here
+    // listened to the console at all.
+    if (m.method === "Runtime.exceptionThrown") {
+      pageProblems.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text);
+    } else if (m.method === "Runtime.consoleAPICalled" && m.params.type === "error") {
+      pageProblems.push(m.params.args.map((a) => a.value ?? a.description ?? "").join(" "));
     }
   };
 
@@ -158,6 +170,7 @@ async function main() {
   S = (m, p) => send(m, p, sessionId);
   await S("Runtime.enable");
   await S("Page.enable");
+  pageProblems.length = 0;
   await S("Page.navigate", { url: URL });
 
   for (let i = 0; i < 60; i++) {
@@ -453,6 +466,12 @@ async function main() {
      `${agrees.enLabel} / ${agrees.frLabel}`);
   ok("the interface around the control really was French",
      agrees.outline === "Structure", agrees.outline);
+
+  // Last, so it reads as the summary of everything above: no check in this file
+  // can be trusted if the editor was throwing underneath it.
+  ok("the editor logged no error and threw nothing while being driven",
+     pageProblems.length === 0,
+     pageProblems.slice(0, 2).join(" | ") || "console clean, no exception");
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} accessibility checks passed`);

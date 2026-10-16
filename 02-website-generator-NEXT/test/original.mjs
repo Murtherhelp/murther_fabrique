@@ -100,6 +100,7 @@ async function main() {
 
   const lines = [];
   const thrown = [];
+  const consoleErrors = [];
   ws.onmessage = (e) => {
     const m = JSON.parse(e.data);
     if (m.id && pending.has(m.id)) {
@@ -110,7 +111,9 @@ async function main() {
       return;
     }
     if (m.method === "Runtime.consoleAPICalled") {
-      lines.push(m.params.args.map((a) => a.value ?? a.description ?? "").join(" "));
+      const text = m.params.args.map((a) => a.value ?? a.description ?? "").join(" ");
+      lines.push(text);
+      if (m.params.type === "error") consoleErrors.push(text);
     }
     if (m.method === "Runtime.exceptionThrown") {
       thrown.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text);
@@ -167,6 +170,9 @@ async function main() {
   ok("it named no failing check", failedNames.length === 0, failedNames.slice(0, 3).join(" | ") || "none named");
 
   ok("nothing threw while it started up", thrown.length === 0, thrown.slice(0, 2).join(" | ") || "no exception");
+
+  ok("and it logged no error while doing so",
+     consoleErrors.length === 0, consoleErrors.slice(0, 2).join(" | ") || "console clean");
 
   const verdict = failedNames.length === 0 && thrown.length === 0 &&
                   reported !== null && reported.pass === reported.total;
