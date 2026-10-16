@@ -152,6 +152,30 @@ Ce sont des décisions, pas des défauts.
 
 ---
 
+## Après la rédaction de ce fichier
+
+Poursuite demandée : la **qualité visuelle**, le seul terrain qui reste et qu'aucun
+test ne peut couvrir. Première mesure : l'alignement du bord gauche, symptôme le
+plus courant d'une page « valide mais amateur ».
+
+**Résultat : propre.** Aucune des 27 divergences signalées ne concerne une
+section — les décalages venaient tous d'éléments *à l'intérieur* : les colonnes
+d'une grille (`+411px`, `+802px`) et la marge interne des cartes (`+21px`,
+constant sur les trois largeurs). Le bord que l'œil aligne est identique sur les
+neuf templates à 1280, 768 et 375 px.
+
+Un cas est resté sans explication et **n'est donc pas rapporté comme défaut** : un
+`h2` du CV décalé de 20 à 32 px, décalage qui varie avec la largeur — donc ni une
+marge fixe ni un arrondi. Je soupçonne l'animation d'entrée des blocs, mesurée en
+cours de lecture, mais je ne l'ai pas confirmé et je ne l'affirme pas.
+
+La sonde elle-même s'est révélée non fiable sur ce point : elle comparait un titre
+à son conteneur immédiat sans tenir compte de l'imbrication. Une mesure qui
+compte des cartouches dans une grille comme des désalignements n'est pas une
+mesure.
+
+---
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :
