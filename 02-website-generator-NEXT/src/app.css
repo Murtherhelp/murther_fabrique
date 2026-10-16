@@ -523,7 +523,10 @@ the next, 1239px away, at 1280px wide. */
    pane then sits at the left edge instead of overflowing it, which matters as
    soon as the user picks the phone width or scales the text up. */
 .stage { flex: 1; overflow: auto; padding: .9rem }
-.stage__inner { width: 100%; margin-inline: auto }
+/* Nothing in this chain had a definite height, so the iframe's height:100%
+   resolved against an auto-height parent and fell back to the 150px default:
+   the live preview was a strip with ~475px of empty stage below it. */
+.stage__inner { width: 100%; height: 100%; margin-inline: auto }
 
 .frame-shell {
   background: #fff;

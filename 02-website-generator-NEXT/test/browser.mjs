@@ -562,6 +562,22 @@ return stranded;
 ok("every topbar label shares a wrapper with the control it names",
   pair.length === 0, pair.length ? pair.join("; ") : "no pair can be split by a wrap");
 
+/* ----------------------------------------- the preview is not a letterbox */
+// The live preview is the product. Its iframe asked for height:100% inside a
+// chain where nothing had a definite height, so it fell back to the 150px
+// default: a strip with most of the stage empty below it. Every screenshot
+// still showed *a* page, which is why it survived this long.
+const frame = await tryEval(`
+const stage = document.querySelector('.stage');
+const f = document.querySelector('.frame-shell iframe');
+const s = stage.getBoundingClientRect().height;
+const h = f.getBoundingClientRect().height;
+return { stage: Math.round(s), frame: Math.round(h), pct: Math.round((h / s) * 100) };
+`);
+ok("the preview fills its stage instead of collapsing to the 150px default",
+  frame.frame >= frame.stage * 0.8,
+  `iframe ${frame.frame}px in a ${frame.stage}px stage (${frame.pct}%)`);
+
 /* ------------------------------------------- nothing overflows sideways */
 const ovf = await tryEval(`
 window.wgn.applyTemplate('business');
