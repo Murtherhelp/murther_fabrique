@@ -32,6 +32,8 @@ let ws = null;
 let nextId = 1;
 const pending = new Map();
 const results = [];
+// What the editor logged or threw while this suite switched it back and forth.
+const pageProblems = [];
 let stopped = false;
 
 function stop() {
@@ -109,6 +111,15 @@ async function main() {
       if (m.error) entry.reject(new Error(`${entry.method}: ${m.error.message}`));
       else if (!("result" in m)) entry.reject(new Error(`${entry.method}: no result`));
       else entry.resolve(m.result);
+      return;
+    }
+    // Autosave and reload are the subject here, and both happen inside the page.
+    // Without this, a handler that throws on the language switch is invisible:
+    // the suite would report an autosave round-trip that never happened.
+    if (m.method === "Runtime.exceptionThrown") {
+      pageProblems.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text);
+    } else if (m.method === "Runtime.consoleAPICalled" && m.params.type === "error") {
+      pageProblems.push(m.params.args.map((a) => a.value ?? a.description ?? "").join(" "));
     }
   };
 
@@ -117,6 +128,7 @@ async function main() {
   S = (m, p) => send(m, p, sessionId);
   await S("Runtime.enable");
   await S("Page.enable");
+  pageProblems.length = 0;
   await S("Page.navigate", { url: URL });
 
   for (let i = 0; i < 60; i++) {
@@ -248,7 +260,12 @@ async function main() {
   ok("the whole editor form opts out of autofill", formOff === "off", String(formOff));
 
   const failed = results.filter((r) => !r.pass);
-  console.log(`\n${results.length - failed.length}/${results.length} i18n/persistence checks passed`);
+  // Before the tally: an autosave that round-trips because nothing threw is a
+  // different claim from one that round-trips despite something throwing.
+  ok("the editor logged no error and threw nothing across every switch",
+     pageProblems.length === 0,
+     pageProblems.slice(0, 2).join(" | ") || "console clean, no exception");
+  console.log(`\n${results.length - results.filter((r) => !r.pass).length}/${results.length} i18n/persistence checks passed`);
   stop();
   process.exit(failed.length ? 1 : 0);
 }
