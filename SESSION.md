@@ -1,0 +1,163 @@
+# Journal de session — audit du générateur
+
+Ce fichier consigne tout ce qui a été fait depuis la demande de départ :
+« améliorer le générateur, pas ajouter des fonctionnalités sans rapport ni
+blinder le `.exe` pour rien ».
+
+Il est écrit après coup, donc il reflète ce que je sais **maintenant**, pas ce que
+je croyais savoir en cours de route. La section « Ce que mes instruments ont dit
+faux » existe parce qu'elle fait partie du travail.
+
+État au moment de l'écriture : `main` à `dce3c25`, **401 contrôles / 8 suites,
+exit 0**, exe de 721 408 octets, `--selftest` exit 0.
+
+---
+
+## La demande, et comment je m'en suis écarté
+
+La demande portait sur le **générateur** : le fichier que le logiciel produit.
+Je m'en suis écarté pendant huit rondes en auditant l'**interface de l'éditeur** —
+six défauts d'interface pour trois de production. La correction a été formulée
+par la personne qui me l'avait faite, et elle était juste.
+
+Deux autres dérives, plus courtes :
+
+- **Safari.** Je l'ai listé comme priorité restante alors que je ne le veux pas
+  vraiment. C'était un tic : nommer « ce que je ne peux pas tester » pour finir
+  une phrase. L'éditeur est un exe Windows → WebView2 (Chromium) ; le moteur
+  n'a jamais été le doute.
+- **Du travail sans demande.** Un tour entier à comparer des objets JSON internes
+  alors que seule la production compte.
+
+---
+
+## Les défauts trouvés
+
+Quatorze. Tous invisibles autrement : aucun n'aurait été trouvé en relisant le
+code, et la plupart ne se voyaient pas sur une capture d'écran.
+
+### Sur ce que le logiciel produit
+
+| # | Défaut | Où |
+|---|---|---|
+| 1 | `Company name: [object Object]` sur la page légale de 8 templates sur 9 | `site-strings.js` — `fillLegal` tombait sur `doc.name`, qui est `{en, fr}` |
+| 2 | `[object Object]` à la place des chiffres dans les statistiques | `blocks.js` — `esc()` au lieu de `esc(T(v, lang))` sur un champ `i18n` |
+| 3 | Une section vidée expédie son titre et rien dessous | 6 blocs sur 18 ; `gallery`, `skills` et `steps` refusaient déjà, les autres non |
+| 4 | Un FAQ imprimé ne montre que les questions, sans réponse | `.faq` fermé sur papier, où il n'y a pas de clic |
+| 5 | Une puce de liste devant chaque carte d'une grille | `.grid` avait oublié le reset que `.time`, `.steps`, `.logos` avaient |
+| 6 | Ligne de 102 caractères dans le CV | cellule de tableau hors de `.prose`, donc hors des 68 ch |
+| 7 | **Les compteurs de réponses disparaissent à la sauvegarde** | `store.js` — un champ `t: "text"` neamadmit que les chaînes, les templates stockent `24` |
+
+### Sur les données
+
+| # | Défaut | Où |
+|---|---|---|
+| 8 | **Un arrondi de 0 revient en 8** | `Number(raw.theme?.radius) || 8` — et le curseur va de 0 à 24 |
+
+Les 7 et 8 sont la même faute : `x || défaut` appliqué à une valeur où zéro est
+légitime. Invisibles à la lecture et au premier build — ils n'apparaissent qu'en
+comparant ce qui **entre** à ce qui **sort**.
+
+### Sur l'outil
+
+| # | Défaut | Où |
+|---|---|---|
+| 9 | Le bouton de thème est un bouton natif de 33×31 | `.theme-toggle` est un **frère** de `.langpick`, il n'en hérite pas |
+| 10 | Le bouton d'envoi occupe 605 px | `form.stack` est une grille, ses enfants s'étirent |
+| 11 | Le FAQ n'a aucun signe d'être cliquable | `display:flex` sur `<summary>` supprime le triangle natif, et `::marker` ne s'applique qu'aux `list-item` |
+| 12 | Un toast vide reste affiché et avale les clics | `.live` sans `:empty`, toujours 34×15 px avec bordure |
+| 13 | Un libellé à 1239 px de son contrôle à 1280 px | `flex-wrap` coupait **entre** un `<label>` et son `<select>` |
+| 14 | Le panneau Content déborde de 56 px | `<fieldset>` avec `min-inline-size: min-content` par défaut, plus un flex sans `flex-wrap` |
+| 15 | **L'aperçu en direct est une bande de 150 px** | aucun ancêtre n'avait de hauteur définie, `height:100%` retombe sur 150 px |
+| 16 | 19 arrêts de tabulation sur 45 piégés dans l'iframe d'aperçu | le cadre n'est pas une région `aria-live` |
+
+Le 15 est le plus coûteux de la session : **la fonctionnalité centrale du
+produit**, réduite à un quart de sa hauteur, dans un panneau laissé vide en
+dessous. Chaque capture montrait bien *une* page — il fallait mesurer.
+
+---
+
+## Ce que mes instruments ont dit faux
+
+Sept fois. C'est la partie du travail que je ne朝天reuse pas sans écrire.
+
+| L'instrument | Ce qu'il a dit | La vérité |
+|---|---|---|
+| Audit « mobile » | clean à 375 px | il mesurait **469 px**, et pas la même valeur d'une page à l'autre |
+| Sonde Firefox | clean sur un store cassé | elle déballait le résultat BiDi **deux fois** ; `val.value` sur un tableau de paires vaut `undefined` |
+| Test de lisibilité | « une ligne trop longue » | il retirait tous les `<script>` — y compris l'injecté ; il passait avec l'échappement désactivé |
+| Test deFleuve | « l'aperçu n'est pas un piège » | la suite n'entre jamais dans l'iframe ; il passait dans les deux cas |
+| Mesure d'opacité | `opacity=0` même avec du texte | style calculé périmé dans la même tâche |
+| Sonde d'accessibilité | « dialogue sans nom » | `aria-label: null` alors qu'il y a `aria-labelledby` vers un vrai `<h2>` |
+| Un `sed` maison | — | a mangé des balises fermantes, un `<section>` et un `<p>` : 20/32 |
+
+Et **trois tests que j'ai écrits passaient sans tester quoi que ce soit** :
+le compteur d'arrêts, le nettoyage de `<script>`, le contrôle de lisibilité posé
+dans une boucle qui rend un seul document.
+
+La méthode, la seule qui ait fonctionné : **faire mentir la mesure d'abord,
+vérifier qu'elle ment, puis croire ce qu'elle dit.**
+
+Ce que j'ai appris de travers : à chaque fois j'avais placé le contrôle là où
+c'était pratique, pas là où le défaut existait.
+
+---
+
+## Les contrôles ajoutés
+
+Sept tests, chacun falsifié avant d'être cru — c'est-à-dire : casser le défaut,
+voir le test rougir, le rétablir.
+
+- le fichier exporté résiste à ce que l'utilisateur tape (compté, pas filtré)
+- un projet sauvegardé et rouvert exporte le même site, à l'octet
+- un bloc ajouté aujourd'hui exporte identique après sauvegarde
+- un rayon de 0 survit à la sauvegarde
+- la FAQ garde son affordance, et elle disparaît sur papier
+- aucun libellé ne peut être séparé de son contrôle par un retour à la ligne
+- le toast est invisible quand il n'a rien à dire, et visible quand il en a
+
+Plus deux vérifications qui n'étaient pas des tests mais des outils :
+`desktop/verify-embed.mjs` (`npm run dist:check`) relit l'exe produit et échoue
+si les octets embarqués ne sont pas ceux du `dist` courant.
+
+---
+
+## Ce qui a été vérifié et n'a rien donné
+
+Utile à écrire, parce que l'absence de résultat est un résultat :
+
+- Contenu hostile dans l'export : aucun script, aucun `on*=`, aucun balisage
+  brut, les 200 images cassées ne rendent rien, un titre de 10 000 caractères
+  passe.
+- Zéro mojibake sur 9 templates × 2 langues, contre 1 338 sur injection.
+- Les neuf templates propres sur débordement, contraste, cibles tactiles — en
+  1280 et en 375, sur Chrome et sur Gecko.
+- Hiérarchie des titres tenue partout : `h1=50 h2=33 h3=23`, aucune inversion.
+- Interlignes corrects : 1.65 le corps, 1.18 les titres.
+- Le petit texte à 13.7 px est du vrai texte de rôle — sur-titre, légende,
+  date — pas du corps de texte.
+
+---
+
+## Ce qui reste ouvert
+
+Ce sont des décisions, pas des défauts.
+
+- **`slate` a un `alt` vert** (`#34d399`) sur un site bleu. C'est un second accent
+  volontaire — `ink` a de l'ambre, `clay` du jaune. Je ne modifie pas une
+  couleur livrée sans demande.
+- **Safari.** Non installé, non automulable ici.
+- **La qualité visuelle des neuf templates.** Je les ai jugés corrects,
+  accessibles et lisibles. Jamais beaux. Aucun test ne le dira.
+
+---
+
+## Si quelqu'un reprend
+
+Par où je commencerais, dans cet ordre :
+
+1. Ouvrir les neuf templates et les **regarder**, sans mesurer. C'est comme ça
+   que sont sortis les défauts 5, 10, 11, 12, 13, 14 et 15.
+2. Comparer ce qui entre dans `normalizeDoc` à ce qui en sort. C'est comme ça
+   que sont sortis 7 et 8, et c'est le terrain le plus rentable du dépôt.
+3. Ne jamais faire confiance à une mesure avant de l'avoir vue mentir.
