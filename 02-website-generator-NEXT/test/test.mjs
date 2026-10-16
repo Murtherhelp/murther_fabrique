@@ -1677,3 +1677,27 @@ test("a document past a limit is truncated and says so", () => {
   const calm = normalizeDoc(JSON.parse(JSON.stringify(TEMPLATES.cv.build())));
   assert.deepEqual(calm.warnings, [], `an ordinary project warned: ${JSON.stringify(calm.warnings)}`);
 });
+
+test("text cut at the character limit is named, not just shortened", () => {
+  // Nothing in the editor caps typing: no maxlength, no slice on the way in.
+  // So the cut happens on the save that reopens the file -- you watched
+  // yourself type the paragraph, and ten thousand characters of it are gone.
+  const base = blankDoc();
+  const long = "A".repeat(LIMITS.text + 5000);
+  const r = normalizeDoc(JSON.parse(JSON.stringify({
+    ...base,
+    pages: [{ ...base.pages[0], blocks: [
+      { id: "b1", type: "text", title: bi("T", ""), body: bi(long, "") },
+    ] }],
+  })));
+  assert.equal(r.doc.pages[0].blocks[0].body.en.length, LIMITS.text, "the limit still holds");
+  assert.ok(r.warnings.some((w) => /body/i.test(w) && /5000/.test(w) && /character/i.test(w)),
+    `the cut was silent or unnamed: ${JSON.stringify(r.warnings)}`);
+
+  // A short field with its own small maximum must not announce itself: a long
+  // company name is truncated by design, and warning about it every time would
+  // train people to ignore the warnings that matter.
+  const withLongCompany = normalizeDoc({ ...base, company: "C".repeat(400), pages: base.pages });
+  assert.deepEqual(withLongCompany.warnings, [],
+    `a 400-character company name should not warn: ${JSON.stringify(withLongCompany.warnings)}`);
+});

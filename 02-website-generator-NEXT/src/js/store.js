@@ -78,9 +78,24 @@ function sanitiseBaseUrl(v) {
   }
 }
 
-const str = (v, max = LIMITS.text) => (typeof v === "string" ? v.slice(0, max) : "");
+/**
+ * Truncate to a maximum. The editor never caps what you can type, so this is
+ * where a long article loses its tail -- on the save that reopens the file, not
+ * while you write. Silently, until now. Short fields like a company name have
+ * their own small maximum and do not need to announce a cut.
+ */
+const str = (v, max = LIMITS.text, warnings, label) => {
+  if (typeof v !== "string") return "";
+  if (v.length <= max) return v;
+  if (warnings && max >= LIMITS.text) {
+    warnings.push(`${label} was ${v.length} characters; the last ${v.length - max} were not loaded (limit ${max})`);
+  }
+  return v.slice(0, max);
+};
 const isBi = (v) => v && typeof v === "object" && !Array.isArray(v) && ("en" in v || "fr" in v);
-const asBi = (v) => (isBi(v) ? { en: str(v.en), fr: str(v.fr) } : { en: str(v), fr: str(v) });
+const asBi = (v, warnings, label = "A field") => (isBi(v)
+  ? { en: str(v.en, LIMITS.text, warnings, label), fr: str(v.fr, LIMITS.text, warnings, label) }
+  : { en: str(v, LIMITS.text, warnings, label), fr: str(v, LIMITS.text, warnings, label) });
 
 /**
  * Normalise an imported document into a shape the editor can trust.
@@ -100,8 +115,8 @@ export function normalizeDoc(raw) {
   const base = blankDoc();
   const doc = {
     format: FORMAT,
-    name: asBi(raw.name ?? base.name),
-    description: asBi(raw.description ?? base.description),
+    name: asBi(raw.name ?? base.name, warnings, "The site name"),
+    description: asBi(raw.description ?? base.description, warnings, "The site description"),
     baseUrl: sanitiseBaseUrl(raw.baseUrl),
     meta: {
       lang: raw.meta?.lang === "fr" ? "fr" : "en",
@@ -154,9 +169,9 @@ export function normalizeDoc(raw) {
     doc.pages.push({
       id: typeof p.id === "string" ? p.id : uid("p"),
       slug,
-      title: asBi(p.title),
-      menu: asBi(p.menu ?? p.title),
-      desc: asBi(p.desc),
+      title: asBi(p.title, warnings, `The title of "${p.slug || "page"}"`),
+      menu: asBi(p.menu ?? p.title, warnings, `The menu label of "${p.slug || "page"}"`),
+      desc: asBi(p.desc, warnings, `The description of "${p.slug || "page"}"`),
       inMenu: p.inMenu !== false,
       blocks: sanitiseBlocks(p.blocks, warnings)
     });
@@ -211,7 +226,7 @@ function coerceField(value, f, warnings) {
   // A bilingual field is ALWAYS {en, fr}, whatever it renders as. Checking
   // `i18n` first is what stops a text field from being wiped to "" because its
   // value is an object rather than a string.
-  if (f.i18n) return asBi(value);
+  if (f.i18n) return asBi(value, warnings, f.lbl ? f.lbl[0] : "A field");
   switch (f.t) {
     case "text":
     case "long":
@@ -220,8 +235,9 @@ function coerceField(value, f, warnings) {
       // `24`, not `"24"` -- and it renders fine on first build. Strictly
       // requiring a string here dropped it to "" on the first save, so a forum
       // project lost every reply count the moment it was reopened.
-      return (typeof value === "string" || (typeof value === "number" && Number.isFinite(value)))
-        ? String(value).slice(0, LIMITS.text) : "";
+      if (typeof value === "number" && Number.isFinite(value)) value = String(value);
+  if (typeof value !== "string") return "";
+  return str(value, LIMITS.text, warnings, f.lbl ? f.lbl[0] : "a field");
     case "url":
     case "date":
       return typeof value === "string" ? value.slice(0, 500) : "";
