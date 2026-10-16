@@ -860,6 +860,54 @@ async function main() {
      navChannel.moved === true,
      `${navChannel.before} -> ${navChannel.after} (asked for ${navChannel.target})`);
 
+  /* "What you see cannot drift from what you ship" is the promise the whole tool
+     rests on. previewHtml() gets there with four regex substitutions on the
+     exported page; every one of them fails silently, so a changed link or script
+     tag leaves the preview unstyled and broken with nothing to say so. The body
+     is what carries the content, and it must be the exported body. */
+  const fidelity = await tryEval(`
+    window.wgn.applyTemplate('portfolio');
+    await new Promise(r => setTimeout(r, 300));
+    const d = window.wgn.doc();
+    const g = d.pages[0].blocks.find(b => b.type === 'gallery');
+    g.items = [{ image: { assetId: 'a1', alt: { en: 'Cover', fr: 'Couverture' } }, caption: { en: 'C', fr: 'C' } }];
+    d.assets = [{ id: 'a1', name: 'shot.png', type: 'image/png', data: 'data:image/png;base64,iVBORw0KGgo=' }];
+    window.wgn.state.history.reset(d);
+    window.wgn.select(0, 0);
+    await new Promise(r => setTimeout(r, 500));
+    const built = window.wgn.build();
+    const exported = built.files['index.html'] || '';
+    const src = document.getElementById('frame').getAttribute('srcdoc') || '';
+    const bodyOf = (h) => (h.match(/<body>[\\s\\S]*<\\/body>/) || [''])[0];
+    // Two adaptations happen inside <body> and are not drift: the asset paths
+    // become data URIs, and the script tag becomes the script inline. src is
+    // blanked and script elements dropped on both sides, and what is left has to
+    // be the same document.
+    const norm = (h) => bodyOf(h)
+      .replace(/<script[\\s\\S]*?<\\/script>/g, '')
+      .replace(/ src="[^"]*"/g, ' src="#"');
+    return {
+      len: src.length,
+      sameBody: norm(src) === norm(exported) && norm(exported).length > 500,
+      bodyLens: [norm(src).length, norm(exported).length],
+      inlinedCss: /<style>[\\s\\S]{500,}<\\/style>/.test(src) && !/<link rel="stylesheet"/.test(src),
+      noScriptSrc: !/<script src=/.test(src),
+      guardPresent: /addEventListener\\("click", function \\(\\) \\{/.test(src) || /addEventListener\\("submit"/.test(src),
+      imageInlined: /<img[^>]+src="data:image\\/png/.test(src) && !/src="assets\\//.test(src),
+      faviconInlined: /rel="icon" href="data:image\\/svg\\+xml/.test(src)
+    };
+  `);
+  ok("the preview body is the exported body, unchanged",
+     fidelity.sameBody === true, `bodies ${(fidelity.bodyLens || []).join(" vs ")} chars, preview ${fidelity.len}`);
+  ok("the preview carries the real stylesheet, not a link to one",
+     fidelity.inlinedCss === true, `inline <style>: ${fidelity.inlinedCss}`);
+  ok("the preview carries the site's own script plus the guard, not a link",
+     fidelity.noScriptSrc === true && fidelity.guardPresent === true,
+     `no script src: ${fidelity.noScriptSrc}, guard: ${fidelity.guardPresent}`);
+  ok("images and the favicon travel into the preview as data",
+     fidelity.imageInlined === true && fidelity.faviconInlined === true,
+     `image: ${fidelity.imageInlined}, favicon: ${fidelity.faviconInlined}`);
+
   // And the other end of it: a message naming nothing in the document must do
   // nothing at all, or a crafted href could steer the preview anywhere.
   const navReject = await tryEval(`
