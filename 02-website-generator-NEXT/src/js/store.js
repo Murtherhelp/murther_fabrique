@@ -201,7 +201,12 @@ function coerceField(value, f) {
     case "text":
     case "long":
     case "md":
-      return typeof value === "string" ? value.slice(0, LIMITS.text) : "";
+      // A template may store a number in a text field -- threads.replies is
+      // `24`, not `"24"` -- and it renders fine on first build. Strictly
+      // requiring a string here dropped it to "" on the first save, so a forum
+      // project lost every reply count the moment it was reopened.
+      return (typeof value === "string" || (typeof value === "number" && Number.isFinite(value)))
+        ? String(value).slice(0, LIMITS.text) : "";
     case "url":
     case "date":
       return typeof value === "string" ? value.slice(0, 500) : "";

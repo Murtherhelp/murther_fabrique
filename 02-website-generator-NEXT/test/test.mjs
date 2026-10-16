@@ -1549,3 +1549,52 @@ test("the exported file survives what the user typed into it", () => {
   assert.match(hostile["index.html"], /&lt;script&gt;/,
     "the user's script text should still be readable as text, not silently dropped");
 });
+
+/**
+ * The format's promise: save a project, open it, export again, get the same
+ * site. Nothing in normalizeDoc may quietly discard a value the templates
+ * supply, because drift is invisible until someone reopens their work a month
+ * later. threads.replies is the case that was broken: templates store 24, a
+ * text field that only accepted strings coerced it to "", and every reply
+ * count in a forum disappeared on first save.
+ */
+test("saving and reopening a project reproduces the same site, byte for byte", () => {
+  const drifted = [];
+  for (const key of TEMPLATE_ORDER) {
+    const first = TEMPLATES[key].build();
+    const opened = normalizeDoc(JSON.parse(JSON.stringify(first)));
+    assert.deepEqual(opened.warnings, [], `${key}: import warned ${opened.warnings.join("; ")}`);
+    const before = build(first).files;
+    const after = build(opened.doc).files;
+    const names = Object.keys(before).sort();
+    if (names.join("|") !== Object.keys(after).sort().join("|")) {
+      drifted.push(`${key}: the file list itself changed`);
+      continue;
+    }
+    const changed = names.filter((f) => before[f] !== after[f]);
+    if (changed.length) drifted.push(`${key}: ${changed.slice(0, 3).join(", ")} changed`);
+  }
+  assert.deepEqual(drifted, [], "a save/open cycle must not change the exported site");
+});
+
+test("a number stored in a text field survives normalisation", () => {
+  // The regression in one line: 24 is a legal value for a text field, and the
+  // forum templates ship it that way.
+  const doc = TEMPLATES.forum.build();
+  const replies = doc.pages.flatMap((p) => p.blocks)
+    .filter((b) => b.type === "threads")
+    .flatMap((b) => b.items || [])
+    .map((i) => i.replies)
+    .filter((v) => typeof v === "number");
+  assert.ok(replies.length > 0, "the forum template should still store numbers in replies");
+  const after = normalizeDoc(JSON.parse(JSON.stringify(doc))).doc;
+  const kept = after.pages.flatMap((p) => p.blocks)
+    .filter((b) => b.type === "threads")
+    .flatMap((b) => b.items || [])
+    .map((i) => i.replies);
+  // As strings on both sides: replies is a text field, so 24 coming back as
+  // "24" is correct -- it renders identically, which is the actual promise.
+  // Comparing 24 to "24" would fail on a fix that changed nothing visible.
+  assert.deepEqual(kept.map(String), replies.map(String),
+    "every reply count must come back with its value intact");
+});

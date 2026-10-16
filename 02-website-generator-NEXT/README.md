@@ -136,7 +136,7 @@ on the page, and checking only the page is how a dark theme once shipped an
 active link at 3.85:1.
 
 The preview pane's **Desktop / Tablet / Phone** buttons render the page at
-1280 / 820 / 395 px. The stage scrolls when the frame is wider than the pane,
+1280 / 820 / 397 px. The stage scrolls when the frame is wider than the pane,
 so choosing Desktop really does give you a 1280 px page. The current width is
 printed under the frame.
 
@@ -315,7 +315,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **395 checks passing across 8 suites** and
+`npm run verify` currently reports **397 checks passing across 8 suites** and
 exits 0:
 
 ```
@@ -351,7 +351,7 @@ MURTHER FABRIQUE — website generator/
 ├─ desktop/               the Win32 + WebView2 launcher and its build script
 ├─ dist/                  generated: generator.html
 └─ test/
-├─ test.mjs          122 core checks (node --test)
+├─ test.mjs          124 core checks (node --test)
    ├─ browser.mjs          100 end-to-end editor checks
    ├─ a11y.mjs             34 accessibility checks
    ├─ i18n.mjs            12 language and persistence checks
