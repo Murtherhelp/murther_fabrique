@@ -199,6 +199,37 @@ Le test vérifie aussi qu'un projet ordinaire **ne crie pas au loup**.
 
 ---
 
+## La limite qu'on ne sent jamais venir
+
+Les trois troncures ci-dessus sont théoriquement atteignables mais rares. Il en
+restait une dans `str()`, le helper qui coupe **tous** les champs texte :
+
+```js
+const str = (v, max = LIMITS.text) => (typeof v === "string" ? v.slice(0, max) : "");
+```
+
+40 000 caractères. L'éditeur **ne limite pas la saisie** — aucun `maxlength`,
+aucune troncature pendant la frappe. Le coup part donc à la réouverture : on
+tape un long article, on le relit à l'écran, on sauvegarde, on rouvre — et cinq
+mille caractères ont disparu, sans un mot.
+
+C'est la pire variante de la famille, parce que la perte est **différée** : elle
+arrive plusieurs manipulations après l'écriture, et l'utilisateur a vu le texte
+au complet.
+
+La correction demande de faire passer le tableau d'avertissements à travers
+`asBi`, `coerceField` et tous les appels de `str`, puis de nommer le champ coupé
+— sinon « a translated field was 45000 characters » n'est pas actionnable. Le
+message dit maintenant :
+
+> Body was 45000 characters; the last 5000 were not loaded (limit 40000)
+
+Un garde empêche le bruit : les champs à petite limite — nom de société,
+courriel — sont tronqués **par conception** et ne doivent pas crier, sinon on
+apprend aux gens à ignorer les avertissements qui comptent.
+
+---
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :
