@@ -330,6 +330,12 @@ export function storeSaved(doc) {
   }
 }
 
+/** Extension for a validated image type, used to name the exported file. */
+const ASSET_EXT = {
+  "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif",
+  "image/webp": "webp", "image/avif": "avif", "image/svg+xml": "svg"
+};
+
 /** Turn a picked File into an asset, or report why it cannot be used. */
 export function readAsset(file) {
   return new Promise((resolve, reject) => {
@@ -345,10 +351,15 @@ export function readAsset(file) {
         reject(new Error("img-type"));
         return;
       }
+      const type = /^data:(image\/[a-z+]+);/.exec(data)?.[1] || "image/png";
       resolve({
         id: uid("a"),
-        name: `${slugify(file.name.replace(/\.[^.]+$/, "") || "image")}.${(file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png"}`,
-        type: /^data:(image\/[a-z+]+);/.exec(data)?.[1] || "image/png",
+        // The extension comes from the validated type, never from the picked
+        // name. That name is the user's text: "totally-safe.png.exe" otherwise
+        // ships a file called .exe inside the site's assets, right next to the
+        // <img> that points at it.
+        name: `${slugify(file.name.replace(/\.[^.]+$/g, "") || "image")}.${ASSET_EXT[type] || "png"}`,
+        type,
         data
       });
     };

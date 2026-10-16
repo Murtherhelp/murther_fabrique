@@ -1598,6 +1598,8 @@ if (new URLSearchParams(location.search).has("probe")) {
     build: () => build(doc()),
     audit: runAudit,
     blockOrder: () => BLOCK_ORDER.slice(),
+    // File intake, for the same reason: a probe cannot open a file picker.
+    readAsset,
     makeBlock: (type) => makeBlock(type),
     templates: () => TEMPLATE_ORDER.slice(),
     /* Mirrors what the <select> does: repaint labels now, rebuild once focus has

@@ -765,6 +765,42 @@ async function main() {
      menuFollow.afterBoth.title === "Case studies",
      JSON.stringify({ menuTyped: menuFollow.menuTyped, afterBoth: menuFollow.afterBoth }));
 
+  /* A picked file is the one input the generator cannot vouch for. This function
+     decides what enters a site, and nothing called it before now. */
+  const intake = await tryEval(`
+    const PNG = [137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,1,15,99,136,0,0,0,11,73,68,65,84,120,64,160,99,248,207,0,0,3,1,1,0,24,221,141,176,0,0,0,0,73,69,78,68,174,66,96,130];
+    const file = (bytes, name, type) => new File([new Uint8Array(bytes)], name, { type });
+    const attempt = async (f) => {
+      try { const a = await window.wgn.readAsset(f); return { ok: true, name: a.name, type: a.type, data: a.data.slice(0, 30) }; }
+      catch (e) { return { ok: false, why: String(e.message || e) }; }
+    };
+    const accepted = await attempt(file(PNG, 'holiday photo.png', 'image/png'));
+    // Real image bytes, but the browser is told it is text: the data URI is what
+    // gets checked, so this must be refused however the file is named.
+    const disguised = await attempt(file(PNG, 'holiday.png', 'text/plain'));
+    const notImage = await attempt(file([1,2,3,4], 'notes.txt', 'text/plain'));
+    const overLimit = await attempt(file(new Array(2 * 1024 * 1024 + 1).fill(0), 'huge.png', 'image/png'));
+    const renamedExe = await attempt(file(PNG, 'totally-safe.png.exe', 'image/png'));
+    return { accepted, disguised, notImage, overLimit, renamedExe };
+  `);
+  ok("a real image is taken in and named from its own bytes",
+     intake.accepted.ok === true && /^data:image\/png;base64,/.test(intake.accepted.data) &&
+       intake.accepted.type === "image/png" && intake.accepted.name.endsWith(".png"),
+     JSON.stringify(intake.accepted));
+  ok("image bytes declared as text are refused",
+     intake.disguised.ok === false && intake.disguised.why.startsWith("img-type"),
+     JSON.stringify(intake.disguised));
+  ok("a file that is not an image at all is refused",
+     intake.notImage.ok === false && intake.notImage.why.startsWith("img-type"),
+     JSON.stringify(intake.notImage));
+  ok("a file over the size limit is refused before it is read",
+     intake.overLimit.ok === false && intake.overLimit.why.startsWith("img-too-big"),
+     JSON.stringify(intake.overLimit));
+  ok("the exported file is named from the image type, not from the picked name",
+     intake.renamedExe.ok === true && !/\.exe$/i.test(intake.renamedExe.name) &&
+       intake.renamedExe.name.endsWith(".png"),
+     `picked totally-safe.png.exe -> ${intake.renamedExe.name}`);
+
   /* ------------------------------ the preview frame can never be navigated away */
   const frameGuard = await tryEval(`
     window.wgn.applyTemplate('business');
