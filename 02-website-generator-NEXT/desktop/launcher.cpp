@@ -421,7 +421,13 @@ constexpr wchar_t kVerdict[] =
     L"var store=(function(){try{localStorage.setItem('__mf','1');var v=localStorage.getItem('__mf')==='1';localStorage.removeItem('__mf');return v;}catch(e){return false}})();"
     L"var rendered=innerWidth>=640&&innerHeight>=400&&document.title.length>0"
     L"&&document.scripts.length>0&&document.body&&document.body.innerText.length>10;"
-    L"var deep=!window.wgn||(Object.keys(window.wgn.build().files).length>10&&window.wgn.errors().length===0);"
+    // A count threshold here is a coin toss, not a check. blank, cv and game all
+    // build exactly ten files, and any saved document that shrinks to ten fails
+    // the verdict on a perfectly healthy build -- which is what happened: the
+    // self-test went red because the previous run had left a document in
+    // localStorage. What this has to prove is that build() ran and produced
+    // something, so that is what it asks.
+    L"var deep=!window.wgn||(Object.keys(window.wgn.build().files).length>0&&window.wgn.errors().length===0);"
     // -1 rather than a default of 0 when the hook is absent: a missing hook has
     // to fail the verdict. Treating it as "zero errors" would make the one check
     // that covers ORIGINAL pass precisely when it is not running at all.

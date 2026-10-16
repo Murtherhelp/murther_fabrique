@@ -658,6 +658,66 @@ test vérifie désormais, et il échoue bien sans le correctif.
 
 ---
 
+---
+---
+
+## Le self-test du paquetage rougissait sur un état résiduel (défaut 28)
+
+Et d'abord une faute à assumer : j'ai poussé `10a2eaa` en voyant
+`selftest exit: 1` dans la même sortie que le build, sans m'arrêter. Le commit
+précédent annonçait pourtant `selftest exit: 0` sur la même ligne, donc la
+rupture était visible. Je ne l'ai vue qu'en relisant après coup.
+
+**Ce n'était pas une régression.** Aucun de mes fichiers n'était en cause. Le
+générateur passe : `"ready":true, "selfCheck":0, "errors":[], "storage":true`.
+
+La cause : le verdict exige `files > 10`, et le journal du self-test montre
+
+| exécutions | `files` rapportés | verdict |
+|---|---|---|
+| 29 | 12 | 0 |
+| 5 | 10 | 1 |
+
+Cinq exécutions ont trouvé **10** au lieu de 12. En vidant le `localStorage`
+WebView2, le compte est repassé à 12 et le verdict à 0. La cause était donc un
+document laissé par une exécution précédente — et le seuil `> 10` est faux pour
+quatre des neuf templates livrés :
+
+| template | fichiers | ancien seuil |
+|---|---|---|
+| blank, cv, game, saas | 10 | **échoue** |
+| blog, forum, store | 11 | passe |
+| portfolio, business | 12 | passe |
+
+Un tiers des points de départ livrés faisaient rougir le self-test du paquetage
+sur une construction parfaitement saine. Le seuil est devenu une loterie dont
+l'issue dépend du document laissé en mémoire.
+
+Ce que cette ligne doit prouver, c'est que `build()` a tourné et a produit
+quelque chose — pas qu'un site a plus de dix fichiers. Elle demande désormais
+`length > 0`.
+
+Falsifié : `> 999` fait sortir en 1, `> 0` en 0. La ligne est porteuse, et 10,
+11 comme 12 passent.
+
+Je ne peux plus reproduire l'état exact qui avait fait échouer le test : je l'ai
+effacé en cherchant la cause. Le tableau des templates reste la preuve directe,
+et c'est elle qui m'a convaincu.
+
+## Ce que ce tour m'apprend sur ma méthode
+
+Sept défauts trouvés, dont quatre par hypothèse fausse d'abord. Les
+falsifications ont payé deux fois plus que les idées : c'est la ligne `> 999` qui
+prouve que le correctif agit, et non le fait qu'il « devrait » agir.
+
+Mais six fois sur sept, c'est la falsification d'un **test** — pas du code
+produit — qui a trouvé le vrai problème. Quatre tests de ce tour ne mesuraient
+rien : ils passaient au-dessus du défaut, ou en dessous. Un test qui ne mord pas
+n'achète rien ; il achète une confiance fausse, qui est plus chère que
+l'absence de test parce qu'elle empêche de chercher.
+
+---
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :
