@@ -69,7 +69,7 @@ tests still import `src/js/*.js` directly. **`dist/generator.html` is generated
 ## Test it
 
 ```bash
-npm test          # 126 core checks, no browser needed
+npm test          # 127 core checks, no browser needed
 npm run dist:check # does the .exe hold this dist? skips if not built
 npm run verify    # everything: core + 7 more suites, starting its own servers
 ```
@@ -137,7 +137,7 @@ on the page, and checking only the page is how a dark theme once shipped an
 active link at 3.85:1.
 
 The preview pane's **Desktop / Tablet / Phone** buttons render the page at
-1280 / 820 / 401 px. The stage scrolls when the frame is wider than the pane,
+1280 / 820 / 402 px. The stage scrolls when the frame is wider than the pane,
 so choosing Desktop really does give you a 1280 px page. The current width is
 printed under the frame.
 
@@ -316,7 +316,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **401 checks passing across 8 suites** and
+`npm run verify` currently reports **402 checks passing across 8 suites** and
 exits 0:
 
 ```
@@ -352,7 +352,7 @@ MURTHER FABRIQUE — website generator/
 ├─ desktop/               the Win32 + WebView2 launcher and its build script
 ├─ dist/                  generated: generator.html
 └─ test/
-├─ test.mjs          126 core checks (node --test)
+├─ test.mjs          127 core checks (node --test)
    ├─ browser.mjs          100 end-to-end editor checks
    ├─ a11y.mjs             34 accessibility checks
    ├─ i18n.mjs            12 language and persistence checks

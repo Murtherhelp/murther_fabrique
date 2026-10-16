@@ -133,8 +133,16 @@ export function normalizeDoc(raw) {
     pages: []
   };
 
-  const rawPages = Array.isArray(raw.pages) ? raw.pages.slice(0, LIMITS.pages) : [];
+  const allPages = Array.isArray(raw.pages) ? raw.pages : [];
+  const rawPages = allPages.slice(0, LIMITS.pages);
   if (!rawPages.length) warnings.push("no pages found, a blank page was created");
+  // The limits are there to keep the editor responsive. Dropping the user's
+  // forty-fifth page without saying so is not part of that: a site that quietly
+  // loses pages on every open is worse than one that refuses the file. The
+  // warning channel already exists -- oversized images use it.
+  if (allPages.length > LIMITS.pages) {
+    warnings.push(`${allPages.length - LIMITS.pages} page(s) past the ${LIMITS.pages}-page limit were not loaded`);
+  }
 
   const slugs = new Set();
   for (const p of rawPages) {
@@ -177,6 +185,9 @@ function sanitiseColors(c) {
 function sanitiseBlocks(list, warnings) {
   if (!Array.isArray(list)) return [];
   const out = [];
+  if (list.length > LIMITS.blocksPerPage) {
+    warnings.push(`${list.length - LIMITS.blocksPerPage} block(s) past the ${LIMITS.blocksPerPage}-block limit were not loaded`);
+  }
   for (const b of list.slice(0, LIMITS.blocksPerPage)) {
     const def = BLOCKS[b?.type];
     if (!def) {
@@ -184,7 +195,7 @@ function sanitiseBlocks(list, warnings) {
       continue;
     }
     const block = { id: typeof b.id === "string" ? b.id : uid("b"), type: b.type };
-    for (const f of def.fields) block[f.k] = coerceField(b[f.k], f);
+    for (const f of def.fields) block[f.k] = coerceField(b[f.k], f, warnings);
     // Safety net: a block author who forgets to list a field in `fields` still
     // gets a well-formed value here, and the render below cannot explode.
     for (const [k, v] of Object.entries(def.defaults())) {
@@ -196,7 +207,7 @@ function sanitiseBlocks(list, warnings) {
 }
 const f0 = (k, def) => def.fields.find((f) => f.k === k) || { k, t: "text" };
 
-function coerceField(value, f) {
+function coerceField(value, f, warnings) {
   // A bilingual field is ALWAYS {en, fr}, whatever it renders as. Checking
   // `i18n` first is what stops a text field from being wiped to "" because its
   // value is an object rather than a string.
@@ -222,9 +233,13 @@ function coerceField(value, f) {
       return { assetId: typeof value?.assetId === "string" ? value.assetId : "", alt: asBi(value?.alt) };
     case "list": {
       const src = Array.isArray(value) ? value : [];
+      // Same contract as pages and blocks: keep the limit, say what it cost.
+      if (warnings && src.length > LIMITS.itemsPerList) {
+        warnings.push(`${src.length - LIMITS.itemsPerList} entries past the ${LIMITS.itemsPerList}-entry limit were not loaded`);
+      }
       return src.slice(0, LIMITS.itemsPerList).map((item) => {
         const row = {};
-        for (const sf of f.of || []) row[sf.k] = coerceField(item?.[sf.k], sf);
+        for (const sf of f.of || []) row[sf.k] = coerceField(item?.[sf.k], sf, warnings);
         return row;
       });
     }

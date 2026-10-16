@@ -1640,3 +1640,40 @@ test("a freshly added block exports the same after a save and reopen", () => {
   const changed = Object.keys(before).filter((f) => before[f] !== after[f]);
   assert.deepEqual(changed, [], "a saved and reopened project must export the same site");
 });
+
+test("a document past a limit is truncated and says so", () => {
+  // The limits keep the editor responsive; that part is right. Dropping the
+  // forty-fifth page, the sixty-first block or the sixty-first list entry in
+  // silence is not -- the file opens looking fine and the pages are simply
+  // gone. The warnings channel already existed and already spoke for oversized
+  // images; these three never used it.
+  const base = blankDoc();
+  const manyPages = Array.from({ length: LIMITS.pages + 5 }, (_, i) => ({
+    ...base.pages[0], id: "p" + i, slug: "page-" + i,
+    title: bi("Page " + i, ""), menu: bi("P" + i, ""),
+  }));
+  const p = normalizeDoc({ ...base, pages: manyPages });
+  assert.equal(p.doc.pages.length, LIMITS.pages, "the limit still holds");
+  assert.ok(p.warnings.some((w) => /page/.test(w) && /\b5\b/.test(w)),
+    `dropping pages was silent: ${JSON.stringify(p.warnings)}`);
+
+  const manyBlocks = Array.from({ length: LIMITS.blocksPerPage + 3 }, (_, i) => ({
+    id: "b" + i, type: "text", title: bi("S" + i, ""), body: bi("x", ""),
+  }));
+  const b = normalizeDoc({ ...base, pages: [{ ...base.pages[0], blocks: manyBlocks }] });
+  assert.equal(b.doc.pages[0].blocks.length, LIMITS.blocksPerPage, "the limit still holds");
+  assert.ok(b.warnings.some((w) => /block/.test(w)), `dropping blocks was silent: ${JSON.stringify(b.warnings)}`);
+
+  const longList = Array.from({ length: LIMITS.itemsPerList + 4 }, (_, i) => ({
+    q: bi("q" + i, ""), a: bi("a", ""),
+  }));
+  const l = normalizeDoc({ ...base, pages: [{ ...base.pages[0], blocks: [
+    { id: "b1", type: "faq", title: bi("Q", ""), items: longList },
+  ] }] });
+  assert.equal(l.doc.pages[0].blocks[0].items.length, LIMITS.itemsPerList, "the limit still holds");
+  assert.ok(l.warnings.some((w) => /entr|item/i.test(w)), `dropping entries was silent: ${JSON.stringify(l.warnings)}`);
+
+  // And a document inside the limits must not cry wolf.
+  const calm = normalizeDoc(JSON.parse(JSON.stringify(TEMPLATES.cv.build())));
+  assert.deepEqual(calm.warnings, [], `an ordinary project warned: ${JSON.stringify(calm.warnings)}`);
+});
