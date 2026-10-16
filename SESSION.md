@@ -230,6 +230,38 @@ apprend aux gens à ignorer les avertissements qui comptent.
 
 ---
 
+## Un produit qui dit une chose fausse
+
+Poursuite du balayage des limites, côté éditeur cette fois : que voit
+l'utilisateur quand il choisit une image que le produit refuse ?
+
+`readAsset` a **trois** motifs de rejet, et un seul était traité :
+
+```js
+if (m.startsWith("img-too-big")) { … }
+else say(t("errBadJson"), "ko");
+```
+
+Choisir un `.txt` comme image — ou une image corrompue — répondait
+**« Ce fichier n'est pas du JSON valide »**. L'utilisateur vient de choisir une
+image ; on lui parle de JSON.
+
+C'est une famille voisine de la précédente, mais plus vicieuse : rien ne
+disparaît, le produit n'est pas faux sur les faits — il répond à une autre
+question. Et ça ne se voit pas en lisant le code : il faut suivre le rejet
+jusqu'à la phrase.
+
+Trois messages, en deux langues, un branchement par motif.
+
+Le test qui vérifie est un **test de câblage**, et le journal dit pourquoi : le
+comportement réel exigerait un navigateur et un vrai `FileReader`. En
+couplant les deux — un test de contrat sur les codes, un test de câblage sur les
+branches — la falsification mord dans les deux sens. J'ai d'abord écrit un
+seul test qui passait après avoir supprimé la branche : il ne regardait que
+`readAsset`, et le branchement dans l'interface ne l'intéressait pas.
+
+---
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :
