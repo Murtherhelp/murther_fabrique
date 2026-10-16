@@ -516,7 +516,32 @@ async function main() {
   await tryEval("window.wgn.setLang('en'); return 1;");
   await new Promise((r) => setTimeout(r, 150));
 
-  /* ------------------------------------- a label cannot lose its control */
+  /* ------------------------------------------- the toast is not furniture */
+// The live region is a fixed pill. With nothing to say it still drew a 34x15
+// box with a border over the editor, and it swallowed clicks aimed at whatever
+// was underneath. Not display:none, which would pull it out of the a11y tree
+// and silence every announcement. Both halves are asserted, because hiding it
+// unconditionally is the easy way to break the thing it exists for.
+const toast = await tryEval(`
+const el = document.querySelector('.live');
+const st = () => getComputedStyle(el);
+const idle = { opacity: st().opacity, pe: st().pointerEvents };
+const under = document.elementFromPoint(innerWidth / 2, innerHeight - 30);
+const passesThrough = !(under === el || (el.contains && el.contains(under)));
+el.textContent = 'Project saved.';
+await new Promise(r => setTimeout(r, 80));
+const said = { opacity: st().opacity, pe: st().pointerEvents };
+el.textContent = '';
+return { idle, said, passesThrough, hit: under ? under.tagName + '.' + (under.className || '-') : 'none' };
+`);
+ok("the live region is invisible and click-through while it has nothing to say",
+  toast.idle.opacity === "0" && toast.idle.pe === "none" && toast.passesThrough,
+  `opacity=${toast.idle.opacity}, pointer-events=${toast.idle.pe}, click lands on ${toast.hit}`);
+ok("the live region becomes visible once it has something to report",
+  toast.said.opacity === "1" && toast.said.pe !== "none",
+  `opacity=${toast.said.opacity}, pointer-events=${toast.said.pe}`);
+
+/* ------------------------------------- a label cannot lose its control */
 // The toolbar is flex-wrap. With the label and its <select> as siblings of
 // .topbar, the wrap landed between them: at 1280px "Text size" ended one row
 // and its menu began 1239px away at the far left of the next. Structural, not
