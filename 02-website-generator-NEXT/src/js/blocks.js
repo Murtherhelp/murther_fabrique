@@ -175,6 +175,9 @@ export const BLOCKS = {
     effectField()
     ],
     render(b, c) {
+    // An emptied section ships a heading with nothing under it. gallery,
+    // skills and steps have always refused; these five did not.
+    if (!(b.items || []).length) return "";
       return sec(b, `
   <h2>${esc(T(b.title, c.lang))}</h2>
   ${T(b.lead, c.lang) ? `<p class="lede">${esc(T(b.lead, c.lang))}</p>` : ""}
@@ -202,6 +205,9 @@ export const BLOCKS = {
     effectField()
     ],
     render(b, c) {
+    // An emptied section ships a heading with nothing under it. gallery,
+    // skills and steps have always refused; these five did not.
+    if (!(b.items || []).length) return "";
       return `<section class="section section--tight"><div class="wrap">
   ${T(b.title, c.lang) ? `<h2>${esc(T(b.title, c.lang))}</h2>` : ""}
   <div class="stats">${(b.items || []).map((it) =>
@@ -256,6 +262,9 @@ export const BLOCKS = {
     effectField()
     ],
     render(b, c) {
+    // An emptied section ships a heading with nothing under it. gallery,
+    // skills and steps have always refused; these five did not.
+    if (!(b.items || []).length) return "";
       return `<section class="section"><div class="wrap"><h2>${esc(T(b.title, c.lang))}</h2><div class="faq">
   ${(b.items || []).map((it) => `<details><summary>${esc(T(it.q, c.lang))}</summary><div class="prose">${md(esc(T(it.a, c.lang)), 4)}</div></details>`).join("")}
   </div></div></section>`;
@@ -285,6 +294,9 @@ export const BLOCKS = {
     effectField()
     ],
     render(b, c) {
+    // An emptied section ships a heading with nothing under it. gallery,
+    // skills and steps have always refused; these five did not.
+    if (!(b.items || []).length) return "";
       const date = (d) => {
         const t = Date.parse(d || "");
         if (Number.isNaN(t)) return "";
@@ -356,6 +368,9 @@ export const BLOCKS = {
     effectField()
     ],
     render(b, c) {
+    // An emptied section ships a heading with nothing under it. gallery,
+    // skills and steps have always refused; these five did not.
+    if (!(b.items || []).length) return "";
       const cards = (b.items || []).map((it) => {
         const name = T(it.name, c.lang);
         const src = c.img(it.image);
@@ -399,6 +414,9 @@ export const BLOCKS = {
     effectField()
     ],
     render(b, c) {
+    // An emptied section ships a heading with nothing under it. gallery,
+    // skills and steps have always refused; these five did not.
+    if (!(b.items || []).length) return "";
       const date = (d) => {
         const t = Date.parse(d || "");
         return Number.isNaN(t) ? "" : new Date(t).toLocaleDateString(c.lang === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short", year: "numeric" });

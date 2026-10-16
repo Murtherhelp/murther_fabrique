@@ -1472,3 +1472,24 @@ test("no page ships double-encoded text, in either language", () => {
   }
   assert.deepEqual(hits.slice(0, 5), [], `${hits.length} double-encoded sequences found`);
 });
+
+/**
+ * Emptying a section is one click away in the editor, and nothing stops you.
+ * A block that renders anyway ships its heading with nothing under it: a
+ * dangling <h2> and a gap of empty space that reads as a broken page. gallery,
+ * skills and steps have always refused to render an empty repeater; the rest
+ * did not, so the rule is asserted for every block that has one.
+ */
+test("a block whose items were all deleted renders nothing at all", () => {
+  const ctx = { lang: "en", img: () => "" };
+  const dangling = [];
+  for (const type of BLOCK_ORDER) {
+    const spec = BLOCKS[type];
+    const hasRepeater = (spec.fields || []).some(
+      (fl) => fl.t === "list" && (fl.of || []).some((o) => !o.i18n || o.t !== "checkbox"));
+    if (!hasRepeater) continue;
+    const html = spec.render({ ...spec.defaults(), items: [] }, ctx);
+    if (html.trim() !== "") dangling.push(`${type} shipped ${html.length} bytes`);
+  }
+  assert.deepEqual(dangling, [], "an empty section must not leave its heading behind");
+});
