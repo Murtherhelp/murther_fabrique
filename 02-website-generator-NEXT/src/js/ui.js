@@ -1077,10 +1077,28 @@ function runAudit() {
   add(hOk, hOk ? "auHeadOk" : "auHeadKo", [], jump);
 
   const forms = d.pages.flatMap((p) => p.blocks.filter((b) => b.type === "contact"));
-  const badForm = forms.filter((b) => !safeHref(b.action));
+  const badForm = forms.filter((b) => !hasTarget(b.action));
   add(badForm.length === 0, badForm.length ? "auFormKo" : "auFormOk", [], badForm.length ? "blockForm" : null);
 
   return out;
+}
+
+/** A destination, not just a safe one.
+ *
+ *  safeHref rejects the schemes that must never ship, which is a different
+ *  question: `mailto:` and `tel:` pass it and point at nothing. The visitor's
+ *  mail client opens on an empty To: field, and the row used to say the form
+ *  "points somewhere real". A scheme that names an endpoint needs one after it.
+ */
+function hasTarget(v) {
+  const s = safeHref(v);
+  if (!s) return false;
+  if (/^tel:/i.test(s)) return s.slice(4).trim().length > 0;
+  // A mailto carries its address before the "?", everything after is decoration.
+  // "mailto:?subject=Hello" opens the visitor's mail client on a blank To: with
+  // a subject already filled in, which is not a destination either.
+  if (/^mailto:/i.test(s)) return s.slice(7).split("?")[0].trim().length > 0;
+  return true;
 }
 
 /** Images in one page that still have no alt text. Reads the built output, so

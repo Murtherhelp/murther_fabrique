@@ -470,6 +470,49 @@ async function main() {
   `);
   ok("an unreadable colour palette is reported", hostile.includes("auContrastKo"), hostile.join(", "));
 
+  /* ------------------------- "points somewhere real" has to mean somewhere */
+  /*
+  * safeHref answers "is this scheme safe to ship", which is not the question the
+  * row asks. `mailto:` and `tel:` pass it and address nobody: the visitor's mail
+  * client opens on an empty To: field, while the report said the contact form
+  * "points somewhere real".
+  */
+  const formRow = await tryEval(`
+    window.wgn.applyTemplate('business');
+    window.wgn.doc().baseUrl = 'https://studio-marcel.example';
+    const d = window.wgn.doc();
+    let block = null;
+    for (const p of d.pages) for (const b of p.blocks) if (b.type === 'contact') block = b;
+    if (!block) { block = { id: 'c-probe', type: 'contact',
+      title: { en: 'Contact', fr: '' }, body: { en: '', fr: '' }, action: '' };
+      d.pages[0].blocks.push(block); }
+    const row = () => { const r = window.wgn.audit().find(x => x.key === 'auFormOk' || x.key === 'auFormKo'); return { key: r.key, ok: r.ok }; };
+    const set = (v) => { block.action = v; return row(); };
+    return {
+      bare: set('mailto:'),
+      subjectOnly: set('mailto:?subject=Hello'),
+      tel: set('tel:'),
+      empty: set(''),
+      javascript: set('javascript:alert(1)'),
+      person: set('mailto:hello@example.com'),
+      endpoint: set('https://formspree.io/f/abc'),
+    };
+  `);
+  ok("a mailto with no address is not a destination",
+     formRow.bare.key === "auFormKo" && formRow.bare.ok === false, JSON.stringify(formRow.bare));
+  ok("a mailto carrying only a subject is not one either",
+     formRow.subjectOnly.key === "auFormKo", JSON.stringify(formRow.subjectOnly));
+  ok("a tel with no number is not a destination",
+     formRow.tel.key === "auFormKo", JSON.stringify(formRow.tel));
+  ok("an absent destination is still caught",
+     formRow.empty.key === "auFormKo", JSON.stringify(formRow.empty));
+  ok("a javascript: action is still caught",
+     formRow.javascript.key === "auFormKo", JSON.stringify(formRow.javascript));
+  ok("a real mailbox passes",
+     formRow.person.key === "auFormOk" && formRow.person.ok === true, JSON.stringify(formRow.person));
+  ok("and a real form endpoint passes",
+     formRow.endpoint.key === "auFormOk" && formRow.endpoint.ok === true, JSON.stringify(formRow.endpoint));
+
   /* ------------- a present-but-short description must not be called missing */
   /*
   * The check has always wanted twenty characters of description, and the

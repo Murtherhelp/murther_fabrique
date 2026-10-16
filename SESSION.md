@@ -536,6 +536,57 @@ ligne. Le suivant, c'est d'écrire le chemin en premier et le tester seul.
 
 ---
 
+﻿---
+---
+
+## « Le formulaire pointe vers une vraie cible » vers un schéma vide (défaut 26)
+
+Reste du rapport. La ligne dit `Contact form points somewhere real`, et le
+décideur était `safeHref(b.action)`.
+
+Or `safeHref` répond à une **autre** question : « ce schéma peut-il être livré
+sans danger ». C'est vrai et nécessaire, mais ce n'est pas ce que la ligne
+demande. Trois saisies passaient en vert :
+
+| ce que l'utilisateur tape | ce que dit le rapport | ce que voit le visiteur |
+|---|---|---|
+| `mailto:` | vraie cible | client mail, `To:` vide |
+| `mailto:?subject=Hello` | vraie cible | client mail, `To:` vide, objet rempli |
+| `tel:` | vraie cible | rien du tout |
+
+`javascript:` et l'absence de cible étaient déjà signalés — le filtre de schéma
+fonctionnait. Ce qui manquait, c'était la moitié non-sécurité de la phrase.
+
+`hasTarget` répond maintenant à la question posée : un `tel:` a besoin d'un
+numéro, un `mailto:` a besoin d'une adresse **avant** le `?`. Le reste est de la
+décoration. Cinq lignes, dans `ui.js`, à côté de la seule ligne qui s'en sert.
+
+Le site exporté n'est **pas** réécrit : un `mailto:` reste un `mailto:` dans la
+page. Le contenu de l'utilisateur lui appartient ; c'est au rapport de le
+signaler, pas au générateur de le corriger à son dos.
+
+## Ma première version était trop faible
+
+J'avais écrit « le reste après le schéma est-il non vide ? ». Ça laissait passer
+`mailto:?subject=Hello`, parce que `?subject=Hello` n'est pas vide. Le test l'a
+vu immédiatement : `{"key":"auFormOk","ok":true}`. C'est exactement le travail du
+test — il n'a pas fallacié le code pour que le correctif passe, il a refusé un
+correctif qui ne corrigeait pas.
+
+Falsification : revenir à `safeHref` seul et trois tests mordent.
+
+## Une observation laissée ouverte
+
+`auHeadOk` ne capte que les sauts **vers l'avant**, et son motif s'arrête à `h4`.
+Un `h2` suivi d'un `h5` passerait. J'ai vérifié avant d'écrire quoi que ce soit :
+le générateur n'émet que `h1`, `h2` et `h3` — `h5` et `h6` n'apparaissent nulle
+part dans les sources. La faille est donc inatteignable aujourd'hui, et la
+corriger serait du bruit pour un cas que le produit ne peut pas produire. Si un
+bloc se met un jour à émettre `h5`, c'est le générateur qu'il faudra interroger,
+pas cette ligne.
+
+---
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :
