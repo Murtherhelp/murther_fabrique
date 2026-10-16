@@ -283,9 +283,12 @@ void ShowChooser(HWND hwnd) {
       L"Two generators live in this repository.\nBoth run entirely offline, from this one file.",
       kLblHint, 0, 32, 86, 496, 48, gUiFont);
 
-  add(L"BUTTON", L"Open  NEXT  —  the current generator", kBtnNext, BS_PUSHBUTTON,
+  // WS_TABSTOP on the buttons: a control created programmatically is not in the
+  // tab ring unless it asks to be, and IsDialogMessage walks exactly the controls
+  // that did. The label is decorative text and stays out of the ring.
+  add(L"BUTTON", L"Open  NEXT  —  the current generator", kBtnNext, BS_PUSHBUTTON | WS_TABSTOP,
       32, 158, 496, 52, gUiFont);
-  add(L"BUTTON", L"Open  ORIGINAL  —  the archived first version", kBtnOriginal, BS_PUSHBUTTON,
+  add(L"BUTTON", L"Open  ORIGINAL  —  the archived first version", kBtnOriginal, BS_PUSHBUTTON | WS_TABSTOP,
       32, 222, 496, 52, gUiFont);
 
   SetFocus(GetDlgItem(hwnd, kBtnNext));
@@ -745,6 +748,17 @@ MSG msg;
       gExit = 3;
       break;
     }
+    // Tab between the two chooser buttons, and Enter on the focused one, are
+    // both implemented by the dialog manager rather than by DefWindowProc. A
+    // plain GetMessage/Translate/Dispatch loop never calls it, so focus lands on
+    // the first button at start-up and stays there: the second generator could
+    // not be reached from the keyboard at all.
+    //
+    // Only while the chooser is up. The same window hosts the WebView once a
+    // generator is chosen, and IsDialogMessage swallows VK_UP, VK_DOWN and F5
+    // whether or not any control uses them -- running it over the live page
+    // would break the editor's own keyboard handling.
+    if (gChoice == App::None && IsDialogMessageW(gWindow, &msg)) continue;
     TranslateMessage(&msg);
     DispatchMessageW(&msg);
   }
