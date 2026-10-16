@@ -20,7 +20,7 @@ import { build, pagePath, docWarnings, FORMAT, SITE_JS, walkI18n } from "../src/
 import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "../src/js/templates.js";
 import { PRESETS, PRESET_FOR } from "../src/js/presets.js";
 import { blankDoc, normalizeDoc, createHistory, LIMITS, readAsset, storeSaved } from "../src/js/store.js";
-import { crc32, decodeDataUri, toEntries, zip } from "../src/js/zip.js";
+import { crc32, decodeDataUri, toEntries, zip, writeFilesTo } from "../src/js/zip.js";
 
 const doc = (key) => normalizeDoc(fromTemplate(key)).doc;
 
@@ -1827,4 +1827,65 @@ test("a full storage quota is told apart from a browser that blocks storage", ()
   } finally {
     delete globalThis.localStorage;
   }
+});
+
+test("the folder export writes the css and js the site needs", async () => {
+  // The File System Access API refuses a name holding a separator, and every one
+  // of the nine templates emits css/style.css and js/site.js. So the write threw
+  // on the second file, after the HTML was already on disk, and the user got a
+  // folder of unstyled pages plus a message saying their browser had no folder
+  // access -- from inside the branch that only runs where it does.
+  const dirs = new Map();
+  const makeDir = (path) => ({
+    path,
+    async getDirectoryHandle(part, opts) {
+      if (part.includes("/")) throw new TypeError("separator");
+      const child = path ? path + "/" + part : part;
+      assert.ok(opts?.create, "directories must be created, not merely opened");
+      if (!dirs.has(child)) dirs.set(child, makeDir(child));
+      return dirs.get(child);
+    },
+    async getFileHandle(name, opts) {
+      if (name.includes("/") || name.includes("\\")) {
+        const e = new TypeError("path must not contain separators");
+        e.name = "TypeError";
+        throw e;
+      }
+      const full = path ? path + "/" + name : name;
+      let bytes = [];
+      return {
+        full,
+        async createWritable() {
+          return {
+            async write(b) { bytes = [b]; },
+            async close() { written.set(full, bytes); },
+          };
+        },
+      };
+    },
+  });
+  const written = new Map();
+  const root = makeDir("");
+
+  for (const key of TEMPLATE_ORDER) {
+    const doc = normalizeDoc(fromTemplate(key)).doc;
+    const files = build(doc).files;
+    written.clear(); dirs.clear();
+    const count = await writeFilesTo(root, files);
+    assert.equal(count, Object.keys(files).length, key + ": every file is accounted for");
+    for (const path of Object.keys(files)) {
+      assert.ok(written.has(path), key + ": " + path + " never reached the disk");
+    }
+    assert.ok(written.has("css/style.css"), key + ": the stylesheet is missing");
+    assert.ok(written.has("js/site.js"), key + ": the site script is missing");
+    assert.ok(written.get("css/style.css")[0].length > 100, key + ": the stylesheet is empty");
+  }
+
+  // The message that replaced "this browser has no folder access" exists in both
+  // languages, because the old one is impossible inside this code path.
+  const en = String(T.noFolderApi?.[0] ?? "");
+  const fix = String(T.folderWriteFailed?.[0] ?? "");
+  assert.ok(fix.length > 20, "folderWriteFailed has no sentence");
+  assert.ok(!fix.toLowerCase().includes("no folder access"), "the new message repeats the impossible claim");
+  assert.ok(en.length > 20, "noFolderApi lost its sentence");
 });

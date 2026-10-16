@@ -149,6 +149,32 @@ export async function zip(entries, when) {
  * A value that is not a data URI is written as text, which is what every
  * generated file is.
  */
+/**
+ * Write an export map into a picked directory. Returns the number of files.
+ *
+ * The map is keyed by site-relative path, and every template's paths carry
+ * directories -- css/style.css and js/site.js, in all nine of them -- while
+ * `getFileHandle` refuses any name holding a separator. Without the loop below
+ * the write throws on the second file, after the HTML pages are already on
+ * disk: the user gets a folder of unstyled pages, and a message blaming their
+ * browser for it.
+ */
+export async function writeFilesTo(dir, files) {
+  const enc = new TextEncoder();
+  for (const [path, content] of Object.entries(files)) {
+    const parts = path.split("/");
+    let d = dir;
+    for (const part of parts.slice(0, -1)) d = await d.getDirectoryHandle(part, { create: true });
+    const file = await d.getFileHandle(parts[parts.length - 1], { create: true });
+    const w = await file.createWritable();
+    // Data URIs are stored as text in the document; write real bytes.
+    const bytes = typeof content === "string" && content.startsWith("data:") ? decodeDataUri(content) : content;
+    await w.write(bytes ?? enc.encode(String(content)));
+    await w.close();
+  }
+  return Object.keys(files).length;
+}
+
 export function toEntries(files) {
   return Object.entries(files).map(([path, content]) => {
     if (typeof content === "string" && content.startsWith("data:")) {

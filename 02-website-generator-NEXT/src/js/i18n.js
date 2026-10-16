@@ -239,6 +239,7 @@ export const T = {
   dlProject: ["Save project (.json)", "Enregistrer le projet (.json)"],
   loadProject: ["Open a project (.json)", "Ouvrir un projet (.json)"],
   saveFolder: ["Save into a folder", "Enregistrer dans un dossier"],
+  folderWriteFailed: ["The folder could not be written — use the .zip instead", "Le dossier n’a pas pu être écrit — utilisez le .zip"],
   noFolderApi: ["This browser has no folder access — use the .zip", "Ce navigateur n'accède pas aux dossiers — utilisez le .zip"],
   // Its own message on purpose: window.open() is refused by a popup blocker in
   // a normal tab and always returns null inside the Windows shell, so the

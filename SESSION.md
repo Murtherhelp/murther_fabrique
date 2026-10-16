@@ -262,6 +262,65 @@ seul test qui passait après avoir supprimé la branche : il ne regardait que
 
 ---
 
+---
+---
+
+## Le dossier écrit était un site sans CSS (défaut 22)
+
+Je cherchais des messages de **succès** mensongers, retournement exact de la
+famille précédente. Deux pistes mortes d'abord, qu'il faut signaler parce
+qu'elles hingnaient à devenir des constats :
+
+- `Project saved` est dit sans condition, et `download()` ne renvoie rien. Un
+  téléchargement bloqué est indétectable de façon fiable ; je n'ai rien construit
+  pour une condition qu'on ne sait pas voir.
+- Les noms de fichiers : `uniqueSlug` retombe déjà sur `"page"`, donc le
+  `|| "site"` de la ligne 1154 est du code mort, et Windows accepte `.wgn`.
+
+Puis le bouton **Save folder**. Il faisait :
+
+```js
+const handle = await dir.getFileHandle(path, { create: true });
+```
+
+Or `getFileHandle` refuse un nom qui contient un séparateur — l'API ne sait pas
+créer de répertoire. Et **les neuf templates émettent tous `css/style.css` et
+`js/site.js`**. 18 chemins imbriqués sur 97.
+
+L'ordre des clés fait le reste : les HTML sont écrits, **puis** ça lève. Le
+dossier livré est donc un site sans feuille de style et sans script, et le
+`catch` affiche `noFolderApi` — « This browser has no folder access » — **depuis
+la branche qui ne s'exécute que là où `showDirectoryPicker` existe**. Le message
+ne pouvait pas être vrai.
+
+Le chemin était déjà dans le dépôt : `decodeDataUri` se trouvait déjà dans
+`zip.js`. J'y ai mis `writeFilesTo(dir, files)`, qui crée les sous-répertoires
+au passage, et `ui.js` appelle désormais cette fonction. Le `catch` n'accuse plus
+le navigateur : `folderWriteFailed` dit que le dossier n'a pas pu être écrit et
+renvoie vers le `.zip`.
+
+Le test conduit les neuf templates à travers un faux `FileSystemDirectoryHandle`
+qui **rejette les séparateurs comme le vrai**. Il a d'abord échoué sur ma propre
+assertion (`bytes` est un tableau d'un élément, pas le contenu) — pas sur le
+code. Falsification : remettre le chemin entier d'un seul coup et le test mord
+immédiatement.
+
+Piste ouverte, non corrigée : `Object.keys(files).length` est une truthiness sur
+un nombre. Un fichier ne peut pas faire `0`, donc le test est juste, mais c'est
+le genre de piège qui devient faux au premier `files` nullable. Je l'ai laissé
+tel quel : le corriger serait du bruit pour un cas qui n'existe pas.
+
+## Note d'honnêteté sur les comptes
+
+`npm run verify` sort huit lignes de résumé, `test.mjs` sort un compte `pass`,
+et je les ai additionnés de travers deux fois : « 407 » quand la somme faisait
+406, puis « 409 » quand elle en faisait 408. Les compteurs des README étaient
+faux à chaque palier et je ne les avais pas vérifiés. Un total affiché n'est
+une preuve que si on l'additionne.
+
+---
+
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :
@@ -271,3 +330,5 @@ Par où je commencerais, dans cet ordre :
 2. Comparer ce qui entre dans `normalizeDoc` à ce qui en sort. C'est comme ça
    que sont sortis 7 et 8, et c'est le terrain le plus rentable du dépôt.
 3. Ne jamais faire confiance à une mesure avant de l'avoir vue mentir.
+4. Chercher les `catch` qui attrapent tout et accusent le navigateur ou la
+   machine. C'est là que sont sortis 21, 22 et leurs frères.

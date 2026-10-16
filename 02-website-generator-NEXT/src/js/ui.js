@@ -22,7 +22,7 @@ import { build, pagePath, docWarnings, walkI18n } from "./build.js";
 import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "./templates.js";
 import { blankDoc, newPage, normalizeDoc, createHistory, storeSaved, loadStored, readAsset, LIMITS } from "./store.js";
 import { PALETTES, TONES, paletteOf, contrastChecks, sanitizeCss, resolve } from "./themes.js";
-import { zip, toEntries, download, decodeDataUri } from "./zip.js";
+import { zip, toEntries, download, writeFilesTo } from "./zip.js";
 import { PREVIEW_GUARD } from "./preview-inline.js";
 
 const $ = (id) => document.getElementById(id);
@@ -1163,18 +1163,14 @@ function renderExport() {
       try {
         const dir = await window.showDirectoryPicker({ mode: "readwrite" });
         const files = await exportFiles(doc());
-        for (const [path, content] of Object.entries(files)) {
-          const handle = await dir.getFileHandle(path, { create: true });
-          const w = await handle.createWritable();
-          // Data URIs are stored as text in the document; write real bytes.
-          const bytes = typeof content === "string" && content.startsWith("data:") ? decodeDataUri(content) : content;
-          await w.write(bytes ?? new TextEncoder().encode(String(content)));
-          await w.close();
-        }
-        say(tf("exported", t("exportedFolder"), Object.keys(files).length), "ok");
+        const count = await writeFilesTo(dir, files);
+        say(tf("exported", t("exportedFolder"), count), "ok");
         sayContrast();
       } catch (e) {
-        if (e.name !== "AbortError") say(t("noFolderApi"), "ko");
+        // Not an AbortError means the user cancelled nothing and the write
+        // still failed. "This browser has no folder access" cannot be true
+        // here: this code only runs where showDirectoryPicker exists.
+        if (e.name !== "AbortError") say(t("folderWriteFailed"), "ko");
       }
     }));
   } else {

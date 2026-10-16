@@ -69,7 +69,7 @@ tests still import `src/js/*.js` directly. **`dist/generator.html` is generated
 ## Test it
 
 ```bash
-npm test          # 127 128 130 131 132 core checks, no browser needed
+npm test          # 127 128 130 131 133 core checks, no browser needed
 npm run dist:check # does the .exe hold this dist? skips if not built
 npm run verify    # everything: core + 7 more suites, starting its own servers
 ```
@@ -137,7 +137,7 @@ on the page, and checking only the page is how a dark theme once shipped an
 active link at 3.85:1.
 
 The preview pane's **Desktop / Tablet / Phone** buttons render the page at
-1280 / 820 / 409 px. The stage scrolls when the frame is wider than the pane,
+1280 / 820 / 410 px. The stage scrolls when the frame is wider than the pane,
 so choosing Desktop really does give you a 1280 px page. The current width is
 printed under the frame.
 
@@ -316,7 +316,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **409 checks passing across 8 suites** and
+`npm run verify` currently reports **410 checks passing across 8 suites** and
 exits 0:
 
 ```
