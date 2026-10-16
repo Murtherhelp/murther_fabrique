@@ -1002,14 +1002,11 @@ function runAudit() {
   const pages = built.langs.flatMap((l) => d.pages.map((p) => ({ p, l })));
   /* Counted over every page x every language, from the built HTML — the same
      bytes the export writes, so the report cannot drift from the result. */
-  let imgTotal = 0;
+  // imgsWithoutAlt already filters on exactly this condition, so counting what
+  // it returns is the whole check. The loop used to keep a total it never read
+  // and re-test every tag against the filter that had just discarded it.
   let imgNoAlt = 0;
-  for (const { p, l } of pages) {
-    for (const tag of imgsWithoutAlt(built, d, p, l)) {
-      imgTotal++;
-      if (!/\balt="[^"]+"/.test(tag)) imgNoAlt++;
-    }
-  }
+  for (const { p, l } of pages) imgNoAlt += imgsWithoutAlt(built, d, p, l).length;
   add(imgNoAlt === 0, imgNoAlt ? "auAltKo" : "auAltOk", imgNoAlt ? [imgNoAlt] : [], "blockForm");
 
   const noDesc = [];

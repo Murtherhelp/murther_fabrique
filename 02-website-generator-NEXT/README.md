@@ -69,7 +69,7 @@ tests still import `src/js/*.js` directly. **`dist/generator.html` is generated
 ## Test it
 
 ```bash
-npm test          # 133 core checks, no browser needed
+npm test          # 136 core checks, no browser needed, no browser needed
 npm run dist:check # does the .exe hold this dist? skips if not built
 npm run verify    # everything: core + 7 more suites, starting its own servers
 ```
@@ -316,7 +316,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **414 checks passing across 8 suites** and
+`npm run verify` currently reports **420 checks passing across 8 suites** and
 exits 0:
 
 ```
@@ -352,8 +352,8 @@ MURTHER FABRIQUE — website generator/
 ├─ desktop/               the Win32 + WebView2 launcher and its build script
 ├─ dist/                  generated: generator.html
 └─ test/
-├─ test.mjs          128 core checks (node --test)
-   ├─ browser.mjs          106 end-to-end editor checks
+├─ test.mjs          136 core checks (node --test)
+   ├─ browser.mjs          109 end-to-end editor checks
    ├─ a11y.mjs             34 accessibility checks
    ├─ i18n.mjs            12 language and persistence checks
    ├─ export.mjs          97 export checks (real ZIP, real HTTP, real render)

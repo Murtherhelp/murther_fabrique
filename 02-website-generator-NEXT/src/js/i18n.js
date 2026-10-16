@@ -213,7 +213,7 @@ export const T = {
   auAltOk: ["Every image has alternative text", "Chaque image a un texte alternatif"],
   auAltKo: ["%s image(s) without alternative text", "%s image(s) sans texte alternatif"],
   auDescOk: ["Every page has a meta description", "Chaque page a une meta description"],
-  auDescKo: ["Missing meta description: %s", "Meta description manquante : %s"],
+  auDescKo: ["Missing, or shorter than 20 characters, meta description: %s", "Meta description manquante, ou plus courte que 20 caractères : %s"],
   auTitleOk: ["Every page has a unique title", "Chaque page a un titre unique"],
   auTitleKo: ["Missing or duplicate title: %s", "Titre manquant ou dupliqué : %s"],
   auSlugOk: ["File names are unique and valid", "Les noms de fichiers sont uniques et valides"],

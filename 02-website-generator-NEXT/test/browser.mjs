@@ -470,6 +470,37 @@ async function main() {
   `);
   ok("an unreadable colour palette is reported", hostile.includes("auContrastKo"), hostile.join(", "));
 
+  /* ------------- a present-but-short description must not be called missing */
+  /*
+  * The check has always wanted twenty characters of description, and the
+  * wording has always said "Missing meta description". So a user who wrote
+  * "My shop." was told the field was empty, went looking for a box they had
+  * already filled in, and found nothing to fix. The check was right; the
+  * sentence was the liar.
+  */
+  const descRow = await tryEval(`
+    window.wgn.applyTemplate('business');
+    window.wgn.doc().baseUrl = 'https://studio-marcel.example';
+    const page = window.wgn.doc().pages[1];
+    const row = () => window.wgn.audit().find(r => r.key === 'auDescOk' || r.key === 'auDescKo');
+    const set = (v) => {
+      page.desc = { en: v, fr: v };
+      const r = row();
+      return { key: r.key, ok: r.ok };
+    };
+    const short = set('My shop.');
+    const empty = set('');
+    const real = set('A description long enough to be worth reading.');
+    return { short, empty, real };
+  `);
+  ok("a description under 20 characters is flagged",
+     descRow.short.key === "auDescKo" && descRow.short.ok === false, JSON.stringify(descRow));
+  ok("an empty page description falls back to the site's, and passes",
+     descRow.empty.key === "auDescOk" && descRow.empty.ok === true, JSON.stringify(descRow));
+  ok("a real description passes",
+     descRow.real.key === "auDescOk" && descRow.real.ok === true, JSON.stringify(descRow));
+
+
   /* ------------------------------------------------- export file set */
   const files = await tryEval(`
     const f = await window.wgn.files();

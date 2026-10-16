@@ -1889,3 +1889,74 @@ test("the folder export writes the css and js the site needs", async () => {
   assert.ok(!fix.toLowerCase().includes("no folder access"), "the new message repeats the impossible claim");
   assert.ok(en.length > 20, "noFolderApi lost its sentence");
 });
+
+test("the report never calls a short description a missing one", () => {
+  // The check has wanted twenty characters for as long as it has existed, and
+  // the sentence it printed was "Missing meta description". So a user who wrote
+  // "My shop." was told the field was empty and went looking for a box they had
+  // already filled in. The check was right; the sentence was the liar, and the
+  // report is read in both languages.
+  for (const [i, lang] of [[0, "English"], [1, "French"]]) {
+    const msg = String(T.auDescKo?.[i] ?? "");
+    assert.ok(msg.length > 20, lang + ": auDescKo has no sentence");
+    assert.match(msg, /20/, lang + ": the sentence does not mention the 20-character rule");
+  }
+  assert.ok(!/^Missing meta description/.test(String(T.auDescKo?.[0] ?? "")),
+    "the English sentence still claims the description is missing");
+  // And the passing sentence must not start claiming a threshold either.
+  assert.ok(!/20/.test(String(T.auDescOk?.[0] ?? "")),
+    "the passing sentence should not talk about a threshold");
+});
+
+test("the README suite table adds up to the total it prints", () => {
+  // Five times in one session a check was added and the two numbers describing
+  // it were edited by hand, by string replace, and drifted apart: 407 for 406,
+  // 409 for 408, test.mjs frozen at 128 while it held 134, browser.mjs left at
+  // 100 after two new checks. Each time the README was internally inconsistent
+  // and nothing said so. This is the cheap invariant that makes it impossible:
+  // the per-suite lines have to add up to the number printed at the top.
+  const ROOT = new URL("./", import.meta.url);
+  const docs = ["../README.md", "../../README.md"];
+  const SUITES = [
+    [/test\.mjs\s+(\d+)\s+core checks/, "test.mjs"],
+    [/browser\.mjs\s+(\d+)\s+end-to-end/, "browser.mjs"],
+    [/a11y\.mjs\s+(\d+)\s+accessibility/, "a11y.mjs"],
+    [/i18n\.mjs\s+(\d+)\s+language/, "i18n.mjs"],
+    [/export\.mjs\s+(\d+)\s+export checks/, "export.mjs"],
+    [/single\.mjs\s+(\d+)\s+single-file/, "single.mjs"],
+    [/original\.mjs\s+(\d+)\s+original checks/, "original.mjs"],
+    [/server\.mjs\s+(\d+)\s+server checks/, "server.mjs"],
+  ];
+  let tables = 0;
+  for (const rel of docs) {
+    const text = readFileSync(new URL(rel, ROOT), "utf8");
+    const found = SUITES.map(([re, n]) => [n, text.match(re)]).filter(([, m]) => m);
+    if (!found.length) continue;
+    tables++;
+    const sum = found.reduce((a, [, m]) => a + Number(m[1]), 0);
+    const totals = [...new Set([...text.matchAll(/(\d+) (?:checks|automated checks|checks passing)/g)]
+      .map((m) => Number(m[1])))];
+    assert.ok(totals.length > 0, rel + " prints no total at all");
+    assert.equal(totals.length, 1, rel + " prints two different totals: " + totals.join(" and "));
+    assert.equal(found.length, SUITES.length,
+      rel + " lists only " + found.length + " of " + SUITES.length + " suites");
+    assert.equal(sum, totals[0], rel + ": the table adds up to " + sum +
+      " but the file claims " + totals[0] + " -- " +
+      found.map(([n, m]) => n + " " + m[1]).join(", "));
+  }
+  assert.equal(tables, 1, "neither README carries a suite table, so nothing is being checked");
+});
+
+test("every suite the verifier runs is named in that table", () => {
+  // A ninth suite that nobody documented would still run, and still be absent
+  // from the table, and the sum above would stay correct.
+  const dir = new URL("./", import.meta.url);
+  const runs = [...readFileSync(new URL("verify.mjs", dir), "utf8").matchAll(/(\w+)\.mjs/g)]
+    .map((m) => m[1])
+    .filter((n) => n !== "verify" && n !== "serve");
+  const table = readFileSync(new URL("../README.md", dir), "utf8");
+  for (const s of new Set(runs)) {
+    assert.ok(table.includes(s), "verify.mjs runs " + s + " but the README never names it");
+  }
+  assert.ok(runs.length >= 8, "the verifier only names " + runs.length + " suites");
+});

@@ -433,6 +433,109 @@ tests mordent.
 
 ---
 
+﻿---
+---
+
+## « Meta description manquante » pour une description de douze caractères (défaut 25)
+
+Toujours le rapport, toujours la même forme de mensonge : un contrôle juste
+prononcant une phrase fausse.
+
+Le contrôle veut **vingt caractères** de description depuis toujours :
+
+```js
+if (!/<meta name="description" content="[^"]{20,}"/.test(f)) noDesc.push(p.slug);
+```
+
+et la phrase disait `Missing meta description: %s`. Un utilisateur qui écrivait
+`My shop.` se faisait dire que le champ était **vide** — il allait chercher une
+boîte qu'il venait de remplir, et ne trouvait rien à corriger. Le contrôle avait
+raison, la phrase mentait. Elle nomme maintenant la règle des vingt caractères,
+dans les deux langues.
+
+Dans la même boucle, deux couches de code mort :
+
+```js
+let imgTotal = 0;                       // écrit, jamais lu
+...
+imgTotal++;
+if (!/\balt="[^"]+"/.test(tag)) imgNoAlt++;   // toujours vrai
+```
+
+`imgsWithoutAlt` filtre **déjà** sur cette expression exacte, donc le `if` ne
+pouvait pas être faux et `imgTotal` ne servait à rien. Supprimé : le contrôle
+fait maintenant trois lignes et se lit comme il fait.
+
+## Trois erreurs à moi, dont deux instructive
+
+1. J'ai écrit le test avec `page.metaDesc`, un champ qui n'existe pas : la sonde
+   ne modifiait rien et le contrôle répondait vert. Le vrai champ est `desc`.
+   Un test qui passe parce qu'il ne touche à rien est pire qu'un test absent.
+2. J'ai attendu qu'une description **vide** soit signalée. Elle ne l'est pas, et
+   c'est correct : `build.js` fait `T(page.desc) || T(doc.description)`, donc une
+   page sans description hérite de celle du site. **Mon attente était fausse, pas
+   le code** — et j'ai réécrit le test pour qu'il vérifie le contrat réel.
+3. `audit()` recalcule sans repeindre `#auditList`. Je lisais le texte rendu dans
+   un nœud périmé et j'ai conclu à un échec qui n'existait pas. Ces deux
+   assertions portaient sur un dictionnaire, pas sur un comportement navigateur :
+   elles sont allées dans `test.mjs`, où `T` est déjà importé.
+
+Un test qui échoue pour une bonne raison et un test qui échoue parce que le
+système fait correctement ce qu'il doit produisent la même ligne sur l'écran.
+Seul le contrat énoncé au départ permet de les distinguer.
+
+---
+
+---
+---
+
+## Les compteurs des README ont dérivé cinq fois, maintenant c'est impossible
+
+En corrigeant `test.mjs 128` dans le tableau, j'ai réalisé que **rien** ne pouvait
+remettre la main dessus. Cinq fois dans cette session, un contrôle a été ajouté
+et les deux nombres qui le décrivent ont été retouchés à la main, par remplacement
+de chaîne, et ont divergé :
+
+| ce qui dérivait | ce qui était vrai |
+|---|---|
+| « 407 checks » | 406 |
+| « 409 checks » | 408 |
+| `test.mjs 128` | 134 |
+| `browser.mjs 100` | 102, puis 109 |
+| `npm test # 127 128 130 131 133` | 134 |
+
+Chacune de ces lignes était **incohérente avec elle-même** — le tableau n'additionnait
+pas au total affiché — et aucun contrôle ne le voyait.
+
+Deux tests règlent la question pour toujours :
+
+1. **Le tableau des suites s'additionne au total affiché.** Un README sans
+   tableau est simplement ignoré, pas signalé à tort — c'est le cas du README
+   racine, qui n'en a pas.
+2. **Toute suite que `verify.mjs` exécute est nommée dans le tableau.** Sans ça,
+   une neuvième suite documentée nulle part continuerait de tourner en silence.
+
+Falsifié deux fois : remettre `128`, puis gonfler le total à `500` — le test mord
+avec le détail du calcul.
+
+## Quatre chemins faux dans le même test
+
+Je les note parce que ce sont exactement les pièges du langage, pas du produit :
+
+- `ROOT + "../README.md"` sur un objet `URL` **concatène** au lieu de résoudre :
+  il faut `new URL(rel, ROOT)`.
+- Mes documents partaient de `../`, alors que `test.mjs` vit dans `test/` — le
+  READMEracine n'était jamais ouvert, et le test échouait sur un chemin
+  inexistant.
+- `System.Text.UTF8Encoding` écrit dans un fichier `.mjs` : PowerShell dans un
+  module Node, pas une faute de frappe.
+- `void write;` après avoir retiré l'import : un reste de copié-collé.
+
+Chacun de ces quatre a coûté un aller-retour pour un problème qui tient en une
+ligne. Le suivant, c'est d'écrire le chemin en premier et le tester seul.
+
+---
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :
