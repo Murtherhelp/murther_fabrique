@@ -1434,3 +1434,36 @@ test("no template hands a block a field the editor would silently drop", () => {
   assert.deepEqual([...new Set(orphans)].sort(), [],
     "every key a template writes must be a field its block declares");
 });
+
+/**
+ * Mojibake is a file that went through the wrong encoding, and it has shipped
+ * from this repo once already: an em dash compiled to "â"". It hides inside
+ * accented text and curly punctuation, so a proofreader can skim past it and a
+ * screenshot at 1280px will not resolve the glyph. These byte pairs are what
+ * double-encoded UTF-8 looks like when it is decoded as Latin-1, and none of
+ * them may appear in a page a reader will see.
+ */
+const MOJIBAKE = [
+  "Ã©", "Ã¨", "Ã ", "Ã§", "Ã ", "â€", "Â", "ï¿½",
+  "Ã‰", "Ã´", "Ã¯", "Ã¼", "Ã´", "Ã¹", "Ã¶", "Ã¨",
+];
+
+test("no page ships double-encoded text, in either language", () => {
+  const hits = [];
+  for (const key of TEMPLATE_ORDER) {
+    for (const bilingual of [false, true]) {
+      const doc = TEMPLATES[key].build();
+      doc.meta = { ...doc.meta, bilingual, lang: "fr" };
+      for (const [rel, html] of Object.entries(build(doc).files)) {
+        if (typeof html !== "string") continue;
+        // Script bodies are data, not prose, and a JS string may legitimately
+        // contain any byte; only what a reader reads is in scope.
+        const visible = html.replace(/<script[\s\S]*?<\/script>/g, "");
+        for (const marker of MOJIBAKE) {
+          if (visible.includes(marker)) hits.push(`${key}/${bilingual ? "FR" : "EN"}/${rel}: ${marker}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(hits.slice(0, 5), [], `${hits.length} double-encoded sequences found`);
+});
