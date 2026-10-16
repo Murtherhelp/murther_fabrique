@@ -371,7 +371,8 @@ async function main() {
           looks: r.look?.perLook ?? {},
           components: r.look?.components ?? {},
           first: r.look?.first,
-          detail: r.look?.detail
+          detail: r.look?.detail,
+          wide: r.measure || []
         });
       }
     }
@@ -390,6 +391,17 @@ async function main() {
     const missing = (EFFECTS.map(([v]) => v).filter((v) => v !== "none")).filter((v) => !seen.has(v));
     ok(`every look was actually exercised (${scheme || "dark"})`, missing.length === 0,
        `measured: ${[...seen].join(", ")}${missing.length ? ` - never exercised: ${missing.join(", ")}` : ""}`);
+
+    // Readability, on every page of every template -- not on one hand-picked
+    // page. An earlier version of this check sat in the single-document loop,
+    // where no table cell is wide enough to trip it, and passed with the rule
+    // deleted. It has to see the CV template to mean anything.
+    const longLines = perPage.filter((t) => t.wide.length);
+    ok(`no line of prose is too long to read (${scheme || "dark"})`,
+      longLines.length === 0,
+      longLines.length
+        ? longLines.slice(0, 3).map((t) => `${t.template}/${t.page}: ${t.wide.join(", ")}`).join(" | ")
+        : `widest line under 95 characters across ${perPage.length} pages`);
 
     // The components added last live on the about page of one template and the
     // home page of another. A suite that opened only index.html would never see
@@ -793,6 +805,25 @@ await send("Page.navigate", { url: `http://localhost:${PORT}/${folder}/${page}` 
           slot,
           marker: getComputedStyle(d.querySelector("summary"), "::after").content,
         };
+      })(),
+// Readability, not correctness. .prose already caps a line at 68ch, but a
+      // table cell sits outside .prose and spans the whole container, which is
+      // how the CV template shipped 102 characters to a line. Cards have their
+      // own narrow columns and never needed the rule.
+      measure: (() => {
+        const wide = [];
+        for (const el of document.querySelectorAll("p, li, dd, blockquote")) {
+          const text = el.textContent.trim();
+          if (text.length < 80) continue;
+          const r = el.getBoundingClientRect();
+          if (!r.width) continue;
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          const lines = [...range.getClientRects()].filter((x) => x.width > 1).length || 1;
+          const per = text.length / lines;
+          if (per >= 95) wide.push(el.tagName + "." + (el.className || "-").toString().split(" ")[0] + " " + Math.round(per) + "ch");
+        }
+        return wide.slice(0, 4);
       })(),
 // Landmarks, headings and names on the generated page. The accessibility
       // suite drives the EDITOR; nothing until now had checked the artefact the

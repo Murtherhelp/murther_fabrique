@@ -456,6 +456,10 @@ font:inherit;font-weight:600;cursor:pointer;min-height:44px}
 .btn:hover{filter:brightness(1.08)}
 .prose{max-width:68ch;text-wrap:pretty}
 .prose > :last-child{margin-bottom:0}
+/* A table spans the whole container, so a paragraph in a cell sits outside
+   .prose and never got its 68ch measure: the CV template ran to 102 characters
+   a line. Cards keep their own narrow columns and need nothing here. */
+td p{max-width:68ch}
 
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
 .card h3{margin-top:0}
