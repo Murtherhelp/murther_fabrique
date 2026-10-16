@@ -727,6 +727,44 @@ async function main() {
   ok("clicking another page's header selects and opens that page",
      disc.pageId === true && disc.afterSelect?.[2] === true, JSON.stringify(disc.afterSelect));
 
+  /* A menu label that was never edited follows the page title, and stops
+     following the moment it is edited. The rule is a single comparison inside
+     the inspector's title handler, and nothing tested either direction of it. */
+  const menuFollow = await tryEval(`
+    window.wgn.applyTemplate('business');
+    await new Promise(r => setTimeout(r, 300));
+    window.wgn.select(1, 0);
+    await new Promise(r => setTimeout(r, 300));
+    const page = () => window.wgn.doc().pages[1];
+    // Re-queried each time: a commit re-renders the inspector, so a cached
+    // element would be detached and the event would go nowhere.
+    const type = async (i, v) => {
+      const el = document.querySelectorAll('#blockForm input')[i];
+      el.value = v;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 350));
+      return el.value;
+    };
+    const start = { title: page().title.en, menu: page().menu.en };
+    await type(0, 'Services');
+    const afterTitle = { title: page().title.en, menu: page().menu.en };
+    await type(1, 'Portfolio');
+    const menuTyped = page().menu.en;
+    await type(0, 'Case studies');
+    const afterBoth = { title: page().title.en, menu: page().menu.en };
+    return { start, afterTitle, menuTyped, afterBoth };
+  `);
+  ok("a menu label that was never edited follows the page title",
+     menuFollow.start.title === menuFollow.start.menu &&
+     menuFollow.afterTitle.menu === menuFollow.afterTitle.title &&
+     menuFollow.afterTitle.menu === "Services",
+     JSON.stringify({ shipped: menuFollow.start, afterTitle: menuFollow.afterTitle }));
+  ok("once the menu is edited it stops following the title",
+     menuFollow.menuTyped === "Portfolio" &&
+     menuFollow.afterBoth.menu === "Portfolio" &&
+     menuFollow.afterBoth.title === "Case studies",
+     JSON.stringify({ menuTyped: menuFollow.menuTyped, afterBoth: menuFollow.afterBoth }));
+
   /* ------------------------------ the preview frame can never be navigated away */
   const frameGuard = await tryEval(`
     window.wgn.applyTemplate('business');
