@@ -214,7 +214,10 @@ Write-Step 'compiling the launcher'
 # both run inside one vcvars64 shell rather than each being set up by hand.
 $cmd = @(
     "`"$($cl.FullName)`"",
-    '/nologo', '/O2', '/MT', '/W4', '/permissive-', '/GS', '/guard:cf', '/GL',
+    # /utf-8: without it MSVC reads this file in the system code page, and the
+    # em dash in the chooser's button labels arrives as three characters. The
+    # file has no BOM, and a BOM is invisible in a diff - the flag says it.
+    '/nologo', '/O2', '/MT', '/W4', '/permissive-', '/utf-8', '/GS', '/guard:cf', '/GL',
     "/I`"$include`"",
     '/DUNICODE', '/D_UNICODE', '/D_WIN32_WINNT=0x0A00', '/DNOMINMAX',
     "`"$here\launcher.cpp`"",

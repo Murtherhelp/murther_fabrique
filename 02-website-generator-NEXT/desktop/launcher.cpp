@@ -660,6 +660,16 @@ void Launch(App which) {
   gChoice = which;
   HideChooser();
 
+  // Grow to the editor's size now, while nothing is painting yet. The chooser
+  // was deliberately small, and the WebView takes whatever the client area is
+  // when its controller appears - it does not ask for a size.
+  const int screenW = GetSystemMetrics(SM_CXSCREEN);
+  const int screenH = GetSystemMetrics(SM_CYSCREEN);
+  const int editW = (screenW >= 1600) ? 1440 : screenW - 160;
+  const int editH = (screenH >= 1000) ? 900 : screenH - 120;
+  SetWindowPos(gWindow, nullptr, (screenW - editW) / 2, (screenH - editH) / 2,
+               editW, editH, SWP_NOZORDER | SWP_NOACTIVATE);
+
   if (ChosenFile().empty()) {
     Fail(which == App::Original ? L"The original generator is missing from this build."
                                 : L"The NEXT generator is missing from this build.");
@@ -761,8 +771,11 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int show) {
 
   const int screenW = GetSystemMetrics(SM_CXSCREEN);
   const int screenH = GetSystemMetrics(SM_CYSCREEN);
-  const int width = (screenW >= 1600) ? 1440 : screenW - 160;
-  const int height = (screenH >= 1000) ? 900 : screenH - 120;
+  // The chooser is 640x480, which is what its own controls need and what the
+  // minimum track size below already allows. It used to be created at the
+  // editor's 1440x900, which left a mostly black window with four small
+  // controls stacked in one corner; Launch() grows it to the editor size.
+  const int width = 640, height = 480;
   gWindow = CreateWindowExW(0, kClassName, kTitle, WS_OVERLAPPEDWINDOW,
                             (screenW - width) / 2, (screenH - height) / 2,
                             width, height, nullptr, nullptr, inst, nullptr);

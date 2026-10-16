@@ -611,7 +611,9 @@ function renderPageFields(p) {
   })), null, null, "titleLabel"));
   out.append(field(t("menuLabel"), textInput(bT(p.menu, lang), put((pg, v) => (pg.menu[lang] = v))), null, null, "menuLabel"));
   out.append(field(t("descLabel"), textInput(bT(p.desc, lang), put((pg, v) => (pg.desc[lang] = v)), { multiline: true, rows: 2 }), null, null, "descLabel"));
-  out.append(field(t("slugLabel"), slugControl(p), null, null, "slugLabel"));
+  // slugControl() already renders its own labelled field. Wrapping it in another
+  // one printed "File name" twice, which is visible the moment the editor opens.
+  out.append(slugControl(p));
 
   const isHome = p.id === doc().pages[0]?.id;
   out.append(checkField(t("inMenuLabel"), p.inMenu !== false, put((pg, v) => (pg.inMenu = v)), "inMenuLabel"));
