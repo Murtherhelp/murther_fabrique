@@ -316,7 +316,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **410 checks passing across 8 suites** and
+`npm run verify` currently reports **414 checks passing across 8 suites** and
 exits 0:
 
 ```
@@ -353,7 +353,7 @@ MURTHER FABRIQUE — website generator/
 ├─ dist/                  generated: generator.html
 └─ test/
 ├─ test.mjs          128 core checks (node --test)
-   ├─ browser.mjs          102 end-to-end editor checks
+   ├─ browser.mjs          106 end-to-end editor checks
    ├─ a11y.mjs             34 accessibility checks
    ├─ i18n.mjs            12 language and persistence checks
    ├─ export.mjs          97 export checks (real ZIP, real HTTP, real render)

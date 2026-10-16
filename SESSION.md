@@ -381,6 +381,57 @@ imiter.
 
 ---
 
+---
+---
+
+## Le rapport disait « prêt » pendant que le site pointait sur example.com (défaut 24)
+
+Même famille, terrain suivant : les promesses que fait **le rapport qualité** à
+l'utilisateur qui s'apprête à publier.
+
+Quatre hypothèses avant d'en trouver une, toutes fausses, et il faut le dire —
+c'est le meilleur indicateur de santé du dépôt que ces quatre-là tombent :
+
+- Un `@import` de police distante dans le CSS personnalisé passerait sous le
+  radar. Non : `sanitizeCss` retire `@import` et toute `url()` porteuse d'un
+  schéma, et compte ce qu'il retire, donc `auCssKo` prévient l'utilisateur.
+- Un bloc laisserait passer du HTML brut. Non : `esc` échappe `"` en `&quot;`,
+  et les huit sondes (balise `<style>`, `<img>`, `srcset`, `onclick`,
+  `<meta refresh>`, URL protocol-relative) ressortent toutes inertes.
+- Le rapport crierait au loup sur de la prose contenant `src="https://…"`.
+  Non, pour la même raison : le texte échappé ne matche plus le motif.
+- Le nom de fichier du projet produirait un nom que Windows refuse. Non.
+
+Puis la vraie. `auSeoOk` — « robots.txt and sitemap.xml generated » — ne
+demandait que si les deux fichiers **existaient**. Or :
+
+| template | `baseUrl` livrée |
+|---|---|
+| blank, portfolio, cv | `""` |
+| business, blog, forum, game, store, saas | `https://example.com` |
+
+Six des neuf. Le rapport affichait donc un **vert** pendant que le
+`<link rel="canonical">`, les `og:url`, le sitemap et le robots.txt nommaient un
+domaine qui n'est pas celui de l'utilisateur. Publier tel quel, et les moteurs
+indexent la mauvaise adresse — silencieusement, définitivement.
+
+Pire que le champ vide : un champ vide invite à le remplir, une adresse
+`https://example.com` a l'air faite.
+
+`auSeoOk` devient donc conditionnel à une URL qui est réellement celle de
+l'utilisateur, et `auCanonKo` dit ce qu'il en est. Le texte de `DEPLOY.txt` est
+corrigé dans les deux langues : il disait « left empty on purpose », ce qui est
+faux pour ces six templates.
+
+Le test vérifie les quatre cas — URL livrée, URL vide, `example.org`, URL réelle
+— et « un template propre n'a rien à corriger » a dû être réécrit : il pose
+maintenant une vraie URL avant d'affirmer que le reste est propre, sinon il ne
+teste plus ce qu'il prétend tester.
+
+Falsification : remettre l'ancienne ligne d'une seule expression et les trois
+tests mordent.
+
+---
 
 ## Si quelqu'un reprend
 

@@ -222,6 +222,7 @@ export const T = {
   auTransKo: ["%s text section(s) have no %s version", "%s bloc(s) de texte sans version %s"],
   auEmptyOk: ["No empty page", "Aucune page vide"],
   auEmptyKo: ["Empty page: %s", "Page vide : %s"],
+  auCanonKo: ["The canonical URL is still empty or the example.com placeholder — the sitemap, robots.txt and sharing links point at the wrong address", "L’URL canonique est encore vide ou reste le exemple.com de remplacement — le sitemap, robots.txt et les liens de partage pointent vers la mauvaise adresse"],
   auSeoOk: ["robots.txt and sitemap.xml generated", "robots.txt et sitemap.xml générés"],
   auFilesOk: ["404 page, favicon and Open Graph image generated", "Page 404, favicon et image Open Graph générés"],
   auRemoteOk: ["The site makes no request to a third party", "Le site ne fait aucune requête vers un tiers"],

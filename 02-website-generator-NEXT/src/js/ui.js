@@ -1045,7 +1045,15 @@ function runAudit() {
   const empty = d.pages.filter((p) => !p.blocks.length).map((p) => p.slug);
   add(empty.length === 0, empty.length ? "auEmptyKo" : "auEmptyOk", empty.length ? [empty.join(", ")] : [], "outline");
 
-  add(!!built.files["robots.txt"] && !!built.files["sitemap.xml"], "auSeoOk", [], "seoPanel");
+  // Six of the nine templates ship https://example.com rather than an empty
+  // field, so the row used to read green while the canonical link, the og:url,
+  // the sitemap and robots.txt all pointed at a domain that is not the user's.
+  // A plausible-looking placeholder is worse than a blank one: a blank field
+  // invites you to fill it in.
+  const canon = String(d.baseUrl || "").trim();
+  const placeholder = !canon || /^https?:\/\/(www\.)?example\.(com|org|net)\/?$/i.test(canon);
+  add(!!built.files["robots.txt"] && !!built.files["sitemap.xml"] && !placeholder,
+      placeholder ? "auCanonKo" : "auSeoOk", [canon], "seoPanel");
   add(!!built.files["404.html"] && !!built.files["favicon.svg"], "auFilesOk", [], "exportPanel");
 
   const own = d.baseUrl.replace(/\/+$/, "");
@@ -1266,8 +1274,9 @@ Deposez tout le contenu de ce dossier sur n'importe quel hebergeur statique :
                                 CSP ne seront appliques.
 
 AVANT DE METTRE EN LIGNE
-  - Renseignez l'URL canonique dans les reglages. sitemap.xml et robots.txt en
-    sont tires, et elle est laissee vide expr tant que vous ne l'avez pas faite.
+  - Renseignez l'URL canonique dans les reglages. sitemap.xml, robots.txt et les
+    liens de partage en sont tires. Elle est vide, ou reste le exemple.com de
+    remplacement, tant que vous ne l'avez pas changee.
   - Remplissez les champs societe, adresse et e-mail : ils sont substitues dans
     les pages de confidentialite et de mentions legales generees.
   - Remplacez les images : chaque <img> porte une largeur et une hauteur, donc la
@@ -1297,7 +1306,8 @@ Upload everything in this folder to any static host:
 
 BEFORE GOING LIVE
   - Set the canonical URL in Settings. sitemap.xml and robots.txt are built
-    from it, and it is left empty on purpose until you do.
+    from it. It is empty, or still the example.com placeholder, until you set
+    it — and until then every canonical link points at the wrong address.
   - Fill in the company, address and email fields: they are substituted into
     the generated privacy and legal pages.
   - Replace the images: every <img> carries a width and height, so the layout

@@ -414,7 +414,53 @@ async function main() {
     return { total: res.length, failing: res.filter(r=>!r.ok).map(r=>r.key) };
   `);
   ok("the quality report produces checks", audit.total >= 10, `${audit.total} checks`);
-  ok("a clean template has nothing to fix", (audit.failing?.length ?? 9) === 0, audit.failing?.join(", "));
+
+  /* ------------------------- a green row must not be green by accident */
+  /*
+  * Six of the nine templates ship https://example.com rather than a blank field.
+  * The SEO row only asked whether robots.txt and sitemap.xml had been produced,
+  * so it read green while the canonical link, the og:url, the sitemap and
+  * robots.txt all named a domain that was not the user's. A placeholder that
+  * looks plausible is worse than an empty one, because an empty field invites
+  * you to fill it in.
+  */
+  const canonRow = await tryEval(`
+    window.wgn.applyTemplate('business');
+    const row = () => window.wgn.audit().find(r => r.key === 'auSeoOk' || r.key === 'auCanonKo');
+    const shipped = row();
+    const doc = window.wgn.doc();
+    doc.baseUrl = 'https://studio-marcel.example';
+    const set = row();
+    doc.baseUrl = '';
+    const blank = row();
+    doc.baseUrl = 'https://example.org/';
+    const bare = row();
+    return {
+      shippedKey: shipped.key, shippedOk: shipped.ok,
+      setKey: set.key, setOk: set.ok,
+      blankKey: blank.key, blankOk: blank.ok,
+      bareKey: bare.key, bareOk: bare.ok,
+    };
+  `);
+  ok("the placeholder canonical URL is reported, not passed over",
+     canonRow.shippedKey === "auCanonKo" && canonRow.shippedOk === false,
+     JSON.stringify(canonRow));
+  ok("a blank canonical URL is reported too",
+     canonRow.blankKey === "auCanonKo" && canonRow.blankOk === false, JSON.stringify(canonRow));
+  ok("example.org is a placeholder as well, not a pass",
+     canonRow.bareKey === "auCanonKo", JSON.stringify(canonRow));
+  ok("and a real URL turns the row green",
+     canonRow.setKey === "auSeoOk" && canonRow.setOk === true, JSON.stringify(canonRow));
+
+  // With the canonical URL the user's own, the rest of the template is clean.
+  const auditClean = await tryEval(`
+    window.wgn.applyTemplate('business');
+    window.wgn.doc().baseUrl = 'https://studio-marcel.example';
+    const res = window.wgn.audit();
+    return res.filter(r=>!r.ok).map(r=>r.key);
+  `);
+  ok("a clean template has nothing to fix",
+     (auditClean?.length ?? 9) === 0, auditClean?.join(", "));
 
   const hostile = await tryEval(`
     const d = window.wgn.doc();
