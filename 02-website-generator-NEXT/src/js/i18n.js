@@ -125,6 +125,11 @@ export const T = {
   imageTooBig: ["Image rejected: %s. Limit is %s per image.", "Image refusée : %s. La limite est de %s par image."],
   imageWrongType: ["That file is not a PNG, JPEG, GIF, WebP, AVIF or SVG image.", "Ce fichier n'est pas une image PNG, JPEG, GIF, WebP, AVIF ou SVG."],
   imageUnreadable: ["That image could not be read. Try re-saving it.", "Cette image n'a pas pu être lue. Essayez de l'enregistrer à nouveau."],
+  // A count limit is not a size limit. Saying "file too large" when there is
+  // simply no room left answers a question nobody asked.
+  tooManyImages: ["This project already holds %s images, which is the limit. Remove one before adding another.", "Ce projet contient déjà %s images, ce qui est la limite. Supprimez-en une avant d'en ajouter une autre."],
+  tooManyPages: ["This project already has %s pages, which is the limit.", "Ce projet contient déjà %s pages, ce qui est la limite."],
+  tooManyBlocks: ["This page already has %s sections, which is the limit. Remove one before adding another.", "Cette page contient déjà %s sections, ce qui est la limite. Supprimez-en une avant d'en ajouter une autre."],
 
   /* --- design --- */
   paletteLabel: ["Colour set", "Jeu de couleurs"],

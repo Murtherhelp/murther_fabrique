@@ -1761,3 +1761,34 @@ test("the editor routes each refusal to its own message, not to the JSON one", (
     assert.ok(src.includes(`"${key}"`), `${key} is never used`);
   }
 });
+
+test("every message that takes arguments is given enough of them", () => {
+  // tf() substitutes positionally and prints "undefined" for a missing one. Three
+  // call sites had none: adding a forty-first page answered "File too large
+  // (undefined). Limit is undefined." -- wrong about the reason and malformed
+  // on top of it. There is no way to notice this by reading the code; it only
+  // shows up in the sentence the user is handed.
+  const src = readFileSync(new URL("../src/js/ui.js", import.meta.url), "utf8");
+  // T is the dictionary; ui is only {lang, scale}. Reading the wrong one made
+  // needs() answer 0 for every key, so this test could not have failed.
+  const needs = (k) => (String(T[k]?.[0] ?? "")).match(/%s/g)?.length ?? 0;
+
+  const short = [];
+  for (const m of src.matchAll(/\btf\(\s*"([A-Za-z0-9_]+)"([^)]*)/g)) {
+    const [, key, tail] = m;
+    const want = needs(key);
+    // Count top-level commas in the argument list.
+    let depth = 0, commas = 0;
+    for (const ch of tail) {
+      if ("([{".includes(ch)) depth++;
+      else if (")]}".includes(ch)) { if (depth === 0) break; depth--; }
+      else if (ch === "," && depth === 0) commas++;
+    }
+    // `[^)]*` stops before the closing paren, so an argument-less call leaves an
+    // empty tail. Counting that as one argument made the guard one too lenient
+    // everywhere, which is why it passed with tf("key") and nothing after it.
+    const got = tail.trim().length === 0 ? 0 : commas + 1;
+    if (got < want) short.push(`${key} takes ${want} argument(s), called with ${got}`);
+  }
+  assert.deepEqual(short, [], "a message with placeholders was called without them");
+});

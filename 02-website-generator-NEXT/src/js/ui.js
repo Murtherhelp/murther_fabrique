@@ -436,7 +436,7 @@ function imageInput(spec) {
     const f = file.files?.[0];
     if (!f) return;
     if (doc().assets.length >= LIMITS.images) {
-      say(tf("imageTooBig", t("errTooBig"), t("errTooBig")), "ko");
+      say(tf("tooManyImages", String(LIMITS.images)), "ko");
       return;
     }
     try {
@@ -1369,7 +1369,7 @@ function wire() {
   });
 
   on($("addPageBtn"), "click", () => {
-    if (doc().pages.length >= LIMITS.pages) return say(t("errTooBig"), "ko");
+    if (doc().pages.length >= LIMITS.pages) return say(tf("tooManyPages", String(LIMITS.pages)), "ko");
     const p = newPage();
     p.slug = uniqueSlug(p.slug);
     commit(edit((d) => d.pages.push(p)), { select: { pageId: p.id, blockId: null } });
@@ -1523,7 +1523,7 @@ function openBlockPicker() {
     on(card, "click", () => {
       const p = page();
       if (!p) return;
-      if (p.blocks.length >= LIMITS.blocksPerPage) return say(t("errTooBig"), "ko");
+      if (p.blocks.length >= LIMITS.blocksPerPage) return say(tf("tooManyBlocks", String(LIMITS.blocksPerPage)), "ko");
       const b = makeBlock(type);
       commit(edit((d) => d.pages.find((x) => x.id === p.id).blocks.push(b)), {
         select: { pageId: p.id, blockId: b.id }
