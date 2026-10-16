@@ -1263,6 +1263,26 @@ test("site.js never writes a status message of its own", () => {
   assert.ok(SITE_JS.includes('getAttribute("data-sent")'), "the sent message is not read off the page");
 });
 
+test("a project survives being saved and loaded again, unchanged", () => {
+  // The format is documented as portable, which means a document that has been
+  // through normalizeDoc once must be a fixed point: loading it again changes
+  // nothing at all. A second pass that quietly rewrites or drops a field is not
+  // visible until the third save, long after the user stopped thinking about it.
+  let compared = 0;
+  for (const key of TEMPLATE_ORDER) {
+    const once = JSON.stringify(normalizeDoc(JSON.parse(JSON.stringify(fromTemplate(key)))).doc);
+    const twice = JSON.stringify(normalizeDoc(JSON.parse(once)).doc);
+    // Guards against passing on emptiness: two blank documents are equal too.
+    compared += once.length;
+    assert.equal(twice, once, `the ${key} document changes on a second load`);
+  }
+  assert.ok(TEMPLATE_ORDER.length >= 9, `only ${TEMPLATE_ORDER.length} templates were compared`);
+  // Measured at ~55 000 characters across the nine templates; the floor is set
+  // well under that so it cannot start failing on ordinary template edits, and
+  // well over zero so the comparison cannot pass by comparing nothing.
+  assert.ok(compared > 30000, `only ${compared} chars compared across ${TEMPLATE_ORDER.length} templates`);
+});
+
 test("one broken block never takes the whole page down", () => {
   // The render loop wraps every block in a try/catch, and that catch is the only
   // thing between a single bad block and an export with an empty page. Nothing
