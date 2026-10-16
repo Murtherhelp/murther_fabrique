@@ -69,8 +69,9 @@ tests still import `src/js/*.js` directly. **`dist/generator.html` is generated
 ## Test it
 
 ```bash
-npm test          # 116 core checks, no browser needed
-npm run verify    # everything: core + 5 more suites, starting its own servers
+npm test          # 126 core checks, no browser needed
+npm run dist:check # does the .exe hold this dist? skips if not built
+npm run verify    # everything: core + 7 more suites, starting its own servers
 ```
 
 Each browser suite can also be run alone - `npm run test:browser`, `test:a11y`,
@@ -79,7 +80,7 @@ again. Add `--head` to any of them to watch the browser work.
 
 | suite | checks | what it covers |
 |---|---:|---|
-| **core** (`npm test`) | 116 | The pure engine in Node: XSS boundary, `safeHref`, contrast maths, dark-mode derivation, block registry, all 9 templates and their distinctness, bilingual output, nav integrity, hostile project import, undo/redo, ZIP writer, a save/load round trip that changes nothing, and the exported contact form speaking its own page's language. |
+| **core** (`npm test`) | 126 | The pure engine in Node: XSS boundary, `safeHref`, contrast maths, dark-mode derivation, block registry, all 9 templates and their distinctness, bilingual output, nav integrity, hostile project import, undo/redo, ZIP writer, a save/load round trip that changes nothing, and the exported contact form speaking its own page's language. |
 | **browser** | 100 | The real editor: language switching, every template and all 18 section types, inspector, quality report, undo/redo, drag-to-reorder, preview-frame navigation guard, and the navigation channel it posts on, the live contrast readout, accessible names, the theme's light and dark output. |
 | **accessibility** | 34 | Real Tab keypresses, accessible names on every control, focus visibility, landmarks, focus retention across a language switch, overflow at maximum text size. |
 | **i18n** | 12 | Autosave and reload round-trip, language independence, both site languages surviving a reload. |

@@ -28,9 +28,10 @@ git clone https://github.com/Murtherhelp/murther_fabrique.git
 cd "murther_fabrique/02-website-generator-NEXT"
 
 npm start          # editor at http://localhost:5173/
-npm test           # 109 core checks, no browser needed
+npm test           # 126 core checks, no browser needed
 npm run verify     # 401 checks across 8 suites, browsers included
 npm run build      # dist/generator.html — one file, opens by double-click
+npm run dist:check # is the .exe actually holding this dist/? skips if not built
 ```
 
 A server is needed for exactly one reason: browsers block ES modules over

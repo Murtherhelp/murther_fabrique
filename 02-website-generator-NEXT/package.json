@@ -4,7 +4,9 @@
   "description": "MURTHER FABRIQUE — visual, offline, bilingual (FR/EN) website generator. No dependencies, no build step.",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node server.mjs",
     "build": "node build.mjs",
@@ -18,6 +20,7 @@
     "test:server": "node test/server.mjs",
     "verify": "node test/verify.mjs",
     "test:all": "npm test && npm run verify",
-    "dist:windows": "powershell -ExecutionPolicy Bypass -File desktop/build.ps1"
+    "dist:windows": "powershell -ExecutionPolicy Bypass -File desktop/build.ps1",
+    "dist:check": "node desktop/verify-embed.mjs"
   }
 }
