@@ -123,6 +123,15 @@ button, input, select, textarea { font: inherit; color: inherit }
   border-radius: 10px;
 }
 
+/* A label and the control it names are one unit. Without this the toolbar's
+flex-wrap put "Text size" at the end of one row and its menu at the far left of
+the next, 1239px away, at 1280px wide. */
+.fieldrow {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+}
+
 .brandmark {
   display: flex; align-items: center; gap: .55rem;
   padding-inline-end: .35rem;

@@ -516,7 +516,28 @@ async function main() {
   await tryEval("window.wgn.setLang('en'); return 1;");
   await new Promise((r) => setTimeout(r, 150));
 
-  /* ------------------------------------------- nothing overflows sideways */
+  /* ------------------------------------- a label cannot lose its control */
+// The toolbar is flex-wrap. With the label and its <select> as siblings of
+// .topbar, the wrap landed between them: at 1280px "Text size" ended one row
+// and its menu began 1239px away at the far left of the next. Structural, not
+// pixel-based: the shared parent must not be the wrapping container itself, or
+// a line break can fall between them at whatever width happens to overflow.
+const pair = await tryEval(`
+const stranded = [];
+for (const l of document.querySelectorAll('.topbar label[for]')) {
+  const c = document.getElementById(l.getAttribute('for'));
+  if (!c) { stranded.push(l.getAttribute('for') + ': no control'); continue; }
+  const p = l.parentElement;
+  if (p === c.parentElement && p.classList.contains('topbar')) {
+    stranded.push(l.getAttribute('for') + ': siblings of the wrapping toolbar');
+  }
+}
+return stranded;
+`);
+ok("every topbar label shares a wrapper with the control it names",
+  pair.length === 0, pair.length ? pair.join("; ") : "no pair can be split by a wrap");
+
+/* ------------------------------------------- nothing overflows sideways */
   const ovf = await tryEval(`
     window.wgn.applyTemplate('business');
     await new Promise(r => setTimeout(r, 200));

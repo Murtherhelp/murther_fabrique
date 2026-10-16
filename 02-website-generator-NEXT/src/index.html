@@ -70,21 +70,26 @@
 
   <span class="vr" aria-hidden="true"></span>
 
-  <!-- Visible micro-labels. Two unlabelled selects in a toolbar are a riddle.
-       Short on purpose: the full wording stays on the tooltip and in the
-       accessible description. -->
-  <label class="mini" for="uiLang" data-i18n="lblLangShort">Language</label>
-  <select id="uiLang" data-i18n-title="lblUiLang" title="Interface language">
-    <option value="en">English</option>
-    <option value="fr">Français</option>
-  </select>
+<!-- Visible micro-labels. Two unlabelled selects in a toolbar are a riddle.
+Short on purpose: the full wording stays on the tooltip and in the
+accessible description. The pair is wrapped so flex-wrap can never strand a
+label at the end of one row and its control at the far left of the next. -->
+<span class="fieldrow">
+<label class="mini" for="uiLang" data-i18n="lblLangShort">Language</label>
+<select id="uiLang" data-i18n-title="lblUiLang" title="Interface language">
+<option value="en">English</option>
+<option value="fr">Français</option>
+</select>
+</span>
 
-  <label class="mini" for="uiScale" data-i18n="lblSizeShort">Text size</label>
-  <select id="uiScale" data-i18n-title="lblUiScale" title="Interface text size">
-    <option value="1" data-i18n="scale100">Text 100%</option>
-    <option value="1.15" data-i18n="scale115">Text 115%</option>
-    <option value="1.3" data-i18n="scale130">Text 130%</option>
-  </select>
+<span class="fieldrow">
+<label class="mini" for="uiScale" data-i18n="lblSizeShort">Text size</label>
+<select id="uiScale" data-i18n-title="lblUiScale" title="Interface text size">
+<option value="1" data-i18n="scale100">Text 100%</option>
+<option value="1.15" data-i18n="scale115">Text 115%</option>
+<option value="1.3" data-i18n="scale130">Text 130%</option>
+</select>
+</span>
 </header>
 
 <nav class="tabs" id="tabs" aria-label="Panels">
