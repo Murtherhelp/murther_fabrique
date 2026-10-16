@@ -470,6 +470,80 @@ async function main() {
   `);
   ok("an unreadable colour palette is reported", hostile.includes("auContrastKo"), hostile.join(", "));
 
+  /* ------------------- a page must not be able to overwrite a generated one */
+  /*
+  * build() emits privacy.html, legal.html, 404.html, robots.txt, sitemap.xml,
+  * favicon.svg, assets/, css/ and js/ whatever the document says. uniqueSlug()
+  * guarded against clashing with the user's own pages but not with those, so
+  * typing "privacy" into the file-name field made the export put the legal text
+  * on top of the generated privacy page -- the user's page gone, the privacy
+  * page wrong, and the report blaming a duplicate that did not exist.
+  */
+  const slugRow = await tryEval(`
+    window.wgn.applyTemplate('business');
+    window.wgn.doc().baseUrl = 'https://studio-marcel.example';
+    window.wgn.select(1, -1);                 // the second page: its name is editable
+    // A marker no generated page can carry, so "is this file my page?" has an
+    // answer that the shared navigation cannot give -- every page links to
+    // About, which is what made two earlier heuristics useless here.
+    window.wgn.doc().pages[1].title = { en: 'USERPAGEMARKER', fr: '' };
+    await new Promise(r => setTimeout(r, 150));
+    const inputs = [...document.querySelectorAll('#blockForm input[type=text]')];
+    const slugField = inputs[inputs.length - 1];   // the file-name field is the last text input
+    const typeInto = async (value) => {
+      slugField.value = value;
+      slugField.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 120));
+      return window.wgn.doc().pages[1].slug;
+    };
+    const chosen = {};
+    for (const name of ['privacy', 'legal', '404', 'css', 'js', 'robots', 'favicon', 'index']) {
+      chosen[name] = await typeInto(name);
+    }
+    await typeInto('privacy');
+    const failing = window.wgn.audit().filter(r => !r.ok).map(r => r.key);
+    const files = await window.wgn.files();
+    const privacy = String(files['privacy.html'] || '');
+    const legal = String(files['legal.html'] || '');
+    // The privacy page links to the legal one, so the word tells us nothing.
+    // Two different files do.
+    return { chosen, failing, privacyLen: privacy.length, legalLen: legal.length,
+             sameFile: privacy === legal,
+             // Which file holds the user page, if any. With the bug it is in
+             // none of them: the generated privacy page overwrote it and the
+             // user page was simply lost.
+             where: Object.keys(files).filter(n => /USERPAGEMARKER/.test(String(files[n]))),
+             userPageLeak: /USERPAGEMARKER/.test(privacy) };
+  `);
+  ok("typing a reserved file name does not leave it reserved",
+     slugRow.chosen.privacy !== "privacy" && slugRow.chosen.legal !== "legal" &&
+     slugRow.chosen["404"] !== "404" && slugRow.chosen.css !== "css" &&
+     slugRow.chosen.js !== "js" && slugRow.chosen.robots !== "robots" &&
+     slugRow.chosen.favicon !== "favicon",
+     JSON.stringify(slugRow.chosen));
+  ok("the second page cannot become the home page either",
+     slugRow.chosen.index !== "index", JSON.stringify(slugRow.chosen.index));
+  ok("the report names no duplicate at all",
+     !slugRow.failing.includes("errSlugDup"), slugRow.failing.join(", "));
+  ok("the user page survives under a name of its own, and privacy.html is untouched",
+     slugRow.sameFile === false && slugRow.userPageLeak === false &&
+     slugRow.where.length === 1 && slugRow.where[0] === "privacy-2.html", JSON.stringify(slugRow));
+
+  const privacySafe = await tryEval(`
+    window.wgn.applyTemplate('business');
+    window.wgn.doc().baseUrl = 'https://studio-marcel.example';
+    const d = window.wgn.doc();
+    d.pages[1].slug = 'privacy';           // force it past the field, as a project file could
+    const f = await window.wgn.files();
+    const html = String(f['privacy.html'] || '');
+    const row = window.wgn.audit().find(r => r.key === 'errSlugReserved' || r.key === 'errSlugEmpty' || r.key === 'errSlugDup');
+    return { key: row?.key ?? null, ok: row?.ok ?? null, legalLeak: /legal|mentions/i.test(html), len: html.length };
+  `);
+  ok("a document that still holds a reserved name is reported as such",
+     privacySafe.key === "errSlugReserved" && privacySafe.ok === false, JSON.stringify(privacySafe));
+  ok("and the legal text is visibly sitting on top of privacy.html without being called out",
+     privacySafe.legalLeak === true, JSON.stringify(privacySafe));
+
   /* ------------------------- "points somewhere real" has to mean somewhere */
   /*
   * safeHref answers "is this scheme safe to ship", which is not the question the

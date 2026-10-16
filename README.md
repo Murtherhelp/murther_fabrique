@@ -28,8 +28,8 @@ git clone https://github.com/Murtherhelp/murther_fabrique.git
 cd "murther_fabrique/02-website-generator-NEXT"
 
 npm start          # editor at http://localhost:5173/
-npm test          # 136 core checks, no browser needed, no browser needed, no browser needed
-npm run verify     # 427 checks across 8 suites, browsers included
+npm test          # 136 core checks, no browser needed, no browser needed, no browser needed, no browser needed
+npm run verify     # 433 checks across 8 suites, browsers included
 npm run build      # dist/generator.html — one file, opens by double-click
 npm run dist:check # is the .exe actually holding this dist/? skips if not built
 ```
@@ -120,7 +120,7 @@ you control; that `.json` reopens in either generator.
 Being precise about this, because "audited" and "looked at carefully" are not
 the same word.
 
-**Verified by running it.** 427 automated checks across eight suites
+**Verified by running it.** 433 automated checks across eight suites
 (`npm run verify`, exit 0), plus the packaged application's own self-test
 exercising both generators inside the built `.exe`.
 
@@ -210,7 +210,7 @@ murther_fabrique/
 │  └─ index.html             the archived first generator, now wearing the brand
 ├─ 02-website-generator-NEXT/
 │  ├─ src/                   the editor: index.html, app.css, js/*.js
-│  ├─ test/                  8 suites, 427 checks
+│  ├─ test/                  8 suites, 433 checks
 │  ├─ desktop/               the Win32 + WebView2 launcher and its build script
 │  ├─ build.mjs              -> dist/generator.html (the one-file build)
 │  ├─ server.mjs             read-only static server, Node stdlib only

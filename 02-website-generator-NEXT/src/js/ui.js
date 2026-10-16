@@ -18,7 +18,7 @@
 import { t, tf, tr, applyLang, applyScale, initLang, setLang, ui, T } from "./i18n.js";
 import { esc, slugify, uid, safeHref } from "./safe.js";
 import { BLOCKS, BLOCK_ORDER, makeBlock, blockName, blockTypeLabel, bi, T as bT } from "./blocks.js";
-import { build, pagePath, docWarnings, walkI18n } from "./build.js";
+import { build, pagePath, docWarnings, walkI18n, RESERVED } from "./build.js";
 import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "./templates.js";
 import { blankDoc, newPage, normalizeDoc, createHistory, storeSaved, loadStored, readAsset, LIMITS } from "./store.js";
 import { PALETTES, TONES, paletteOf, contrastChecks, sanitizeCss, resolve } from "./themes.js";
@@ -69,13 +69,22 @@ const S = {
 const doc = () => S.history.current;
 const page = (id = S.pageId) => doc().pages.find((p) => p.id === id) || doc().pages[0];
 
-/** Unique file name among the other pages. */
+/** Unique file name among the other pages, and among the ones the generator
+ *  writes for itself. RESERVED is privacy, legal, 404, robots, sitemap, favicon,
+ *  assets, css and js -- build() emits those whatever the user does, so a page
+ *  taking one of those names overwrites the file on export. Naming a page
+ *  "privacy" put the legal text on top of the generated privacy page, and the
+ *  report blamed a duplicate that did not exist. */
 function uniqueSlug(want, exceptId) {
-  const taken = new Set(doc().pages.filter((p) => p.id !== exceptId).map((p) => p.slug));
-  let s = slugify(want) || "page";
-  if (s === "index" && exceptId !== doc().pages[0]?.id) s = "home";
+  const pages = doc().pages;
+  const taken = new Set(pages.filter((p) => p.id !== exceptId).map((p) => p.slug));
+  let base = slugify(want) || "page";
+  if (base === "index" && exceptId !== pages[0]?.id) base = "home";
+  // The first page owns index.html, which is also why "index" stays legal here.
+  const free = (s) => !taken.has(s) && (s === "index" || !RESERVED.has(s));
+  let s = base;
   let i = 2;
-  while (taken.has(s)) s = `${slugify(want) || "page"}-${i++}`;
+  while (!free(s)) s = `${base}-${i++}`;
   return s;
 }
 
@@ -633,8 +642,13 @@ function renderPageFields(p) {
 /** File-name field with a live "how this will be named" hint. */
 function slugControl(p) {
   const isHome = p.id === doc().pages[0]?.id;
+  // Through uniqueSlug, like every other way a slug is set. Typing "privacy"
+  // used to take it verbatim, and the export then wrote the user's page over the
+  // generated privacy page -- that page's content gone, replaced by whatever
+  // came last, with nothing but a duplicate-slug warning nobody could act on.
   const input = textInput(p.slug, (v) => commit(edit((d) => {
-    d.pages.find((x) => x.id === p.id).slug = slugify(v);
+    const target = d.pages.find((x) => x.id === p.id);
+    if (target) target.slug = uniqueSlug(slugify(v), p.id);
   }), { push: false }));
   input.setAttribute("spellcheck", "false");
   if (isHome) input.disabled = true;
@@ -1031,7 +1045,10 @@ function runAudit() {
       dupTitles.length ? [dupTitles[0]] : [], "seoPanel");
 
   const warn = docWarnings(d);
-  add(warn.length === 0, warn.length ? "errSlugDup" : "auSlugOk", warn.length ? [warn[0].args?.[0] || ""] : [], "outline");
+  // docWarnings knows three different problems -- empty, reserved, duplicate. The
+  // row used to name only the third, so a page called "privacy" was reported as
+  // a duplicate and the user went looking for one that was not there.
+  add(warn.length === 0, warn.length ? warn[0].key : "auSlugOk", warn.length ? warn[0].args || [] : [], "outline");
 
   if (d.meta.bilingual) {
     let n = 0;

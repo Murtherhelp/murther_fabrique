@@ -587,6 +587,77 @@ pas cette ligne.
 
 ---
 
+---
+---
+
+## Une page nommée « privacy » disparaissait de l'export (défaut 27)
+
+Le plus grave de la série, et il n'est pas dans le rapport : il est dans le
+**fichier lui-même**.
+
+`build.js` écrit toujours `privacy.html`, `legal.html`, `404.html`, `robots.txt`,
+`sitemap.xml`, `favicon.svg`, `assets/`, `css/` et `js/`, quoi que dise le
+document. `RESERVED` liste ces onze noms — et le champ de renommage, à la
+ligne 646, faisait :
+
+```js
+d.pages.find((x) => x.id === p.id).slug = slugify(v);
+```
+
+**Aucun passage par le garde.** Taper `privacy` dans le champ de nom de fichier —
+trois secondes — et à l'export la page générée passait par-dessus. Le contenu de
+la page de l'utilisateur n'était pas écrasé : il était **absent de l'export**,
+purement et simplement. Le test le vérifie en cherchant un marqueur unique dans
+tous les fichiers produits, et avec le bug il n'est nulle part.
+
+Et le rapport, pendant ce temps, disait `errSlugDup` — « deux pages ne peuvent
+pas partager le nom » — parce que la ligne codait cette clé en dur alors que
+`docWarnings` rend **trois** problèmes distincts : `errSlugEmpty`,
+`errSlugReserved`, `errSlugDup`. Les trois messages existaient déjà dans le
+dictionnaire, traduits, justes. Ils n'étaient jamais appelés.
+
+Deux corrections, deux lignes :
+
+- `uniqueSlug` consulte maintenant `RESERVED`, donc **tous** les chemins qui
+  passent par elle en bénéficient — dont l'ajout de page.
+- le champ de renommage passe par `uniqueSlug(slugify(v), p.id)` au lieu d'y
+  écrire le résultat à la main. Une seule garde, tous les appelants.
+- la ligne du rapport dit `warn[0].key` au lieu de `errSlugDup`.
+
+Le premier `index` reste autorisé, parce que c'est lui qui détient `index.html`.
+
+## Quatre tests que j'ai dû refaire parce qu'ils ne mesurent rien
+
+C'est la partie honnête de ce tour, et elle est longue.
+
+1. **La sonde mesurait la réparation au lieu du défaut.** J'appelais
+   `normalizeDoc` dans la sonde ; `commit()` et `edit()` ne normalisent pas. Le
+   défaut était inatteignable par cette sonde et parfaitement réel dans
+   l'éditeur. Il fallait passer par le champ, pas écrire la propriété.
+2. **Le sélecteur visait le titre.** `/^[a-z0-9-]*$/` matche « Home » aussi bien
+   que « about », donc la saisie partait dans le champ du titre et le slug ne
+   bougeait pas. Le test passait sans rien vérifier — `privacy` devenait `about`
+   dans les huit cas, ce qui est précisément la forme d'un test vide.
+3. **`sameFile` par égalité de chaîne** est trop fragile : le contenu généré
+   varie un peu d'un cas à l'autre.
+4. **`/legal/i` puis `/About/i`** : les deux matchent la **navigation**, présente
+   sur toutes les pages. Une page générée contient toujours un lien vers la page
+   légale et toujours un lien vers « About ». Il a fallu un marqueur qu'aucune
+   page générée ne peut porter.
+
+Le quatrième test est passé **avec le bug présent** pendant deux de ces
+révisions. C'est exactement le piège : un test qui ne mord pas est pire
+qu'un test absent, parce qu'il achète une confiance fausse. Je ne l'ai su que
+parce que la falsification tournait à chaque fois — sans elle, ces quatre
+révisions seraient parties en commit avec un cadenas qui n'accrochait rien.
+
+Puis, une fois le marqueur en place, la surprise : le marqueur n'apparaissait
+**nulle part**. Ce n'est pas la page de confidentialité qui était corrompue, c'est
+la page de l'utilisateur qui était **supprimée du livrable**. C'est ce que le
+test vérifie désormais, et il échoue bien sans le correctif.
+
+---
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :
