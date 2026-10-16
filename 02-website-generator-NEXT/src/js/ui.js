@@ -1074,7 +1074,10 @@ function imgsWithoutAlt(built, d, pageRef, lang) {
   return [...html.matchAll(/<img\b[^>]*>/g)].filter((m) => !/\balt="[^"]+"/.test(m[0]));
 }
 
-/** Count translatable strings with nothing in `lang`. */
+/** Translatable strings that have English but nothing in `lang`.
+    English is the yardstick rather than `lang`, so a field the user only wrote
+    in French does not count as untranslated. Stated plainly because the earlier
+    wording ("nothing in `lang`") promised a stricter check than this performs. */
 function untranslated(v, lang) {
   let n = 0;
   const visit = (x) => {

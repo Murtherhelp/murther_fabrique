@@ -515,6 +515,13 @@ async function main() {
     window.wgn.setBilingual(true);
     const d = window.wgn.doc();
     d.name = { en: 'Iris Studio', fr: 'Studio Iris' };
+    // The same bilingual alt the English archive carries. Without an image on
+    // this page there is nothing to check, and a check that cannot fail is worse
+    // than no check: it reads as coverage.
+    const g = d.pages[0].blocks.find(b => b.type === 'gallery');
+    g.items = [{ image: { assetId: 'a1', alt: { en: 'Cover art', fr: 'Couverture' } }, caption: { en: 'Cover', fr: 'Couverture' } }];
+    d.assets = [{ id: 'a1', name: 'work.png', type: 'image/png',
+      data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' }];
     window.wgn.state.history.reset(d);
     const files = await window.wgn.files();
     const blob = await zip(toEntries(files), new Date(2026, 0, 1));
@@ -533,6 +540,21 @@ async function main() {
   ok("the French page is written in French", /Studio Iris/.test(frIndex));
   ok("the French page links back to English",
      /hreflang="en"/.test(frIndex) && frIndex.includes('href="index.html"'));
+
+  // The alt is a bilingual pair on the document, not a string with an accent on
+  // it. Nothing below asserts that the language actually reaches the rendered
+  // attribute: T(alt, lang) could pass every other test while always returning
+  // the English half, and the French site would quietly describe its images in
+  // the wrong language for a screen reader.
+  const enIndex = frCheck.entry("index.html");
+  // width="800" is the gallery figure (blocks.js renders it at 800x600). Taking
+  // the first <img> on the page instead would read the hero, whose template ships
+  // an empty alt on purpose, and pass or fail for an unrelated reason.
+  const altOf = (html) => (/<img\b[^>]*\bwidth="800"[^>]*>/.exec(html) || ["" ])[0].match(/\balt="([^"]*)"/)?.[1] ?? "(no 800px image)";
+  ok("the English page describes its image in English", altOf(enIndex) === "Cover art", `alt="${altOf(enIndex)}"`);
+  ok("the French page describes the same image in French", altOf(frIndex) === "Couverture", `alt="${altOf(frIndex)}"`);
+  ok("the French page carries no leftover English alt",
+     !/alt="Cover art"/.test(frIndex), "no English alt survives on the French page");
 
   const failed = results.filter((r) => !r.pass);
   console.log(`\n${results.length - failed.length}/${results.length} export checks passed`);
