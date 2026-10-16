@@ -271,8 +271,8 @@ async function main() {
   // produce a page that renders.
   const tg = rendered.toggle || {};
   ok("the exported page ships a visible theme toggle with an accessible name",
-     tg.present === true && tg.visible === true && tg.w > 0 && (tg.name || "").length > 0,
-     tg.present ? `${tg.tag} ${tg.w}x${tg.h}, name="${tg.name}", visible=${tg.visible}` : "no toggle on the page");
+     tg.present === true && tg.visible === true && tg.w > 0 && (tg.name || "").length > 0 && tg.h >= 44 && tg.w >= 44,
+     tg.present ? `${tg.tag} ${tg.w}x${tg.h}, name="${tg.name}", visible=${tg.visible}${tg.h >= 44 ? "" : " -- under the 44px tap target"}` : "no toggle on the page");
   ok("clicking the theme toggle actually switches the page",
      tg.present === true && tg.visible === true && !!tg.after && tg.after !== tg.bg,
      tg.after ? `${tg.bg} -> ${tg.after}` : "not clicked");
@@ -772,7 +772,7 @@ await send("Page.navigate", { url: `http://localhost:${PORT}/${folder}/${page}` 
         }
         return { bare, fixed, stray };
       })(),
-      // Landmarks, headings and names on the generated page. The accessibility
+            // Landmarks, headings and names on the generated page. The accessibility
       // suite drives the EDITOR; nothing until now had checked the artefact the
       // editor produces, which is the half a visitor actually sees.
       a11y: (() => {

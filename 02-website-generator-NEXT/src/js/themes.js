@@ -471,6 +471,14 @@ font:inherit;font-weight:600;cursor:pointer;min-height:44px}
 .grid--4{grid-template-columns:repeat(auto-fit,minmax(min(100%,12.5rem),1fr))}
 .hero{display:grid;gap:clamp(1.5rem,4vw,3rem);align-items:center}
 @media (min-width:56rem){.hero{grid-template-columns:1.05fr .95fr}}
+/* The theme toggle is a sibling of .langpick, not a child, so it never picked
+   up those pill styles -- it rendered as an unstyled native button, 33x31 with
+   the platform font, in a header where everything else is a styled control.
+   Its whole content is one glyph, so nothing tells a finger it is tappable. */
+.theme-toggle{font:inherit;font-size:var(--step--1);line-height:1;color:var(--muted);background:none;
+border:1px solid var(--border);border-radius:999px;min-width:44px;min-height:44px;cursor:pointer;
+display:inline-flex;align-items:center;justify-content:center;padding:.4rem .5rem}
+.theme-toggle:hover{color:var(--ink);border-color:var(--ink)}
 .hero__title{font-size:var(--step-3);margin-bottom:.35em}
 .hero__media img{border-radius:var(--radius);border:1px solid var(--border)}
 .stats{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))}
