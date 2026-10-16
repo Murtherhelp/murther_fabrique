@@ -251,6 +251,19 @@ async function main() {
   ok("the exported typography is applied", (rendered.h1Size || 0) > 20, `h1 = ${rendered.h1Size}px`);
   ok("the exported page has a real heading", (rendered.h1 || "").length > 8, `"${rendered.h1}"`);
   ok("the exported page's nav links exist", rendered.navLinks > 0, `${rendered.navLinks} links`);
+
+  // The generated site is the product. Its own script has to work, not merely
+  // produce a page that renders.
+  const tg = rendered.toggle || {};
+  ok("the exported page ships a visible theme toggle with an accessible name",
+     tg.present === true && tg.visible === true && tg.w > 0 && (tg.name || "").length > 0,
+     tg.present ? `${tg.tag} ${tg.w}x${tg.h}, name="${tg.name}", visible=${tg.visible}` : "no toggle on the page");
+  ok("clicking the theme toggle actually switches the page",
+     tg.present === true && tg.visible === true && !!tg.after && tg.after !== tg.bg,
+     tg.after ? `${tg.bg} -> ${tg.after}` : "not clicked");
+  ok("and it switches back, leaving the page as it was found",
+     tg.after && tg.restored === tg.bg,
+     tg.restored ? `${tg.after} -> ${tg.restored}` : "no return trip");
   ok("the image in the exported page loads over HTTP",
      rendered.imgLoaded === true, `naturalWidth=${rendered.naturalWidth}`);
   ok("the exported page loads no external resource",
@@ -704,7 +717,9 @@ async function renderExported(zipRead, scheme = null, page = "index.html", media
       external: performance.getEntriesByType('resource')
         .filter(r => !r.name.startsWith(location.origin) && !r.name.startsWith('data:') && !r.name.startsWith('blob:')).length,
       styleSheets: document.styleSheets.length,
-      scriptsRan: typeof document.querySelector('[data-theme-toggle]') !== 'undefined',
+      // typeof on a querySelector result can never be 'undefined', so the old
+      // wording asserted nothing at all: it was true on every page ever rendered.
+      scriptsRan: !!document.querySelector('[data-theme-toggle]'),
       // Everything a reader would actually see: no element left at the start
       // of an entrance animation, nothing transparent, nothing off-screen. A
       // printed page is the case where animations never run.
@@ -880,8 +895,47 @@ async function renderExported(zipRead, scheme = null, page = "index.html", media
       }
       return { worst: n?worst:null, sampled:n, first:first, detail:colour };
     })()`, "whole");
+
+    // Every site this generator produces ships js/site.js, and nothing above
+    // operated it: the probes read the rendered page, they never clicked it. A
+    // theme toggle that does nothing is invisible to a contrast measurement and
+    // to a screenshot, and it is a control on every generated site.
+    const toggleProbe = await ask(`(function(){
+      var b = document.querySelector('[data-theme-toggle]');
+      if (!b) return JSON.stringify({ present: false });
+      var box = b.getBoundingClientRect(), cs = getComputedStyle(b);
+      return JSON.stringify({ present: true, tag: b.tagName,
+        name: (b.getAttribute('aria-label') || b.textContent || '').trim(),
+        x: Math.round(box.left + box.width / 2), y: Math.round(box.top + box.height / 2),
+        w: Math.round(box.width), h: Math.round(box.height),
+        visible: cs.display !== 'none' && cs.visibility !== 'hidden' && box.width > 0 && box.height > 0,
+        bg: getComputedStyle(document.body).backgroundColor });
+    })()`, "toggle");
+    const toggle = JSON.parse(toggleProbe || "{}");
+    if (toggle.present && toggle.visible) {
+      // A real press and release at the control's own centre rather than
+      // element.click(), which also proves nothing is painted on top of it.
+      await send("Input.dispatchMouseEvent", { type: "mousePressed", x: toggle.x, y: toggle.y, button: "left", clickCount: 1 }, sid);
+      await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: toggle.x, y: toggle.y, button: "left", clickCount: 1 }, sid);
+      await new Promise((done) => setTimeout(done, 250));
+      toggle.after = await ask("getComputedStyle(document.body).backgroundColor", "toggle-after");
+      // Click it back. The contrast scans that follow measure the page in the
+      // scheme this run pinned, and a probe that leaves the page switched makes
+      // every one of them read a pairing that was never asked about.
+      await send("Input.dispatchMouseEvent", { type: "mousePressed", x: toggle.x, y: toggle.y, button: "left", clickCount: 1 }, sid);
+      await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: toggle.x, y: toggle.y, button: "left", clickCount: 1 }, sid);
+      await new Promise((done) => setTimeout(done, 250));
+      toggle.restored = await ask("getComputedStyle(document.body).backgroundColor", "toggle-restored");
+      // The generated site remembers the reader's choice, which is the point of
+      // a toggle. A probe that clicks twice has therefore written a preference
+      // that the next render inherits: the light pass came back dark because the
+      // dark pass had just been stored. Clear it, so each render starts from the
+      // state the suite pins rather than the state the previous probe left.
+      await ask("localStorage.clear(), 1", "toggle-clear");
+    }
+
     await send("Target.closeTarget", { targetId });
-    return Object.assign(JSON.parse(info || "{}"), { page: whole });
+    return Object.assign(JSON.parse(info || "{}"), { page: whole, toggle });
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
