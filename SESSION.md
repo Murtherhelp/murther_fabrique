@@ -176,6 +176,29 @@ mesure.
 
 ---
 
+## Les limites, et le silence autour d'elles
+
+`store.js` borne le document : 40 pages, 60 blocs par page, 60 entrées par
+liste, 16 images. Ces bornes sont justes — elles empêchent l'éditeur de
+s'enliser sur un document absurde.
+
+Ce qui ne l'était pas : elles s'appliquaient avec `slice()` et **sans rien
+dire**. Un projet de 45 pages s'ouvrait avec 40 pages, aucune alerte. Le canal
+d'avertissement existait déjà et servait déjà pour les images trop grosses.
+
+Trois troncures silencieuses, une par limite, plus un cas où la racine de la
+liste ne transmettait même pas le tableau d'avertissements jusqu'au champ
+répété — ce qui explique pourquoi la troisième a résisté à la première
+tentative.
+
+La limite reste. Ce qui change : le produit dit maintenant combien il a laissé
+derrière lui. Un fichier qui perd des pages à chaque ouverture, sans un mot,
+est pire qu'un fichier refusé.
+
+Le test vérifie aussi qu'un projet ordinaire **ne crie pas au loup**.
+
+---
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :
