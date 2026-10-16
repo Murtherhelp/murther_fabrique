@@ -447,11 +447,19 @@ function imageInput(spec) {
         for (const pg of d.pages) for (const b of pg.blocks) applyAsset(b, a.id, spec.assetId);
       }));
     } catch (err) {
-      const m = String(err.message || "");
-      if (m.startsWith("img-too-big")) {
-        const [, got, max] = m.split(":");
-        say(tf("imageTooBig", human(got), human(max)), "ko");
-      } else say(t("errBadJson"), "ko");
+const m = String(err.message || "");
+          // Three ways readAsset refuses a file, and they are not the same
+          // problem. Only the size one was handled; the other two fell through
+          // to the JSON message, so picking a .txt got told the JSON was
+          // invalid -- about a file the user had just chosen as an image.
+          if (m.startsWith("img-too-big")) {
+            const [, got, max] = m.split(":");
+            say(tf("imageTooBig", human(got), human(max)), "ko");
+          } else if (m === "img-type") {
+            say(t("imageWrongType"), "ko");
+          } else if (m === "img-unreadable") {
+            say(t("imageUnreadable"), "ko");
+          } else say(t("errBadJson"), "ko");
     }
     file.value = "";
   });

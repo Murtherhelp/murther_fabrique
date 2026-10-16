@@ -123,6 +123,8 @@ export const T = {
   imageNone: ["No image", "Aucune image"],
   imageAltLabel: ["Alternative text (required)", "Texte alternatif (obligatoire)"],
   imageTooBig: ["Image rejected: %s. Limit is %s per image.", "Image refusée : %s. La limite est de %s par image."],
+  imageWrongType: ["That file is not a PNG, JPEG, GIF, WebP, AVIF or SVG image.", "Ce fichier n'est pas une image PNG, JPEG, GIF, WebP, AVIF ou SVG."],
+  imageUnreadable: ["That image could not be read. Try re-saving it.", "Cette image n'a pas pu être lue. Essayez de l'enregistrer à nouveau."],
 
   /* --- design --- */
   paletteLabel: ["Colour set", "Jeu de couleurs"],

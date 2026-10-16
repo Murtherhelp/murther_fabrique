@@ -19,7 +19,7 @@ import { ICON_KEYS, icon } from "../src/js/icons.js";
 import { build, pagePath, docWarnings, FORMAT, SITE_JS, walkI18n } from "../src/js/build.js";
 import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "../src/js/templates.js";
 import { PRESETS, PRESET_FOR } from "../src/js/presets.js";
-import { blankDoc, normalizeDoc, createHistory, LIMITS } from "../src/js/store.js";
+import { blankDoc, normalizeDoc, createHistory, LIMITS, readAsset } from "../src/js/store.js";
 import { crc32, decodeDataUri, toEntries, zip } from "../src/js/zip.js";
 
 const doc = (key) => normalizeDoc(fromTemplate(key)).doc;
@@ -1700,4 +1700,64 @@ test("text cut at the character limit is named, not just shortened", () => {
   const withLongCompany = normalizeDoc({ ...base, company: "C".repeat(400), pages: base.pages });
   assert.deepEqual(withLongCompany.warnings, [],
     `a 400-character company name should not warn: ${JSON.stringify(withLongCompany.warnings)}`);
+});
+
+test("readAsset refuses three different problems, and says which", async () => {
+  // The editor branches on these codes. Before, only one of the three was
+  // handled and the other two fell through to the message about invalid JSON --
+  // so picking a .txt as an image told the user their JSON was malformed.
+  const realReader = globalThis.FileReader;
+  globalThis.FileReader = class {
+    readAsDataURL(file) {
+      queueMicrotask(() => {
+        if (file.__unreadable) return this.onerror && this.onerror();
+        this.result = file.__dataUrl || "";
+        this.onload && this.onload();
+      });
+    }
+  };
+  try {
+    const tooBig = { size: LIMITS.imageBytes + 1, name: "big.png" };
+    const notAnImage = { size: 10, name: "notes.txt", __dataUrl: "data:text/plain;base64,aGk=" };
+    const broken = { size: 10, name: "half.png", __unreadable: true };
+    const good = {
+      size: 10, name: "photo.png",
+      __dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+    };
+
+    const codeOf = async (file) => {
+      try { await readAsset(file); return "ACCEPTED"; }
+      catch (e) { return String(e.message || "").split(":")[0]; }
+    };
+
+    assert.equal(await codeOf(tooBig), "img-too-big");
+    assert.equal(await codeOf(notAnImage), "img-type");
+    assert.equal(await codeOf(broken), "img-unreadable");
+    // Distinct codes: the editor can only say the right thing if they differ.
+    const codes = await Promise.all([tooBig, notAnImage, broken].map(codeOf));
+    assert.equal(new Set(codes).size, 3, `the refusals are not distinguishable: ${codes.join(", ")}`);
+
+    const accepted = await readAsset(good);
+    assert.match(accepted.data, /^data:image\/png;base64,/, "a real image still comes through");
+    assert.match(accepted.name, /\.png$/, "and keeps a sane extension");
+  } finally {
+    if (realReader === undefined) delete globalThis.FileReader;
+    else globalThis.FileReader = realReader;
+  }
+});
+
+test("the editor routes each refusal to its own message, not to the JSON one", () => {
+  // A wiring check, not a behavioural one: the three codes are distinct, but
+  // nothing stopped the editor from sending two of them to the same sentence --
+  // which is exactly what it did, answering "that JSON is invalid" to someone who
+  // had just picked an image. Driving the real file input needs a browser and a
+  // FileReader; this asserts the branch exists, which is the regression.
+  const src = readFileSync(new URL("../src/js/ui.js", import.meta.url), "utf8");
+  for (const code of ["img-too-big", "img-type", "img-unreadable"]) {
+    assert.ok(src.includes(`"${code}"`), `${code} has no branch of its own in the editor`);
+  }
+  // And the three sentences they reach must exist in both languages.
+  for (const key of ["imageTooBig", "imageWrongType", "imageUnreadable"]) {
+    assert.ok(src.includes(`"${key}"`), `${key} is never used`);
+  }
 });
