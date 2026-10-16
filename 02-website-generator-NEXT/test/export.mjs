@@ -40,6 +40,9 @@ let ws = null;
 let nextId = 1;
 const pending = new Map();
 const results = [];
+// Console errors and uncaught exceptions, per CDP session. The exported-page
+// probe clears this before it navigates and reports what arrived after.
+const pageProblems = [];
 let stopped = false;
 
 function stop() {
@@ -117,6 +120,18 @@ async function main() {
       if (m.error) entry.reject(new Error(`${entry.method}: ${m.error.message}`));
       else if (!("result" in m)) entry.reject(new Error(`${entry.method}: no result`));
       else entry.resolve(m.result);
+      return;
+    }
+    // Whatever a page logs or throws, attributed to the session it came from.
+    // This connection is shared: the editor and each exported page are separate
+    // targets, so an unfiltered catch would blame one page for another's noise.
+    // Until now nothing listened at all, which meant an exception thrown by the
+    // site.js shipped on every generated site passed this suite in silence.
+    if (m.method === "Runtime.exceptionThrown") {
+      const where = m.sessionId || "?";
+      pageProblems.push(`${where}: ${m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text}`);
+    } else if (m.method === "Runtime.consoleAPICalled" && m.params.type === "error") {
+      pageProblems.push(`${m.sessionId || "?"}: ${m.params.args.map((a) => a.value ?? a.description ?? "").join(" ")}`);
     }
   };
 
@@ -264,6 +279,10 @@ async function main() {
   ok("and it switches back, leaving the page as it was found",
      tg.after && tg.restored === tg.bg,
      tg.restored ? `${tg.after} -> ${tg.restored}` : "no return trip");
+  const probs = rendered.problems || [];
+  ok("the generated site logs no error and throws nothing while it runs",
+     probs.length === 0,
+     probs.slice(0, 2).join(" | ") || "console clean, no exception");
   ok("the image in the exported page loads over HTTP",
      rendered.imgLoaded === true, `naturalWidth=${rendered.naturalWidth}`);
   ok("the exported page loads no external resource",
@@ -686,7 +705,8 @@ async function renderExported(zipRead, scheme = null, page = "index.html", media
     // pages in a row; a fixed 1200 ms is enough on a quiet machine and not
     // enough on a busy one, and a page measured before its stylesheet landed
     // reports zero sections - which reads as a design failure.
-    await send("Page.navigate", { url: `http://localhost:${PORT}/${folder}/${page}` }, sid);
+    pageProblems.length = 0;
+await send("Page.navigate", { url: `http://localhost:${PORT}/${folder}/${page}` }, sid);
     await send("Page.bringToFront", {}, sid);
     let ready = false;
     for (let i = 0; i < 80 && !ready; i++) {
@@ -934,8 +954,8 @@ async function renderExported(zipRead, scheme = null, page = "index.html", media
       await ask("localStorage.clear(), 1", "toggle-clear");
     }
 
-    await send("Target.closeTarget", { targetId });
-    return Object.assign(JSON.parse(info || "{}"), { page: whole, toggle });
+await send("Target.closeTarget", { targetId });
+return Object.assign(JSON.parse(info || "{}"), { page: whole, toggle, problems: pageProblems.slice() });
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
