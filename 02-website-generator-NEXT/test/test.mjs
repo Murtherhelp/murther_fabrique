@@ -1493,3 +1493,59 @@ test("a block whose items were all deleted renders nothing at all", () => {
   }
   assert.deepEqual(dangling, [], "an empty section must not leave its heading behind");
 });
+
+/**
+ * A generator is only a generator if the file it hands over survives what the
+ * person using it types. safe.js has its own unit tests; this one asks the
+ * only question that matters -- what is actually in the bytes, after
+ * everything is assembled, with a script in the site name and an onerror in an
+ * image caption. Every check here is about the artefact, never the function.
+ */
+test("the exported file survives what the user typed into it", () => {
+  let seq = 0;
+  const mkId = () => `h${(seq++).toString(36)}`;
+
+  /** The same document twice: once with harmless prose, once with a payload. */
+  const buildWith = (name, title, body) => build({
+    format: FORMAT,
+    name: bi(name, ""), description: bi("", ""), baseUrl: "https://example.com",
+    meta: { lang: "en", bilingual: false, noindex: true },
+    theme: { ...blankDoc().theme },
+    company: "<script>alert('company')</script>", address: "1 <b>street</b>",
+    email: "", host: "", jsonLdType: "Organization", assets: [],
+    pages: [{
+      id: "p1", slug: "index", title: bi(title, ""), menu: bi(title, ""),
+      desc: bi("", ""), inMenu: true,
+      blocks: [
+        { ...makeBlock("text", mkId, mkId), title: bi(title, ""), body: bi(body, "") },
+        { ...makeBlock("hero", mkId, mkId), title: bi("x".repeat(4000), ""), lead: bi("", "") },
+      ],
+    }],
+  }).files;
+
+  const clean = buildWith("A studio", "Quiet page", "# Heading\n\nJust prose.");
+  const hostile = buildWith(
+    "<script>alert('name')</script>", "<script>alert('title')</script>",
+    "<script>alert('body')</script>\n\n[bare](javascript:alert(5)) and <b onclick='x()'>raw</b> html.");
+
+  const count = (html, re) => (html.match(re) || []).length;
+  // One invariant covers all three ways in: a script tag, an on*= handler and a
+  // stray <b> are all extra *elements*. Counting on*= instead would read the
+  // safely escaped "&lt;b onclick=&#39;" and call correct escaping a failure.
+  const TAGS = /<[a-zA-Z][a-zA-Z0-9-]*/g;
+
+  for (const [rel, html] of Object.entries(hostile)) {
+    if (typeof html !== "string" || !rel.endsWith(".html")) continue;
+    // Counted, not filtered. An earlier version stripped every <script> to keep
+    // the product's own, which silently deleted the injected one too -- and the
+    // test passed with the escaping turned off.
+    assert.equal(count(html, /<script/gi), count(clean[rel] ?? "", /<script/gi),
+      `${rel}: user content added a script element`);
+    assert.equal(count(html, TAGS), count(clean[rel] ?? "", TAGS),
+      `${rel}: user content added ${count(html, TAGS) - count(clean[rel] ?? "", TAGS)} HTML element(s)`);
+    assert.doesNotMatch(html, /<b>street<\/b>/i, `${rel}: the company address became markup`);
+    assert.doesNotMatch(html, /href\s*=\s*["']?\s*javascript:/i, `${rel}: a javascript: URL is linkable`);
+  }
+  assert.match(hostile["index.html"], /&lt;script&gt;/,
+    "the user's script text should still be readable as text, not silently dropped");
+});
