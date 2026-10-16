@@ -427,7 +427,12 @@ the next, 1239px away, at 1280px wide. */
   border: 1px solid var(--line); background: #fff;
 }
 .field__row { display: flex; gap: .3rem; flex-wrap: wrap }
-.field__group { border: 0; padding: 0; margin: 0; display: grid; gap: .5rem }
+/* A fieldset defaults to min-inline-size: min-content, so one repeater's
+   nowrap buttons held the whole inspector 67px wider than its pane: every
+   input stuck out, the panel gained a permanent sideways scrollbar, and the
+   last button in the row was cut off. Same defect as min-width:0 on a flex
+   item, one element deeper. */
+.field__group { border: 0; padding: 0; margin: 0; display: grid; gap: .5rem; min-inline-size: 0 }
 .field .hint { color: var(--faint); font-size: var(--t-xs); line-height: 1.5 }
 
 /* `margin: 0` clears the user-agent margin on a range input, which otherwise
@@ -483,7 +488,7 @@ the next, 1239px away, at 1280px wide. */
   border: 1px solid var(--line); border-radius: 10px; padding: .7em .8em;
   margin: .5em 0; display: grid; gap: .5em; background: var(--panel);
 }
-.item__head { display: flex; align-items: center; gap: .3rem }
+.item__head { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap }
 .item__head b { flex: 1; font-size: var(--t-2xs); color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .07em }
 
 /* ------------------------------------------------------------------ preview */

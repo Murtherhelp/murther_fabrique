@@ -563,27 +563,38 @@ ok("every topbar label shares a wrapper with the control it names",
   pair.length === 0, pair.length ? pair.join("; ") : "no pair can be split by a wrap");
 
 /* ------------------------------------------- nothing overflows sideways */
-  const ovf = await tryEval(`
-    window.wgn.applyTemplate('business');
-    await new Promise(r => setTimeout(r, 200));
-    const pane = document.getElementById('outline');
-    const bad = [];
-    for (const n of document.querySelectorAll('#outline *, #inspect *')) {
-      const cs = getComputedStyle(n);
-      if (cs.display === 'none' || n.closest('.sr') || cs.overflowX === 'auto' || cs.overflowX === 'scroll') continue;
-      // A label with text-overflow:ellipsis is SUPPOSED to have scrollWidth >
-      // clientWidth — that is the ellipsis. Flagging it would report the fix as
-      // the bug, so only unhandled overflow counts.
-      if (cs.textOverflow === 'ellipsis' || cs.overflowX === 'hidden') continue;
-      if (n.clientWidth > 0 && n.scrollWidth > n.clientWidth + 1) {
-        bad.push((n.tagName + '.' + (n.className||'').split(' ')[0]) + ' ' + n.clientWidth + '<' + n.scrollWidth);
-      }
-    }
-    return { paneScroll: pane.scrollWidth, paneClient: pane.clientWidth, bad: bad.slice(0, 5), n: bad.length };
-  `);
-  ok("no panel scrolls sideways at desktop width",
-     ovf.n === 0 && ovf.paneScroll <= ovf.paneClient + 1,
-     `pane ${ovf.paneScroll}/${ovf.paneClient}${ovf.n ? ' :: ' + ovf.bad.join(' | ') : ''}`);
+const ovf = await tryEval(`
+window.wgn.applyTemplate('business');
+await new Promise(r => setTimeout(r, 200));
+// A pane with nothing selected never grows: the widest thing in the inspector
+// is a repeater's button row, so one has to be on screen before this means
+// anything. The check used to measure #outline only, which is why the content
+// pane could sit 56px too wide for months behind a passing test.
+const rows = [...document.querySelectorAll('#outline li, #outline .row, #outline [data-block]')];
+const withItems = rows.find(r => /frequently asked|case studies|what we do/i.test(r.textContent));
+if (withItems) withItems.click();
+await new Promise(r => setTimeout(r, 250));
+const panes = ['outline', 'inspect'].map(id => {
+  const p = document.getElementById(id);
+  return { id, scroll: p.scrollWidth, client: p.clientWidth };
+});
+const bad = [];
+for (const n of document.querySelectorAll('#outline *, #inspect *')) {
+  const cs = getComputedStyle(n);
+  if (cs.display === 'none' || n.closest('.sr') || cs.overflowX === 'auto' || cs.overflowX === 'scroll') continue;
+  // A label with text-overflow:ellipsis is SUPPOSED to have scrollWidth >
+  // clientWidth - that is the ellipsis. Flagging it would report the fix as
+  // the bug, so only unhandled overflow counts.
+  if (cs.textOverflow === 'ellipsis' || cs.overflowX === 'hidden') continue;
+  if (n.clientWidth > 0 && n.scrollWidth > n.clientWidth + 1) {
+    bad.push((n.tagName + '.' + (n.className||'').split(' ')[0]) + ' ' + n.clientWidth + '<' + n.scrollWidth);
+  }
+}
+return { panes, bad: bad.slice(0, 5), n: bad.length };
+`);
+ok("no panel scrolls sideways at desktop width",
+  ovf.n === 0 && ovf.panes.every((p) => p.scroll <= p.client + 1),
+  ovf.panes.map((p) => `${p.id} ${p.scroll}/${p.client}`).join(", ") + (ovf.n ? ' :: ' + ovf.bad.join(' | ') : ''));
   ok("a long section name is ellipsised, not cut off",
      await tryEval(`
        const l = document.querySelector('.node__label');
