@@ -395,6 +395,11 @@ fails on any of them. ORIGINAL exposes no `window.wgn`, so it is verified throug
 that hook rather than through NEXT's own API. The transcript lands in
 `%LOCALAPPDATA%\MurtherFabrique\selftest.txt`.
 
+It also reports the native window's client area (`native window: client 1424 x 861`).
+Every other measurement there is taken inside the WebView, so a window created but
+never shown would still report a healthy page; that one line rules the black-window
+failure out with a number. Below 320x240 the self-test fails with exit code 5.
+
 Building it needs the MSVC build tools (*Desktop development with C++*) and the
 Windows SDK; it fetches one pinned NuGet package into `desktop/.cache/` the
 first time. See the [root README](../README.md) for the details.

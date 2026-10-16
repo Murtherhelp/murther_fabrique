@@ -470,6 +470,26 @@ void StartProbe() {
                       } else if (gPhase == 0) {
                         NextPhase();
                       } else {
+                        // The page cannot see the window it sits in. Every other
+                        // check here is measured inside the WebView, so a window
+                        // that was created and never shown, or shown with no
+                        // client area, still reports a perfectly healthy page --
+                        // which is the exact failure the resize comment above
+                        // describes. On a real machine this line is the evidence.
+                        RECT rc = {};
+                        IsWindowVisible(gWindow);
+                        GetClientRect(gWindow, &rc);
+                        const int cw = rc.right - rc.left;
+                        const int ch = rc.bottom - rc.top;
+                        wchar_t note[160];
+                        swprintf_s(note, L"  native window: client %d x %d", cw, ch);
+                        Say(note);
+                        if (cw < 320 || ch < 240) {
+                          Say(L"MURTHER FABRIQUE FAILED: the native window has no usable size.");
+                          gExit = 5;
+                          CloseSoon();
+                          return S_OK;
+                        }
                         gExit = 0;
                         Say(L"MURTHER FABRIQUE -- both generators OK");
                         CloseSoon();
