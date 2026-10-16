@@ -672,6 +672,43 @@ ok("no panel scrolls sideways at desktop width",
   ok("DEPLOY.txt keeps the hosting names in both languages",
      deployLang.enHost && deployLang.frHost);
 
+  /* ---------------------- the note and the headers file must not drift apart */
+  /*
+  * DEPLOY.txt travels with every export and tells the user which headers the
+  * _headers file next to it applies. It named HSTS while _headers carried no
+  * Strict-Transport-Security at all: the note was reassuring the user about a
+  * header that was never written, and it ships to every site the user deploys.
+  */
+  const headerTruth = await tryEval(`
+    const f = await window.wgn.files();
+    const note = String(f['DEPLOY.txt'] || '');
+    const headers = String(f['_headers'] || '');
+    const NAMED = [
+      [/CSP|Content-Security-Policy/i, 'Content-Security-Policy'],
+      [/HSTS/i, 'Strict-Transport-Security'],
+      [/nosniff/i, 'X-Content-Type-Options'],
+      [/Referrer-Policy/i, 'Referrer-Policy'],
+      [/Permissions-Policy/i, 'Permissions-Policy'],
+    ];
+    const missing = NAMED.filter(([re, header]) => re.test(note) && !headers.includes(header))
+      .map(([, header]) => header);
+    return {
+      noteLen: note.length,
+      headersLen: headers.length,
+      missing,
+      hsts: /^\\s*Strict-Transport-Security: max-age=\\d+$/m.test(headers),
+      subdomains: /includeSubDomains/i.test(headers),
+    };
+  `);
+  ok("every header DEPLOY.txt names is in the _headers file beside it",
+     headerTruth.noteLen > 400 && headerTruth.headersLen > 80 &&
+     headerTruth.missing.length === 0,
+     headerTruth.missing.length ? "promised but absent: " + headerTruth.missing.join(", ")
+                                : JSON.stringify(headerTruth));
+  ok("the promised HSTS carries a max-age and strands no sibling host",
+     headerTruth.hsts && headerTruth.subdomains === false,
+     JSON.stringify(headerTruth));
+
   /* ------------------------ the "save into a folder" message is translated */
   const folderMsg = await tryEval(`
     window.wgn.setLang('en');

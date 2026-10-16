@@ -79,7 +79,7 @@ dessous. Chaque capture montrait bien *une* page — il fallait mesurer.
 
 ## Ce que mes instruments ont dit faux
 
-Sept fois. C'est la partie du travail que je ne朝天reuse pas sans écrire.
+Sept fois. C'est la partie du travail que je ne reutilise pas sans écrire.
 
 | L'instrument | Ce qu'il a dit | La vérité |
 |---|---|---|
@@ -317,6 +317,67 @@ et je les ai additionnés de travers deux fois : « 407 » quand la somme faisai
 406, puis « 409 » quand elle en faisait 408. Les compteurs des README étaient
 faux à chaque palier et je ne les avais pas vérifiés. Un total affiché n'est
 une preuve que si on l'additionne.
+
+---
+
+---
+---
+
+## La note de déploiement promettait un en-tête qui n'existait pas (défaut 23)
+
+Les `catch` sont propres : aucun n'accuse la machine à tort. Je suis passé aux
+promesses qui **livrent avec le site**.
+
+`DEPLOY.txt` voyage dans chaque export et dit, en anglais comme en français :
+
+> `"_headers" is read by both and applies the CSP and HSTS headers.`
+
+Le `_headers` réellement produit portait `X-Content-Type-Options`,
+`Referrer-Policy`, `Permissions-Policy` et le CSP. **Pas de
+`Strict-Transport-Security`.** Aucun `grep` n'en trouvait dans tout le dépôt.
+
+C'est le pire endroit possible pour une promesse fausse : elle ne rassure pas
+l'utilisateur dans l'éditeur, elle est écrite dans le dossier qu'il va pousser en
+ligne, et il ne peut la voir qu'après coup — s'il la lit.
+
+J'ai livré l'en-tête plutôt que d'affaiblir la phrase : un site statique chez
+Netlify ou Cloudflare Pages est servi en HTTPS, HSTS n'a rien à y casser. Sans
+`includeSubDomains` volontairement : un sous-domaine voisin sans TLS deviendrait
+injoignable, et le produit ne doit pas casser ça chez quelqu'un d'autre.
+
+Le test compare les en-têtes **nommés dans la note** à ceux **présents dans le
+fichier posé à côté**, sur les neuf templates. Il échoue aussi dans l'autre sens :
+si la note cesse de nommer quoi que ce soit, le test se plaint, parce que sinon il
+ne vérifierait plus rien.
+
+Trois erreurs à moi dans ce tour, toutes du même genre — le test qui ment :
+
+1. Je l'ai d'abord écrit dans `test.mjs` contre `build(doc).files`, alors que
+   `DEPLOY.txt` est produit par `exportFiles` dans `ui.js`. Il ne le voyait
+   jamais et échouait sur « DEPLOY.txt is missing ». Test déplacé dans la suite
+   navigateur, qui a accès au vrai `window.wgn.files()`.
+2. Mon regex exigeait l'en-tête en début de ligne ; ils sont indentés dans le
+   template. `\s*` manquant.
+3. Le pire : dans un template literal, `\s` **n'est pas un échappement reconnu** et
+   devient le caractère `s`. Il fallait `\\s`. Le test « passait » avec une
+   regex qui ne pouvait rien voir.
+
+Leçon, qui vaut pour tout le dépôt : **un `\s` ou un `\\s` faux dans une chaîne
+de test ne fait pas échouer le test, il le rend aveugle.**
+
+## Dérive des compteurs, encore
+
+Mes remplacements enchaînés avaient transformé la ligne
+
+```
+npm test          # 133 core checks, no browser needed
+```
+
+en `npm test # 127 128 130 131 133 core checks` : chaque palier avait empilé son
+ancien nombre. Et le tableau des suites annonçait encore 100 contrôles navigateur
+après les deux nouveaux. Les deux sont remis à plat. La suite des nombres
+répétés dans les README est un marqueur de génération automatique à ne pas
+imiter.
 
 ---
 

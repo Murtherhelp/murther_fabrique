@@ -266,12 +266,17 @@ ${urls.join("\n")}
 
   /* Security headers for Netlify / Cloudflare Pages. Ignored elsewhere, never a
      third-party request. A plain `file://` or Apache host does not read this
-     file — the README says so rather than implying the site is hardened there. */
+     file — the README says so rather than implying the site is hardened there.
+     DEPLOY.txt tells the user which of these it ships, and it is the reason HSTS
+     is here: the note named it, so either the header goes or the note goes, and
+     a static host over HTTPS can only benefit from the header being real. No
+     includeSubDomains — a sibling host without TLS would then be unreachable. */
   files["_headers"] = `/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
   Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self' mailto:; base-uri 'self'; frame-ancestors 'none'
+  Strict-Transport-Security: max-age=31536000
 `;
 
   /* Assets are stored as data URIs so the project stays one self-contained file.

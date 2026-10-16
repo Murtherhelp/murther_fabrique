@@ -69,7 +69,7 @@ tests still import `src/js/*.js` directly. **`dist/generator.html` is generated
 ## Test it
 
 ```bash
-npm test          # 127 128 130 131 133 core checks, no browser needed
+npm test          # 133 core checks, no browser needed
 npm run dist:check # does the .exe hold this dist? skips if not built
 npm run verify    # everything: core + 7 more suites, starting its own servers
 ```
@@ -353,7 +353,7 @@ MURTHER FABRIQUE — website generator/
 ├─ dist/                  generated: generator.html
 └─ test/
 ├─ test.mjs          128 core checks (node --test)
-   ├─ browser.mjs          100 end-to-end editor checks
+   ├─ browser.mjs          102 end-to-end editor checks
    ├─ a11y.mjs             34 accessibility checks
    ├─ i18n.mjs            12 language and persistence checks
    ├─ export.mjs          97 export checks (real ZIP, real HTTP, real render)
