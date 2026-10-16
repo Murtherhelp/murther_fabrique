@@ -32,6 +32,7 @@
 #include <shlobj.h>
 #include <wrl.h>
 #include <string>
+#include <vector>
 
 #include <WebView2.h>
 
@@ -174,9 +175,37 @@ std::wstring UnpackApp(int resourceId, const wchar_t* leaf) {
   if (!data || !size) return {};
 
   const std::wstring dir = ProfileDir(leaf);
-  const std::wstring path = dir + L"\\generator-" + Fingerprint(data, size) + L".html";
+  const std::wstring want = Fingerprint(data, size);
+  const std::wstring path = dir + L"\\generator-" + want + L".html";
 
-  if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES) {
+  // The file name carries the fingerprint, but a name is a claim, not a check.
+  //
+  // Testing only that the file exists meant anything that touched those bytes
+  // was trusted forever after: a write cut short by a full disk, an antivirus
+  // quarantine that restored a truncated copy, a stray edit. The name still
+  // matched, so the launcher kept running whatever was there instead of the
+  // application it shipped. Measured on this build: an equal-length edit
+  // survived a run and the launcher reported itself healthy.
+  //
+  // Re-hashing 300 KB at start-up costs nothing and turns the name back into
+  // the check the comment above it always claimed to be.
+  bool rewrite = (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES);
+  if (!rewrite) {
+    HANDLE h = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) {
+      rewrite = true;
+    } else {
+      const DWORD onDisk = GetFileSize(h, nullptr);
+      std::vector<BYTE> buf(onDisk);
+      DWORD got = 0;
+      const BOOL read = onDisk && ReadFile(h, buf.data(), onDisk, &got, nullptr);
+      CloseHandle(h);
+      rewrite = !(read && got == onDisk && Fingerprint(buf.data(), onDisk) == want);
+    }
+  }
+
+  if (rewrite) {
     const std::wstring tmp = path + L".part";
     HANDLE h = CreateFileW(tmp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
                            FILE_ATTRIBUTE_NORMAL, nullptr);
