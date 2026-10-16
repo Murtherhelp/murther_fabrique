@@ -67,7 +67,6 @@ export const TEMPLATES = {
             }],
             ["gallery", {
               title: bi("Selected work", "Travaux sélectionnés"),
-              lead: bi("Three projects, each with the brief it answered.", "Trois projets, chacun avec le brief auquel il répond."),
               items: [
                 { image: { assetId: "", alt: bi("", "") }, caption: bi("Cover — quarterly magazine", "Couverture — magazine trimestriel") },
                 { image: { assetId: "", alt: bi("", "") }, caption: bi("Chapter opening — literary novel", "Ouverture de chapitre — roman littéraire") },
@@ -165,7 +164,6 @@ export const TEMPLATES = {
             }],
             ["links", {
               title: bi("Elsewhere", "Ailleurs"),
-              lead: bi("Everything here is current; nothing is a dead profile link.", "Tout est à jour ; aucun lien de profil mort."),
               items: [
                 { label: bi("Email", "Email"), url: "mailto:hello@example.com", note: bi("Best for anything specific", "Idéal pour toute demande précise") },
                 { label: bi("Portfolio", "Portfolio"), url: "#", note: bi("Case studies with process", "Études de cas avec processus") },
@@ -263,7 +261,6 @@ export const TEMPLATES = {
             }],
             ["gallery", {
               title: bi("Case studies", "Études de cas"),
-              lead: bi("Three projects, with the decision that mattered in each.", "Trois projets, et la décision qui a compté dans chacun."),
               items: [
                 { image: { assetId: "", alt: bi("Booking flow rebuilt around availability rather than inventory", "Parcours de réservation reconstruit autour des disponibilités plutôt que du stock") }, caption: bi("Rebuilt a booking flow around availability", "Parcours de réservation reconstruit autour des disponibilités") },
                 { image: { assetId: "", alt: bi("Design system rollout across nine product teams", "Déploiement d'un design system auprès de neuf équipes produit") }, caption: bi("Rolled out a design system to nine teams", "Déploiement d'un design system auprès de neuf équipes") },
@@ -401,7 +398,6 @@ export const TEMPLATES = {
             }],
             ["threads", {
               title: bi("Latest topics", "Derniers sujets"),
-              lead: bi("Pinned first, then most recent.", "Épinglés d'abord, puis les plus récents."),
               items: [
                 { title: bi("How do you version your design tokens?", "Comment versionnez-vous vos tokens de design ?"), author: "mara", replies: 24, date: "2026-04-02", tags: bi("design, workflow", "design, processus"), pinned: true },
                 { title: bi("Small tool, big difference: what is yours?", "Petit outil, grande différence : le vôtre ?"), author: "tobias", replies: 41, date: "2026-03-29", tags: bi("tools", "outils"), pinned: false },
@@ -413,7 +409,6 @@ export const TEMPLATES = {
             }],
             ["table", {
               title: bi("Boards", "Catégories"),
-              lead: bi("Six boards. Read the rules in each before posting.", "Six catégories. Lisez les règles de chacune avant de publier."),
               items: [
                 { label: bi("Announcements", "Annonces"), value: bi("142 topics", "142 sujets") },
                 { label: bi("Help & troubleshooting", "Aide & dépannage"), value: bi("1,208 topics", "1 208 sujets") },
@@ -491,7 +486,6 @@ export const TEMPLATES = {
             }],
             ["gallery", {
               title: bi("Screenshots", "Captures d'écran"),
-              lead: bi("No UI, no text overlay — the station as you meet it.", "Pas d'interface, pas de texte — la station telle que vous la trouvez."),
               items: [
                 { image: { assetId: "", alt: bi("The transmitter hall, lights failing in sequence", "La salle de l'émetteur, les lumières qui tombent en séquence") }, caption: bi("The transmitter hall", "La salle de l'émetteur") },
                 { image: { assetId: "", alt: bi("A corridor of frozen consoles behind sealed doors", "Un couloir de consoles gelées derrière des portes scellées") }, caption: bi("Crew corridor", "Couloir d'équipage") },
@@ -622,7 +616,6 @@ export const TEMPLATES = {
             }],
             ["stats", {
               title: bi("In numbers", "En chiffres"),
-              lead: bi("Measured across every account closed last quarter.", "Mesuré sur tous les comptes clos le trimestre dernier."),
               items: [
                 { value: bi("94%", "94 %"), label: bi("of lines matched without a human", "des lignes rapprochées sans intervention") },
                 { value: bi("2.3 h", "2,3 h"), label: bi("average month-end, down from 9", "de clôture mensuelle moyenne, contre 9 avant") },
@@ -632,7 +625,6 @@ export const TEMPLATES = {
             }],
             ["gallery", {
               title: bi("The interface", "L'interface"),
-              lead: bi("The same three columns, every month, so there is nothing to re-learn.", "Les mêmes trois colonnes, chaque mois : rien à réapprendre."),
               items: [
                 { image: { assetId: "", alt: bi("List of unmatched bank lines with suggested matches", "Liste des lignes non rapprochées avec les rapprochements suggérés") }, caption: bi("Unmatched lines", "Lignes non rapprochées") },
                 { image: { assetId: "", alt: bi("Rules screen showing the matching conditions in plain language", "Écran des règles montrant les conditions en langage clair") }, caption: bi("Rules, in plain language", "Les règles, en langage clair") },
@@ -644,7 +636,6 @@ export const TEMPLATES = {
             }],
             ["table", {
               title: bi("Pricing", "Tarifs"),
-              lead: bi("Per company, cancel any time. No annual lock-in.", "Par société, résiliable à tout moment. Sans engagement annuel."),
               items: [
                 { label: bi("Solo — €19 / month", "Solo — 19 € / mois"), value: bi("One company, up to 3 users, email support.", "Une société, jusqu'à 3 utilisateurs, support par email.") },
                 { label: bi("Team — €49 / month", "Équipe — 49 € / mois"), value: bi("Up to 3 companies, 15 users, priority support.", "Jusqu'à 3 sociétés, 15 utilisateurs, support prioritaire.") },

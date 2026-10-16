@@ -68,13 +68,19 @@ export const st = (key, lang) => (S[key] ? S[key][lang === "fr" ? 1 : 0] || S[ke
  * "Tom &amp;amp; Jerry Ltd" on the exported legal page — the user reading their
  * own site saw the entities spelled out.
  */
-export function fillLegal(body, doc) {
+export function fillLegal(body, doc, lang = doc?.meta?.lang) {
+  // Company, address and email are documented as plain strings, but eight of
+  // the nine templates leave company unset and fall through to doc.name, which
+  // is {en, fr}. String() on that object printed the literal "[object Object]"
+  // in the Publisher section of every legal page.
+  const text = (v) =>
+    v == null ? "" : typeof v === "string" ? v : v[lang] || v.en || v.fr || "";
   const map = {
-    COMPANY: doc.company || doc.name || "-",
-    ADDRESS: doc.address || "-",
-    EMAIL: doc.email || "-",
-    HOST: doc.host || "your host",
-    HOSTING_ADDRESS: doc.hostingAddress || "-"
+    COMPANY: text(doc.company) || text(doc.name) || "-",
+    ADDRESS: text(doc.address) || "-",
+    EMAIL: text(doc.email) || "-",
+    HOST: text(doc.host) || (lang === "fr" ? "votre hébergeur" : "your host"),
+    HOSTING_ADDRESS: text(doc.hostingAddress) || "-"
   };
   return body.replace(/\b(COMPANY|ADDRESS|EMAIL|HOST|HOSTING_ADDRESS)\b/g, (m) => map[m] ?? m);
 }

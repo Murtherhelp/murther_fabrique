@@ -1365,3 +1365,59 @@ test("walkI18n finds every translatable string and stops at it", () => {
     [".name", ".nested.deep.list[0].text", ".pages[0].title"],
     "every pair, at any depth, by path");
 });
+
+/**
+ * A bilingual field is {en, fr}. Hand one to esc() and String() gives you the
+ * literal text "[object Object]" -- which is how the store and saas templates
+ * shipped their stat figures as that string instead of a number. Nothing
+ * downstream crashed, the page still validated, and the value was simply gone.
+ */
+test("no translated object ever leaks into a rendered page as [object Object]", () => {
+  const leaks = [];
+  for (const key of TEMPLATE_ORDER) {
+    for (const [rel, html] of Object.entries(build(TEMPLATES[key].build()).files)) {
+      if (typeof html !== "string" || !html.includes("[object Object]")) continue;
+      leaks.push(`${key}/${rel}`);
+    }
+  }
+  assert.deepEqual(leaks, [],
+    "esc(T(value, lang)) is required wherever a field is declared i18n");
+});
+
+/**
+ * A key the block's field list does not declare is invisible to the editor:
+ * it renders nowhere today and is dropped the moment anyone opens the template
+ * and saves. Nine "lead" sentences across six templates were written, never
+ * shown, and never recoverable. Either the block declares the field or the
+ * template does not ship the key.
+ */
+test("no template hands a block a field the editor would silently drop", () => {
+  const declared = (type) => {
+    const keys = new Set();
+    const walk = (fields) => {
+      for (const f of fields || []) {
+        keys.add(f.k);
+        if (f.of) walk(f.of);
+      }
+    };
+    walk(BLOCKS[type]?.fields);
+    return keys;
+  };
+  const STRUCTURAL = new Set(["id", "type", "effect"]);
+  const orphans = [];
+  for (const key of TEMPLATE_ORDER) {
+    for (const page of TEMPLATES[key].build().pages || []) {
+      for (const block of page.blocks || []) {
+        const type = Array.isArray(block) ? block[0] : block.type;
+        const data = Array.isArray(block) ? block[1] : block;
+        if (!data || typeof data !== "object") continue;
+        const known = declared(type);
+        for (const k of Object.keys(data)) {
+          if (!STRUCTURAL.has(k) && !known.has(k)) orphans.push(`${key}/${type}.${k}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual([...new Set(orphans)].sort(), [],
+    "every key a template writes must be a field its block declares");
+});

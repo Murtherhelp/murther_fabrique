@@ -196,7 +196,7 @@ export const BLOCKS = {
     fields: [
       { k: "title", t: "text", lbl: ["Title (optional)", "Titre (facultatif)"], i18n: true },
       { k: "items", t: "list", lbl: ["Figures", "Chiffres"], of: [
-        { k: "value", t: "text", lbl: ["Value", "Valeur"] },
+        { k: "value", t: "text", lbl: ["Value", "Valeur"], i18n: true },
         { k: "label", t: "text", lbl: ["Label", "Libellé"], i18n: true }
       ] },
     effectField()
@@ -205,7 +205,7 @@ export const BLOCKS = {
       return `<section class="section section--tight"><div class="wrap">
   ${T(b.title, c.lang) ? `<h2>${esc(T(b.title, c.lang))}</h2>` : ""}
   <div class="stats">${(b.items || []).map((it) =>
-    `<div class="stat"><b>${esc(it.value)}</b><span>${esc(T(it.label, c.lang))}</span></div>`).join("")}</div>
+    `<div class="stat"><b>${esc(T(it.value, c.lang))}</b><span>${esc(T(it.label, c.lang))}</span></div>`).join("")}</div>
 </div></section>`;
     }
   },
