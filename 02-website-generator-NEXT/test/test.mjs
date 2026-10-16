@@ -1960,3 +1960,42 @@ test("every suite the verifier runs is named in that table", () => {
   }
   assert.ok(runs.length >= 8, "the verifier only names " + runs.length + " suites");
 });
+
+test("no report row is handed a placeholder it cannot fill", () => {
+  // The panel renders every row through tf(r.key, ...r.args) -- key and
+  // arguments are data, so the guard that reads literal tf("key", ...) calls
+  // cannot see them. auHeadKo was called with no arguments while its message
+  // ended in "%s", so the day the row could fire it would have printed a bare
+  // %s into the quality report. It cannot fire today: every block that emits an
+  // h3 also emits its h2, and that h2 is unconditional. That is an accident of
+  // today's block list, not a promise, and a dead argument is the kind of thing
+  // that wakes up the day someone adds a section.
+  const src = readFileSync(new URL("../src/js/ui.js", import.meta.url), "utf8");
+  const keys = new Set([...src.matchAll(/"(au[A-Z][A-Za-z]*)"/g)].map((m) => m[1]));
+  assert.ok(keys.size > 8, "only found " + keys.size + " report keys, the scan is broken");
+
+  let checked = 0;
+  // A key followed immediately by an empty argument list is the shape that bites.
+  for (const m of src.matchAll(/"(au[A-Z][A-Za-z]*)",\s*\[\s*\]/g)) {
+    const key = m[1];
+    checked++;
+    for (const [i, lang] of [[0, "English"], [1, "French"]]) {
+      const msg = String(T[key]?.[i] ?? "");
+      assert.ok(msg.length > 0, key + " has no " + lang + " message at all");
+      assert.ok(!/%s/.test(msg),
+        key + " is called with no arguments but its " + lang +
+        " message still asks for one: " + JSON.stringify(msg));
+    }
+  }
+  assert.ok(checked >= 2, "only " + checked + " argument-less rows found, the scan is too narrow");
+
+  // And the general case the earlier guard could not reach: the two languages
+  // of a report row must always ask for the same number of values.
+  for (const key of keys) {
+    const pair = T[key];
+    if (!Array.isArray(pair)) continue;
+    const en = (String(pair[0] ?? "").match(/%s/g) || []).length;
+    const fr = (String(pair[1] ?? "").match(/%s/g) || []).length;
+    assert.equal(fr, en, key + " asks for " + en + " value(s) in English and " + fr + " in French");
+  }
+});

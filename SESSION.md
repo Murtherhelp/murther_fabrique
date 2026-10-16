@@ -718,6 +718,51 @@ l'absence de test parce qu'elle empêche de chercher.
 
 ---
 
+---
+---
+
+## Une ligne du rapport aurait affiché « %s » tel quel (défaut 29)
+
+Le panneau rend chaque ligne par `tf(r.key, ...r.args)` — la clé **et** les
+arguments sont des données. Le garde que j'avais posé plus tôt ne lit que les
+appels littéraux `tf("clé", ...)` : il ne voit rien de tout ça.
+
+Douze `tf(` dans `ui.js`. Dix sont sûrs — constantes, ou valeurs réellement
+présentes. Un seul est dynamique, et il est en faute :
+
+```js
+add(hOk, hOk ? "auHeadOk" : "auHeadKo", [], jump);   // aucun argument
+```
+
+alors que le message disait `Heading jump: %s`. Le jour où la ligne échoue, le
+rapport affiche un `%s` nu.
+
+**Elle ne peut pas échouer aujourd'hui.** J'ai vérifié avant de conclure :
+`blocks.js` n'émet jamais de `h3` sans avoir émis son `h2` juste avant, et cet
+`h2` est **inconditionnel** — vider le titre d'une section ne le supprime pas,
+il laisse `<h2></h2>`. Aucun saut n'est donc constructible aujourd'hui.
+
+C'est pour ça que je ne construis pas de descripteur de saut : ce serait du
+travail pour un état que le produit ne peut pas produire. Mais un argument mort
+est exactement le genre d'amorce qui se réveille le jour où quelqu'un ajoute une
+section. Le message ne demande plus rien, et il ne peut plus mentir.
+
+Le test retient les deux moitiés : toute clé de rapport suivie immédiatement
+d'une liste d'arguments vide doit avoir un message **sans** `%s`, et les deux
+langues de chaque ligne doivent toujours demander le même nombre de valeurs.
+Falsifié deux fois — remettre le `%s`, puis décaler le français d'une place.
+
+## Même famille, une diastase plus loin
+
+La semaine dernière le `%s` manquant s'était manifesté par « File too large
+(undefined) » dans une limite de comptage. Ici il ne se manifeste pas du tout :
+la ligne est morte. La différence entre les deux, c'est que le premier s'est
+manifesté tout seul et que le second demande qu'on le cherche. Un contrôle qui
+ne peut pas échouer n'est pas un contrôle, et un contrôle qui ne peut pas
+échouer **non plus** n'est pas une garantie.
+
+---
+
 ## Si quelqu'un reprend
 
 Par où je commencerais, dans cet ordre :

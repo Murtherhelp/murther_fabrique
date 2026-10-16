@@ -230,7 +230,7 @@ export const T = {
   auCssOk: ["No custom CSS, or only local rules", "Aucun CSS personnalisé, ou uniquement des règles locales"],
   auCssKo: ["%s remote rule(s) removed from your custom CSS", "%s règle(s) distante(s) retirée(s) de votre CSS personnalisé"],
   auHeadOk: ["Heading levels are in order", "Les niveaux de titre sont dans l'ordre"],
-  auHeadKo: ["Heading jump: %s", "Saut de niveau de titre : %s"],
+  auHeadKo: ["Heading levels skip a step", "Les niveaux de titre sautent une marche"],
   auFormOk: ["Contact form points somewhere real", "Le formulaire de contact pointe vers une vraie cible"],
   auFormKo: ["Contact form has no working destination — pick mailto: or an endpoint", "Le formulaire de contact n'a pas de destination fonctionnelle — choisissez mailto: ou un point d'entrée"],
 
