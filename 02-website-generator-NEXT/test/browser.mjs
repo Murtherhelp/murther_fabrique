@@ -766,6 +766,38 @@ async function main() {
      linkGuard.blocksSubmit && linkGuard.usesCapture,
      JSON.stringify(linkGuard));
 
+  /* The receiving half of the channel the guard exists for: the message the
+     preview posts on an internal link click, and the editor swapping pages.
+     The frame is sandboxed without allow-same-origin on purpose, so the sender
+     hop cannot be driven from here; what the check above reads out of the frame
+     covers that side, and this covers everything after it. */
+  const navChannel = await tryEval(`
+    window.wgn.applyTemplate('business');
+    await new Promise(r => setTimeout(r, 400));
+    const note = () => document.getElementById('previewNote').textContent.split(' ·')[0];
+    const before = note();
+    const target = before === 'about.html' ? 'contact.html' : 'about.html';
+    window.postMessage({ type: 'wgn:nav', href: target }, '*');
+    await new Promise(r => setTimeout(r, 600));
+    const after = note();
+    return { before, target, after, moved: after === target };
+  `);
+  ok("the editor takes the navigation message the preview sends and renders that page",
+     navChannel.moved === true,
+     `${navChannel.before} -> ${navChannel.after} (asked for ${navChannel.target})`);
+
+  // And the other end of it: a message naming nothing in the document must do
+  // nothing at all, or a crafted href could steer the preview anywhere.
+  const navReject = await tryEval(`
+    const before = document.getElementById('previewNote').textContent;
+    window.postMessage({ type: 'wgn:nav', href: 'https://elsewhere.test/' }, '*');
+    window.postMessage({ type: 'wgn:nav', href: '../../etc/passwd' }, '*');
+    await new Promise(r => setTimeout(r, 400));
+    return { before, after: document.getElementById('previewNote').textContent };
+  `);
+  ok("a navigation message naming no page in the document is ignored",
+     navReject.before === navReject.after, navReject.before);
+
   /* --------------------------- the site-language select hides when useless */
   const langSel = await tryEval(`
     window.wgn.applyTemplate('business');
