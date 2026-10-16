@@ -365,8 +365,15 @@ export function storeSaved(doc) {
   try {
     localStorage.setItem(DOC_KEY, JSON.stringify(doc));
     return true;
-  } catch {
-    return false;
+  } catch (e) {
+    // Two different problems, and the editor promises on its own footer that
+    // the open project is stored here. A browser with storage disabled breaks
+    // that promise and the user can fix it in their settings. A project that
+    // outgrew the quota -- six ordinary photographs will do it, because images
+    // live in the document as base64 -- is not a settings problem, and telling
+    // them to look in settings sends them nowhere.
+    const quota = e && (e.name === "QuotaExceededError" || e.code === 22);
+    return quota ? "quota" : "blocked";
   }
 }
 

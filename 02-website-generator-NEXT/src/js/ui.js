@@ -107,7 +107,8 @@ const edit = (fn) => {
 function scheduleSave() {
   clearTimeout(S.saveTimer);
   S.saveTimer = setTimeout(() => {
-    if (!storeSaved(doc())) say(t("storageBlocked"), "ko");
+    const saved = storeSaved(doc());
+  if (saved !== true) say(t(saved === "quota" ? "storageFull" : "storageBlocked"), "ko");
   }, 700);
 }
 

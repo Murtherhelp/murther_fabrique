@@ -55,6 +55,7 @@ export const T = {
   undoUnavailable: ["Nothing left to undo", "Plus rien à annuler"],
   redoUnavailable: ["Nothing left to redo", "Plus rien à rétablir"],
   autoSaved: ["Project saved on this device", "Projet enregistré sur cet appareil"],
+  storageFull: ["This project is too large to keep on this device, so autosave is off. Export it to a file before closing the tab.", "Ce projet est trop volumineux pour être gardé sur cet appareil : l'enregistrement automatique est désactivé. Exportez-le dans un fichier avant de fermer l'onglet."],
   storageBlocked: ["Local storage unavailable — changes will not survive a reload", "Stockage local indisponible — les modifications ne survivront pas au rechargement"],
 
   /* --- templates --- */

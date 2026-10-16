@@ -19,7 +19,7 @@ import { ICON_KEYS, icon } from "../src/js/icons.js";
 import { build, pagePath, docWarnings, FORMAT, SITE_JS, walkI18n } from "../src/js/build.js";
 import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "../src/js/templates.js";
 import { PRESETS, PRESET_FOR } from "../src/js/presets.js";
-import { blankDoc, normalizeDoc, createHistory, LIMITS, readAsset } from "../src/js/store.js";
+import { blankDoc, normalizeDoc, createHistory, LIMITS, readAsset, storeSaved } from "../src/js/store.js";
 import { crc32, decodeDataUri, toEntries, zip } from "../src/js/zip.js";
 
 const doc = (key) => normalizeDoc(fromTemplate(key)).doc;
@@ -1791,4 +1791,40 @@ test("every message that takes arguments is given enough of them", () => {
     if (got < want) short.push(`${key} takes ${want} argument(s), called with ${got}`);
   }
   assert.deepEqual(short, [], "a message with placeholders was called without them");
+});
+
+test("a full storage quota is told apart from a browser that blocks storage", () => {
+  // The editor's own footer promises that the open project is kept on this
+  // device. Two things break that promise and only one is fixable in settings:
+  // images live in the document as base64, so six ordinary photographs outgrow
+  // the browser's quota while the product's own 24 MB guard has not come close
+  // to firing. Told "local storage unavailable", the user goes to their browser
+  // settings and finds nothing wrong there.
+  let mode = "ok";
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => {
+      if (mode === "quota") { const e = new Error("full"); e.name = "QuotaExceededError"; throw e; }
+      if (mode === "denied") throw new Error("denied");
+      store.set(k, v);
+    },
+  };
+  try {
+    mode = "quota";
+    assert.equal(storeSaved(blankDoc()), "quota", "an oversized document reports the quota");
+    mode = "denied";
+    assert.equal(storeSaved(blankDoc()), "blocked", "a refused storage reports blocked");
+    mode = "ok";
+    assert.equal(storeSaved(blankDoc()), true, "a document that fits still saves");
+
+    // And the editor must have a sentence for the quota case, not the
+    // settings one.
+    const src = readFileSync(new URL("../src/js/ui.js", import.meta.url), "utf8");
+    assert.ok(src.includes('"quota"') && src.includes('"storageFull"'),
+      "the quota case has no branch of its own in the editor");
+    assert.ok(String(T.storageFull?.[0] ?? "").length > 20, "storageFull has no sentence");
+  } finally {
+    delete globalThis.localStorage;
+  }
 });
