@@ -132,10 +132,17 @@ label at the end of one row and its control at the far left of the next. -->
       <button class="btn btn--sm" type="button" id="reloadBtn" data-i18n="refresh">Refresh</button>
       <button class="btn btn--sm" type="button" id="openTabBtn" data-i18n="openInTab">Open in a new tab</button>
     </h2>
-    <div class="stage">
+    <!-- role + name on the stage: it scrolls, and Chrome puts every scrollable
+         region in the tab order whether you ask or not, so without a name a
+         screen reader user stops on a control that says nothing. -->
+    <div class="stage" role="region" aria-label="Preview of the page you are editing">
       <div class="stage__inner" id="stage">
         <div class="frame-shell" id="frameShell">
-          <iframe id="frame" title="Preview of the generated page" sandbox="allow-scripts allow-forms"></iframe>
+          <!-- tabindex="-1": the preview is a picture of the page, not part of this
+           document. Left focusable it swallowed 19 of the first 45 Tab stops,
+           so reaching the fields meant tabbing through someone else's website.
+           "Open in a new tab" is how you interact with the real thing. -->
+          <iframe id="frame" tabindex="-1" title="Preview of the generated page" sandbox="allow-scripts allow-forms"></iframe>
         </div>
       </div>
     </div>

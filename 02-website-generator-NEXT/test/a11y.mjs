@@ -118,6 +118,7 @@ const focusInfo = () => ev(`
   return {
     tag: a.tagName.toLowerCase(),
     name: name.slice(0, 50),
+    html: a.outerHTML.replace(/\s+/g, ' ').slice(0, 150),
     visible: r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'
   };
 `);
@@ -240,12 +241,16 @@ async function main() {
   const seen = [];
   let unnamedFocus = 0;
   let hiddenFocus = 0;
+  const unnamedDetail = [];
   for (let i = 0; i < 45; i++) {
     await pressTab();
     const f = await focusInfo();
     if (f.tag === "body") continue;
     seen.push(`${f.tag}:${f.name}`);
-    if (!f.name || !f.name.trim()) unnamedFocus++;
+    if (!f.name || !f.name.trim()) {
+      unnamedFocus++;
+      unnamedDetail.push(f.html);
+    }
     if (!f.visible) hiddenFocus++;
   }
   /* Assert on the kinds of control reached, not on one fragile substring. */
@@ -259,8 +264,28 @@ async function main() {
   ok("Tab reaches the outline", reached.outline);
   ok("Tab reaches the inspector fields", reached.inspector);
   ok("Tab visits a useful number of controls", seen.length > 12, `${seen.length} stops`);
-  ok("no focus stop is unnamed", unnamedFocus === 0, `${unnamedFocus} unnamed`);
+  ok("no focus stop is unnamed", unnamedFocus === 0, `${unnamedFocus} unnamed :: ${unnamedDetail.join(" | ")}`);
   ok("no focus stop is invisible", hiddenFocus === 0, `${hiddenFocus} invisible`);
+
+  /* Two things the walk above cannot see, because it never enters the frame:
+     the preview is a picture, not part of this document, and the stage it sits
+     in is a scrollable region the browser makes focusable on its own. Asserted
+     on the properties, not on a stop count -- a count passes whatever the
+     mechanism. */
+  const frame = await ev(`
+    const f = document.getElementById('frame');
+    const stage = document.querySelector('.stage');
+    return {
+      frameTabIndex: f.tabIndex,
+      stageRole: stage.getAttribute('role') || '',
+      stageName: (stage.getAttribute('aria-label') || '').trim()
+    };
+  `);
+  ok("the preview frame is not in the tab order", frame.frameTabIndex < 0,
+    `#frame tabindex=${frame.frameTabIndex}`);
+  ok("the scrollable preview stage has an accessible name",
+    frame.stageRole === "region" && frame.stageName.length > 0,
+    `role="${frame.stageRole}", name="${frame.stageName}"`);
 
   /* ----------------------------------------- shift+Tab walks back up */
   await pressTab(true);

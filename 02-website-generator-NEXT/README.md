@@ -81,7 +81,7 @@ again. Add `--head` to any of them to watch the browser work.
 |---|---:|---|
 | **core** (`npm test`) | 116 | The pure engine in Node: XSS boundary, `safeHref`, contrast maths, dark-mode derivation, block registry, all 9 templates and their distinctness, bilingual output, nav integrity, hostile project import, undo/redo, ZIP writer, a save/load round trip that changes nothing, and the exported contact form speaking its own page's language. |
 | **browser** | 100 | The real editor: language switching, every template and all 18 section types, inspector, quality report, undo/redo, drag-to-reorder, preview-frame navigation guard, and the navigation channel it posts on, the live contrast readout, accessible names, the theme's light and dark output. |
-| **accessibility** | 32 | Real Tab keypresses, accessible names on every control, focus visibility, landmarks, focus retention across a language switch, overflow at maximum text size. |
+| **accessibility** | 34 | Real Tab keypresses, accessible names on every control, focus visibility, landmarks, focus retention across a language switch, overflow at maximum text size. |
 | **i18n** | 12 | Autosave and reload round-trip, language independence, both site languages surviving a reload. |
 | **export** | 95 | Builds a real ZIP, re-reads it with an **independent** reader (Node's `zlib`, not our writer), then serves the extracted tree over HTTP, renders it, and clicks the theme toggle the generated site ships, and reads its console — twice, once with the system pinned to light and once to dark. |
 | **single-file** | 11 | Builds `dist/generator.html`, then **opens it over `file://`** — no server, no Node — and checks it produces the identical file tree, template by template, that the modules do. |
@@ -136,7 +136,7 @@ on the page, and checking only the page is how a dark theme once shipped an
 active link at 3.85:1.
 
 The preview pane's **Desktop / Tablet / Phone** buttons render the page at
-1280 / 820 / 392 px. The stage scrolls when the frame is wider than the pane,
+1280 / 820 / 394 px. The stage scrolls when the frame is wider than the pane,
 so choosing Desktop really does give you a 1280 px page. The current width is
 printed under the frame.
 
@@ -315,7 +315,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **392 checks passing across 8 suites** and
+`npm run verify` currently reports **394 checks passing across 8 suites** and
 exits 0:
 
 ```
@@ -353,7 +353,7 @@ MURTHER FABRIQUE — website generator/
 └─ test/
 ├─ test.mjs          121 core checks (node --test)
    ├─ browser.mjs          100 end-to-end editor checks
-   ├─ a11y.mjs            32 accessibility checks
+   ├─ a11y.mjs             34 accessibility checks
    ├─ i18n.mjs            12 language and persistence checks
    ├─ export.mjs          95 export checks (real ZIP, real HTTP, real render)
    ├─ single.mjs          11 single-file checks (real file:// load)
