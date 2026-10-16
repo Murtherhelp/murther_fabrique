@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { esc, safeHref, md, slugify, contrast, mix, pageHref } from "../src/js/safe.js";
-import { T, t, tf } from "../src/js/i18n.js";
+import { T, t, tf, tr, ui } from "../src/js/i18n.js";
 import { S, st } from "../src/js/site-strings.js";
 import { PALETTES, contrastChecks, paletteOf, resolve, sanitizeCss, siteCss } from "../src/js/themes.js";
 import { BLOCKS, BLOCK_ORDER, makeBlock, bi, missing, blockTypeLabel } from "../src/js/blocks.js";
@@ -1261,6 +1261,26 @@ test("site.js never writes a status message of its own", () => {
     "site.js still assigns a baked message instead of reading it from the page");
   assert.ok(SITE_JS.includes('getAttribute("data-bad-email")'), "the invalid-address message is not read off the page");
   assert.ok(SITE_JS.includes('getAttribute("data-sent")'), "the sent message is not read off the page");
+});
+
+test("tr picks the half the current language reads, and falls back", () => {
+  // The editor used to write this selection out by hand eleven times. Getting it
+  // wrong blanks a label in one language only, which is the kind of bug nobody
+  // sees in review and every reader of that language notices.
+  const was = ui.lang;
+  try {
+    const row = ["Title", "Titre"];
+    ui.lang = "en";
+    assert.equal(tr(row), "Title");
+    ui.lang = "fr";
+    assert.equal(tr(row), "Titre");
+    // An untranslated half falls back rather than showing nothing.
+    assert.equal(tr(["Only English", ""]), "Only English");
+    assert.equal(tr(undefined), "");
+    assert.equal(tr([]), "");
+  } finally {
+    ui.lang = was;
+  }
 });
 
 test("walkI18n finds every translatable string and stops at it", () => {

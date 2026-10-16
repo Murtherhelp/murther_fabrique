@@ -272,10 +272,21 @@ export const ui = {
   scale: "1"
 };
 
+/**
+ * One half of a bilingual ["English", "Français"] row, as the current language
+ * reads it, falling back to the first half when that one is empty.
+ *
+ * This expression used to be written out by hand in eleven places across the
+ * editor, each one a place to forget. It is the same rule that decides a
+ * dictionary entry, a block label, a field label, an option and a template
+ * description, and a language bug only ever shows up in one of them.
+ */
+export const tr = (row) => (row ? row[ui.lang === "fr" ? 1 : 0] || row[0] || "" : "");
+
 export const t = (k) => {
   const row = T[k];
   if (!row) return k; // an unknown key shows itself: louder than an empty label
-  return row[ui.lang === "fr" ? 1 : 0] || row[0];
+  return tr(row);
 };
 
 /** Same, filling %s placeholders left to right. */

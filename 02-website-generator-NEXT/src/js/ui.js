@@ -15,7 +15,7 @@
  * other. Switching the interface re-labels controls via paintLabels() — it
  * rebuilds nothing that holds a value, so the caret never jumps.
  */
-import { t, tf, applyLang, applyScale, initLang, setLang, ui, T } from "./i18n.js";
+import { t, tf, tr, applyLang, applyScale, initLang, setLang, ui, T } from "./i18n.js";
 import { esc, slugify, uid, safeHref } from "./safe.js";
 import { BLOCKS, BLOCK_ORDER, makeBlock, blockName, blockTypeLabel, bi, T as bT } from "./blocks.js";
 import { build, pagePath, docWarnings, walkI18n } from "./build.js";
@@ -140,12 +140,12 @@ function paintLabels(root) {
   for (const n of scope.querySelectorAll("[data-at]")) n.textContent = registryLabel(n.dataset.at);
   for (const n of scope.querySelectorAll("[data-tpl]")) {
     const tuple = TEMPLATES[n.dataset.tpl]?.[n.dataset.part];
-    if (tuple) n.textContent = tuple[ui.lang === "fr" ? 1 : 0] || tuple[0];
+    if (tuple) n.textContent = tr(tuple);
   }
   for (const n of scope.querySelectorAll("[data-blk]")) {
     const type = n.dataset.blk;
     const tuple = BLOCKS[type]?.[n.dataset.part || "label"];
-    if (tuple) n.textContent = tuple[ui.lang === "fr" ? 1 : 0] || tuple[0];
+    if (tuple) n.textContent = tr(tuple);
   }
 }
 
@@ -157,13 +157,13 @@ function registryLabel(at) {
   if (!def) return at;
   if (key) {
     const f = (def.fields || []).find((x) => x.k === key);
-    if (f) return f.lbl[ui.lang === "fr" ? 1 : 0] || f.lbl[0];
+    if (f) return tr(f.lbl);
     for (const top of def.fields || []) {
       const sub = (top.of || []).find((x) => x.k === key);
-      if (sub) return sub.lbl[ui.lang === "fr" ? 1 : 0] || sub.lbl[0];
+      if (sub) return tr(sub.lbl);
     }
   }
-  return def.label?.[ui.lang === "fr" ? 1 : 0] || def.label?.[0] || at;
+  return tr(def.label) || at;
 }
 
 /* ---------- outline ---------- */
@@ -290,7 +290,7 @@ function moveIn(d, pageId, from, to) {
 /* ---------- inspector: fields are generated from the block spec ---------- */
 
 function labelFor(f) {
-  return f.lbl[ui.lang === "fr" ? 1 : 0] || f.lbl[0];
+  return tr(f.lbl);
 }
 
 /**
@@ -365,7 +365,7 @@ function boolInput(checked, onChange) {
 function registryEnum(value, options, onChange) {
   const n = el("select");
   for (const [val, pair] of options) {
-    n.append(el("option", { value: val }, pair[ui.lang === "fr" ? 1 : 0] || pair[0]));
+    n.append(el("option", { value: val }, tr(pair)));
   }
   n.value = options.some(([v]) => v === value) ? value : (options[0]?.[0] ?? "");
   on(n, "change", () => onChange(n.value));
@@ -1404,8 +1404,8 @@ function wire() {
     // Carries the key so paintLabels() re-translates it; the dialog is built
     // once at boot but must follow a language switch.
     const card = el("button", { className: "tpl", type: "button" }, [
-      el("b", { "data-tpl": key, "data-part": "label" }, tpl.label[ui.lang === "fr" ? 1 : 0] || tpl.label[0]),
-      el("span", { "data-tpl": key, "data-part": "desc" }, tpl.desc[ui.lang === "fr" ? 1 : 0] || tpl.desc[0])
+      el("b", { "data-tpl": key, "data-part": "label" }, tr(tpl.label)),
+      el("span", { "data-tpl": key, "data-part": "desc" }, tr(tpl.desc))
     ]);
     on(card, "click", () => {
       if (!confirm(t("resetConfirm"))) return;
@@ -1508,7 +1508,7 @@ function openBlockPicker() {
     const def = BLOCKS[type];
     const card = el("button", { className: "tpl", type: "button" }, [
       el("b", { "data-blk": type, "data-part": "label" }, blockTypeLabel(type, ui.lang)),
-      el("span", { "data-blk": type, "data-part": "hint" }, def.hint?.[ui.lang === "fr" ? 1 : 0] || "")
+      el("span", { "data-blk": type, "data-part": "hint" }, tr(def.hint))
     ]);
     on(card, "click", () => {
       const p = page();
