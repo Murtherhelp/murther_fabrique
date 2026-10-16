@@ -18,7 +18,7 @@
 import { t, tf, applyLang, applyScale, initLang, setLang, ui, T } from "./i18n.js";
 import { esc, slugify, uid, safeHref } from "./safe.js";
 import { BLOCKS, BLOCK_ORDER, makeBlock, blockName, blockTypeLabel, bi, T as bT } from "./blocks.js";
-import { build, pagePath, docWarnings } from "./build.js";
+import { build, pagePath, docWarnings, walkI18n } from "./build.js";
 import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "./templates.js";
 import { blankDoc, newPage, normalizeDoc, createHistory, storeSaved, loadStored, readAsset, LIMITS } from "./store.js";
 import { PALETTES, TONES, paletteOf, contrastChecks, sanitizeCss, resolve } from "./themes.js";
@@ -1079,18 +1079,14 @@ function imgsWithoutAlt(built, d, pageRef, lang) {
     in French does not count as untranslated. Stated plainly because the earlier
     wording ("nothing in `lang`") promised a stricter check than this performs. */
 function untranslated(v, lang) {
+  // The walk already exists in build.js and stops at exactly the same nodes.
+  // A second copy of it here meant the audit and the exporter could disagree
+  // about what a translatable string is, with nothing to catch the drift.
   let n = 0;
-  const visit = (x) => {
-    if (!x || typeof x !== "object") return;
-    if (Array.isArray(x)) return x.forEach(visit);
-    if (typeof x.en === "string" || typeof x.fr === "string") {
-      const primary = x.en?.trim() || "";
-      if (primary && !String(x[lang] || "").trim()) n += 1;
-      return;
-    }
-    Object.values(x).forEach(visit);
-  };
-  visit(v);
+  walkI18n(v, (x) => {
+    const primary = x.en?.trim() || "";
+    if (primary && !String(x[lang] || "").trim()) n += 1;
+  });
   return n;
 }
 

@@ -261,10 +261,6 @@ export const T = {
   privacyNote: ["Nothing leaves this browser: no cookie, no CDN, no remote font, no analytics. Only your language, text size and the open project are stored on this device.", "Rien ne quitte ce navigateur : ni cookie, ni CDN, ni police distante, ni analytics. Seuls votre langue, votre taille de texte et le projet ouvert sont stockés sur cet appareil."]
 };
 
-export const LANGS = [
-  { code: "en", label: "English" },
-  { code: "fr", label: "Français" }
-];
 
 export const PREF_KEY = "wgn.device";
 const SCALES = ["1", "1.15", "1.3"];

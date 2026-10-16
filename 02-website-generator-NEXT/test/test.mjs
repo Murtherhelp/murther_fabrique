@@ -16,7 +16,7 @@ import { S, st } from "../src/js/site-strings.js";
 import { PALETTES, contrastChecks, paletteOf, resolve, sanitizeCss, siteCss } from "../src/js/themes.js";
 import { BLOCKS, BLOCK_ORDER, makeBlock, bi, missing, blockTypeLabel } from "../src/js/blocks.js";
 import { ICON_KEYS, icon } from "../src/js/icons.js";
-import { build, pagePath, docWarnings, FORMAT, SITE_JS } from "../src/js/build.js";
+import { build, pagePath, docWarnings, FORMAT, SITE_JS, walkI18n } from "../src/js/build.js";
 import { TEMPLATES, TEMPLATE_ORDER, fromTemplate } from "../src/js/templates.js";
 import { PRESETS, PRESET_FOR } from "../src/js/presets.js";
 import { blankDoc, normalizeDoc, createHistory, LIMITS } from "../src/js/store.js";
@@ -1261,4 +1261,25 @@ test("site.js never writes a status message of its own", () => {
     "site.js still assigns a baked message instead of reading it from the page");
   assert.ok(SITE_JS.includes('getAttribute("data-bad-email")'), "the invalid-address message is not read off the page");
   assert.ok(SITE_JS.includes('getAttribute("data-sent")'), "the sent message is not read off the page");
+});
+
+test("walkI18n finds every translatable string and stops at it", () => {
+  // The untranslated audit walks the document with this, and the editor has a
+  // second copy of the walk. It had no test of its own until it was the only one
+  // left: two implementations of "what is a translatable string", and nothing to
+  // notice when they stopped agreeing.
+  const doc = {
+    name: { en: "Studio", fr: "Atelier" },
+    count: 3,
+    meta: { lang: "en" },
+    pages: [{ slug: "a", title: { en: "A", fr: "B" } }],
+    nested: { deep: { list: [{ text: { en: "T", fr: "U" } }] } }
+  };
+  const seen = [];
+  walkI18n(doc, (_v, path) => seen.push(path));
+  // The leading dot is the walk's own shape: it starts at the root path "" and
+  // appends ".key". Nothing renders the path today, so it stays as it is.
+  assert.deepEqual(seen.sort(),
+    [".name", ".nested.deep.list[0].text", ".pages[0].title"],
+    "every pair, at any depth, by path");
 });

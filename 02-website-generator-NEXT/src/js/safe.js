@@ -144,7 +144,7 @@ export function md(src, base = 2) {
 /* ---------- colour, for the theme system and the audit ---------- */
 
 const hexOf = (h) => /^#[0-9a-f]{6}$/i.test(String(h || "").trim());
-export const isHex = hexOf;
+
 
 /** WCAG 2.1 relative luminance. */
 const luminance = (hex) => {

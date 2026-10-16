@@ -742,6 +742,3 @@ export function blockName(b, lang = "en") {
 /** Type name in the active language, for the outline's small trailing tag. */
 export const blockTypeLabel = (type, lang = "en") =>
   BLOCKS[type]?.label?.[lang === "fr" ? 1 : 0] || type;
-
-/** Heading level a block contributes, for the heading-order audit. */
-export const headingLevel = (type) => (type === "hero" ? 1 : 2);
