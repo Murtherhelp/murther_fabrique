@@ -60,17 +60,21 @@ export const S = {
 export const st = (key, lang) => (S[key] ? S[key][lang === "fr" ? 1 : 0] || S[key][0] : key);
 
 /** Substitute COMPANY / ADDRESS / … in a legal body. */
+/**
+ * Substitute the document's own values into a dictionary body.
+ *
+ * This function does not escape: the caller wraps the result in esc() exactly
+ * once, and escaping here as well turned "Tom & Jerry Ltd" into
+ * "Tom &amp;amp; Jerry Ltd" on the exported legal page — the user reading their
+ * own site saw the entities spelled out.
+ */
 export function fillLegal(body, doc) {
   const map = {
-    COMPANY: doc.company || doc.name || "—",
-    ADDRESS: doc.address || "—",
-    EMAIL: doc.email || "—",
+    COMPANY: doc.company || doc.name || "-",
+    ADDRESS: doc.address || "-",
+    EMAIL: doc.email || "-",
     HOST: doc.host || "your host",
-    HOSTING_ADDRESS: doc.hostingAddress || "—"
+    HOSTING_ADDRESS: doc.hostingAddress || "-"
   };
-  return body.replace(/\b(COMPANY|ADDRESS|EMAIL|HOST|HOSTING_ADDRESS)\b/g, (m) => escLegal(map[m] ?? m));
+  return body.replace(/\b(COMPANY|ADDRESS|EMAIL|HOST|HOSTING_ADDRESS)\b/g, (m) => map[m] ?? m);
 }
-
-// Legal bodies come from the dictionary above (developer-controlled) but the
-// substituted values come from user input, so they still need escaping.
-const escLegal = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

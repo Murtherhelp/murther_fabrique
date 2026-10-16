@@ -1282,6 +1282,29 @@ test("one broken block never takes the whole page down", () => {
   }
 });
 
+test("the legal page escapes the company's own text exactly once", () => {
+  // fillLegal() used to escape the substituted values and then the caller
+  // escaped the whole body again, so "Tom & Jerry Ltd" shipped as
+  // "Tom &amp;amp; Jerry Ltd" and the user read the entities on their own site.
+  const d = fromTemplate("business");
+  d.company = "Tom & Jerry <Ltd>";
+  d.email = "a&b@example.test";
+  const legal = build(d).files["legal.html"];
+
+  assert.ok(!/&amp;amp;|&lt;lt;|&gt;gt;/.test(legal),
+    `double escaping reached the page: ${legal.match(/&(?:amp|lt|gt);(?:amp|lt|gt);/)?.[0]}`);
+  assert.ok(legal.includes("Tom &amp; Jerry &lt;Ltd&gt;"),
+    "the name is present and escaped exactly once");
+  assert.ok(legal.includes("a&amp;b@example.test"), "the address is escaped exactly once");
+
+  // Dropping the inner escaper is only safe because the caller still escapes.
+  // If that ever changes, this is the assertion that fails first.
+  d.company = "<script>alert(1)</script>";
+  const attack = build(d).files["legal.html"];
+  assert.ok(!/<script>alert\(1\)<\/script>/.test(attack),
+    "a company name carrying markup must not reach the page as markup");
+});
+
 test("tr picks the half the current language reads, and falls back", () => {
   // The editor used to write this selection out by hand eleven times. Getting it
   // wrong blanks a label in one language only, which is the kind of bug nobody
