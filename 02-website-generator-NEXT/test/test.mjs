@@ -1598,3 +1598,18 @@ test("a number stored in a text field survives normalisation", () => {
   assert.deepEqual(kept.map(String), replies.map(String),
     "every reply count must come back with its value intact");
 });
+
+test("a corner radius of zero survives a save and reopen", () => {
+  // The slider runs 0..24, so 0 is a value the editor can produce, not a
+  // degenerate one. `Number(x) || 8` sent it back as 8: same silent loss as a
+  // reply count, one character shorter.
+  const doc = blankDoc();
+  doc.theme = { ...doc.theme, radius: 0 };
+  const back = normalizeDoc(JSON.parse(JSON.stringify(doc))).doc;
+  assert.equal(back.theme.radius, 0, "square corners came back rounded");
+  const doc8 = { ...blankDoc(), theme: { ...blankDoc().theme, radius: 8 } };
+  assert.equal(normalizeDoc(JSON.parse(JSON.stringify(doc8))).doc.theme.radius, 8,
+    "a real radius must still come back as itself");
+  const missing = normalizeDoc({ format: FORMAT }).doc;
+  assert.equal(missing.theme.radius, 8, "an absent radius still falls back to 8");
+});

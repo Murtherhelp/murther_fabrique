@@ -111,7 +111,11 @@ export function normalizeDoc(raw) {
     theme: {
       palette: str(raw.theme?.palette, 20) || "ink",
       colors: sanitiseColors(raw.theme?.colors),
-      radius: clamp(Number(raw.theme?.radius) || 8, 0, 28),
+      // `Number(x) || 8` turns a radius of 0 into 8. The editor's slider starts at 0
+      // (square corners is a real choice), so every project saved with it came
+      // back rounded on reopen -- the same class of loss as replies, and just
+      // as invisible.
+      radius: raw.theme?.radius == null ? 8 : clamp(Number(raw.theme.radius), 0, 28),
       tone: ["sans", "serif", "mono"].includes(raw.theme?.tone) ? raw.theme.tone : "sans",
       scale: ["compact", "normal", "large", "huge"].includes(raw.theme?.scale) ? raw.theme.scale : "normal",
       scheme: ["auto", "light", "dark"].includes(raw.theme?.scheme) ? raw.theme.scheme : "auto",
