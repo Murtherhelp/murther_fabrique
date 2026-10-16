@@ -459,7 +459,13 @@ font:inherit;font-weight:600;cursor:pointer;min-height:44px}
 
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
 .card h3{margin-top:0}
-.grid{display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr))}
+/* margin/padding/list-style reset, like .time, .steps and .logos above.
+   Without it the <ul> kept the browser's 40px indent and a visible bullet
+   beside every card, which pushed the grid 40px right of its own heading.
+   Note the comment markers: this text is emitted into the stylesheet, and
+   "//" is not a CSS comment - it turns the whole rule into an invalid
+   selector and silently drops the reset. */
+.grid{display:grid;gap:1.25rem;margin:0;padding:0;list-style:none;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr))}
 .grid--2{grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))}
 .grid--3{grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))}
 .grid--4{grid-template-columns:repeat(auto-fit,minmax(min(100%,12.5rem),1fr))}

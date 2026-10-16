@@ -520,6 +520,9 @@ async function main() {
       ok(`every marker-less list keeps its list semantics (${label})`,
          (r.lists?.bare?.length ?? 1) === 0 && (r.lists?.fixed?.length ?? 0) > 0,
          `${r.lists?.fixed?.length ?? 0} lists carry role="list"${r.lists?.bare?.length ? ", missing: " + r.lists.bare.join(", ") : ""}`);
+      ok(`no card grid shows a bullet or the browser's indent (${label})`,
+         (r.lists?.stray?.length ?? 1) === 0,
+         (r.lists?.stray?.length ?? 0) ? r.lists.stray.slice(0, 3).join(" | ") : "grids are clean");
 
       const ax = r.a11y || {};
       const missingLandmarks = ["header", "nav", "main", "footer"].filter((t) => !(ax.landmarks || []).includes(t));
@@ -747,15 +750,27 @@ await send("Page.navigate", { url: `http://localhost:${PORT}/${folder}/${page}` 
       // role="list" puts it back. Chrome keeps the semantics either way, so the
       // browser cannot prove this; the attribute is what is checked.
       lists: (() => {
-        const bare = [], fixed = [];
+        const bare = [], fixed = [], stray = [];
         for (const el of document.querySelectorAll('ul, ol')) {
           const s = getComputedStyle(el);
-          const markerless = s.listStyleType === 'none' || s.display === 'grid';
-          if (!markerless) continue;
+          // "Marker-less" means the marker is suppressed, nothing else. Treating
+          // display:grid as equivalent was wrong and hid a real defect: Chrome
+          // still paints a disc beside every item of a grid list, so a broken
+          // .grid rule shipped a bullet next to every card while this file
+          // called the list marker-less and only asked for role="list".
+          if (s.listStyleType !== 'none') continue;
           const name = el.tagName.toLowerCase() + '.' + (el.className || '-');
           (el.getAttribute('role') === 'list' ? fixed : bare).push(name);
         }
-        return { bare, fixed };
+        // Every card grid must also give back the browser's own indent, or the
+        // cards sit 40px right of the heading they belong to.
+        for (const el of document.querySelectorAll('ul.grid, ol.grid')) {
+          const s = getComputedStyle(el);
+          if (s.listStyleType !== 'none' || parseFloat(s.paddingLeft) !== 0) {
+            stray.push((el.className || '-') + ': list-style=' + s.listStyleType + ' padding-left=' + s.paddingLeft);
+          }
+        }
+        return { bare, fixed, stray };
       })(),
       // Landmarks, headings and names on the generated page. The accessibility
       // suite drives the EDITOR; nothing until now had checked the artefact the

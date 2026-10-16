@@ -83,7 +83,7 @@ again. Add `--head` to any of them to watch the browser work.
 | **browser** | 96 | The real editor: language switching, every template and all 18 section types, inspector, quality report, undo/redo, drag-to-reorder, preview-frame navigation guard, and the navigation channel it posts on, the live contrast readout, accessible names, the theme's light and dark output. |
 | **accessibility** | 32 | Real Tab keypresses, accessible names on every control, focus visibility, landmarks, focus retention across a language switch, overflow at maximum text size. |
 | **i18n** | 12 | Autosave and reload round-trip, language independence, both site languages surviving a reload. |
-| **export** | 91 | Builds a real ZIP, re-reads it with an **independent** reader (Node's `zlib`, not our writer), then serves the extracted tree over HTTP, renders it, and clicks the theme toggle the generated site ships, and reads its console — twice, once with the system pinned to light and once to dark. |
+| **export** | 93 | Builds a real ZIP, re-reads it with an **independent** reader (Node's `zlib`, not our writer), then serves the extracted tree over HTTP, renders it, and clicks the theme toggle the generated site ships, and reads its console — twice, once with the system pinned to light and once to dark. |
 | **single-file** | 11 | Builds `dist/generator.html`, then **opens it over `file://`** — no server, no Node — and checks it produces the identical file tree, template by template, that the modules do. |
 | **original** | 7 | Loads the archived legacy generator over a real origin and reads the self-check it already runs at start-up. Silence counts as a failure: the suite requires the positive report, so a generator that never checks itself cannot pass. |
 | **server** | 14 | Malformed URL is a 400 **and the process survives it**, reads stay under `src/`, and the CSP carries the live SHA-256 of the scripts it hashes at start-up. |
@@ -315,7 +315,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **379 checks passing across 8 suites** and
+`npm run verify` currently reports **381 checks passing across 8 suites** and
 exits 0:
 
 ```
@@ -355,7 +355,7 @@ MURTHER FABRIQUE — website generator/
    ├─ browser.mjs         96 end-to-end editor checks
    ├─ a11y.mjs            32 accessibility checks
    ├─ i18n.mjs            12 language and persistence checks
-   ├─ export.mjs          91 export checks (real ZIP, real HTTP, real render)
+   ├─ export.mjs          93 export checks (real ZIP, real HTTP, real render)
    ├─ single.mjs          11 single-file checks (real file:// load)
    ├─ original.mjs        7 original checks (reads the legacy self-check)
    ├─ server.mjs          14 server checks (traversal, 400 survival, live CSP hashes)
