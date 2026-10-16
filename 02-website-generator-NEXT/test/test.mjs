@@ -256,14 +256,27 @@ test("the light tokens sit inside a :root rule", () => {
 });
 
 test("every computed token survives into the dark block", () => {
-  for (const key of Object.keys(PALETTES)) {
-    const css = siteCss({ palette: key, colors: {} });
-    const dark = css.match(/\[data-theme="dark"\]\{([^}]*)\}/)[1];
-    for (const token of ["muted", "accent-on", "alt-on"]) {
-      const v = new RegExp(`--${token}:\\s*(#[0-9a-f]{6})`, "i").exec(dark);
-      assert.ok(v, `${key}: --${token} is missing from the dark block`);
-    }
-  }
+for (const key of Object.keys(PALETTES)) {
+const css = siteCss({ palette: key, colors: {} });
+const dark = css.match(/\[data-theme="dark"\]\{([^}]*)\}/)[1];
+for (const token of ["muted", "accent-on", "alt-on"]) {
+const v = new RegExp(`--${token}:\\s*(#[0-9a-f]{6})`, "i").exec(dark);
+assert.ok(v, `${key}: --${token} is missing from the dark block`);
+}
+}
+});
+
+test("the FAQ keeps an affordance on a summary that stopped being a list item", () => {
+  // .faq summary is display:flex, which takes it off display:list-item and so
+  // removes the native disclosure triangle. ::marker cannot bring it back --
+  // it only applies to list-item -- so the only thing left telling a visitor
+  // that a question expands is this generated content, and an open row needs
+  // its own glyph.
+  const css = siteCss({ palette: "ink", colors: {} });
+  assert.match(css, /\.faq summary::after\{content:"\+"/,
+    "a collapsed FAQ question must show it can be opened");
+  assert.match(css, /\.faq details\[open\]>summary::after\{content:"\\2212"\}/,
+    "an open FAQ question must change glyph, or the state is invisible");
 });
 
 test("the ink on the derived dark background is lighter, not darker", () => {

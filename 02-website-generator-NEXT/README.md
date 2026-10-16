@@ -315,7 +315,7 @@ tree any backend can serve.
 
 ## Verified
 
-`npm run verify` currently reports **383 checks passing across 8 suites** and
+`npm run verify` currently reports **384 checks passing across 8 suites** and
 exits 0:
 
 ```
@@ -351,7 +351,7 @@ MURTHER FABRIQUE — website generator/
 ├─ desktop/               the Win32 + WebView2 launcher and its build script
 ├─ dist/                  generated: generator.html
 └─ test/
-├─ test.mjs          118 core checks (node --test)
+├─ test.mjs          119 core checks (node --test)
    ├─ browser.mjs         96 end-to-end editor checks
    ├─ a11y.mjs            32 accessibility checks
    ├─ i18n.mjs            12 language and persistence checks

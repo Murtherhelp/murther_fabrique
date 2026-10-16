@@ -478,7 +478,12 @@ font:inherit;font-weight:600;cursor:pointer;min-height:44px}
 .stat span{color:var(--muted);font-size:var(--step--1)}
 .faq details{border-bottom:1px solid var(--border);padding:.85rem 0}
 .faq summary{cursor:pointer;font-weight:600;min-height:24px;display:flex;align-items:center}
-.faq summary::marker{color:var(--accent)}
+/* display:flex took summary off display:list-item, which killed the native
+   disclosure triangle -- and ::marker, which only applies to list-item, never
+   fired. The questions looked like plain text with a pointer cursor and nothing
+   to click. The affordance has to be drawn explicitly now. */
+.faq summary::after{content:"+";margin-left:auto;color:var(--accent);font-size:1.25rem;line-height:1;font-weight:400}
+.faq details[open]>summary::after{content:"\\2212"}
 .gallery{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr))}
 .gallery figure{margin:0}
 .gallery img{border-radius:var(--radius);border:1px solid var(--border);aspect-ratio:4/3;object-fit:cover;width:100%}
@@ -499,6 +504,10 @@ ${COMPONENT_CSS}
 ${EFFECT_CSS}
 ${MOTION_CSS(theme.motion)}
 form.stack{display:grid;gap:.9rem;max-width:38rem}
+/* Grid items stretch to the column by default, which stretched the submit
+   button across all 38rem while every other .btn in the product sits at its
+   content width. The fields stay full width; only the button is pinned. */
+form.stack>.btn{justify-self:start}
 form.stack label{display:grid;gap:.3rem;font-size:var(--step--1);font-weight:600}
 input,textarea,select{font:inherit;font-size:var(--step-0);color:var(--ink);background:var(--bg);
 border:1px solid var(--border);border-radius:var(--radius);padding:.55rem .7rem;width:100%;min-height:44px}
